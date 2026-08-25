@@ -1,4 +1,4 @@
-body { font-family: 'Inter', sans-serif; }
+body { font-family: 'Inter', sans-serif; overflow-x: hidden; width: 100%; position: relative; margin: 0; }
 .hidden-screen { display: none !important; }
 .clickable { cursor: pointer; transition: all 0.2s ease; }
 .clickable:hover { opacity: 0.7; transform: translateY(-1px); }
@@ -21,9 +21,15 @@ body { font-family: 'Inter', sans-serif; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+/* MOBILE RESPONSIVE UTILITIES */
+@media (max-width: 640px) {
+    .modal-animate { margin: 1rem; max-width: calc(100% - 2rem) !important; }
+    #slide-panel { width: 100% !important; max-width: 100% !important; }
+}
+
 /* PRINT STYLES */
 @media print {
-    body { background-color: white !important; }
+    body { background-color: white !important; overflow: visible !important; }
     .no-print, header, button, select, #toast-container, .hidden-screen { display: none !important; }
     #student-dashboard { display: block !important; padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
     .bg-white { border: 1px solid #e2e8f0; box-shadow: none !important; }

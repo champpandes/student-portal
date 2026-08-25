@@ -31,6 +31,18 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+// --- ACTIVITY TIMESTAMP & AUDIT LOG HELPER ---
+function updateLastSavedTimestamp() {
+    const badge = document.getElementById('last-saved-badge');
+    const text = document.getElementById('last-saved-text');
+    if (!badge || !text) return;
+
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    text.innerText = `Last synced: ${timeString}`;
+    badge.classList.remove('hidden');
+}
+
 // --- ANNOUNCEMENT LOGIC ---
 async function loadAnnouncement() {
     try {
@@ -226,10 +238,12 @@ document.getElementById('admin-subject-filter').addEventListener('change', async
 
 async function loadAdminDashboard() {
     const tbody = document.getElementById('admin-table-body');
+    const mobileList = document.getElementById('admin-mobile-card-list');
     const syncIndicator = document.getElementById('sync-indicator');
     
     if (availableSubjects.length === 0) {
         tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="9">Please add a subject to start managing students.</td></tr>`;
+        mobileList.innerHTML = `<div class="p-8 text-center text-slate-400 font-bold bg-white rounded-2xl border border-slate-100">Please add a subject to start managing students.</div>`;
         return;
     }
 
@@ -241,6 +255,7 @@ async function loadAdminDashboard() {
             currentAdminData = JSON.parse(cachedData);
             populateSectionFilter(); 
             renderAdminTable(currentAdminData);
+            renderAdminMobileCards(currentAdminData);
             if(syncIndicator) { syncIndicator.classList.remove('hidden'); syncIndicator.classList.add('flex'); }
         } catch(e) { console.error("Cache read error."); }
     } else {
@@ -258,6 +273,7 @@ async function loadAdminDashboard() {
             </tr>
         `;
         tbody.innerHTML = skeletonRow.repeat(6);
+        mobileList.innerHTML = `<div class="p-8 text-center text-slate-400 font-bold bg-white rounded-2xl animate-pulse">Loading students...</div>`;
     }
     
     try {
@@ -267,10 +283,12 @@ async function loadAdminDashboard() {
             currentAdminData = res; 
             populateSectionFilter(); 
             applyAdminFilters(); 
+            updateLastSavedTimestamp();
         }
     } catch (error) {
         if (!cachedData) {
             tbody.innerHTML = `<tr><td class="p-8 text-center text-rose-500 font-bold" colspan="9">Network Error. Could not load data.</td></tr>`;
+            mobileList.innerHTML = `<div class="p-8 text-center text-rose-500 font-bold bg-white rounded-2xl">Network Error. Could not load data.</div>`;
         } else {
             showToast("Offline: Showing cached data.", "error");
         }
@@ -287,7 +305,6 @@ function renderAdminTable(dataToRender) {
     dataToRender.forEach((student) => {
         const tr = document.createElement('tr'); tr.className = "hover:bg-indigo-50/30 transition-colors group";
         
-        // --- ENHANCED TONAL BADGES WITH ICONS ---
         const remarksUI = student.remarks === 'Passed' 
             ? '<span class="badge-passed px-2.5 py-1 rounded-md text-[11px] font-bold"><svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> PASSED</span>' 
             : (student.remarks === 'Failed' 
@@ -314,6 +331,82 @@ function renderAdminTable(dataToRender) {
     });
 }
 
+function renderAdminMobileCards(dataToRender) {
+    const mobileList = document.getElementById('admin-mobile-card-list');
+    mobileList.innerHTML = "";
+    if (dataToRender.length === 0) { mobileList.innerHTML = `<div class="p-6 text-center text-slate-400 font-bold bg-white rounded-2xl border border-slate-100">No students found.</div>`; return; }
+
+    dataToRender.forEach((student, index) => {
+        const remarksUI = student.remarks === 'Passed' 
+            ? '<span class="badge-passed px-2.5 py-1 rounded-md text-[11px] font-bold"><svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> PASSED</span>' 
+            : (student.remarks === 'Failed' 
+                ? '<span class="badge-failed px-2.5 py-1 rounded-md text-[11px] font-bold"><svg class="w-3.5 h-3.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> FAILED</span>' 
+                : '<span class="text-slate-400 font-semibold">-</span>');
+
+        const card = document.createElement('div');
+        card.className = "bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 transition-all";
+        card.innerHTML = `
+            <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleMobileCard(${index})">
+                <div class="overflow-hidden pr-2">
+                    <div class="text-xs font-bold text-slate-400">ID: ${student.studentNumber}</div>
+                    <div class="text-base font-bold text-slate-800 truncate">${student.name}</div>
+                    <div class="text-[11px] font-semibold text-indigo-500 mt-0.5">${student.section} &bull; ${student.subject}</div>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                    <div class="text-right">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Final</div>
+                        <div class="text-lg font-black text-indigo-600">${student.final || '-'}</div>
+                    </div>
+                    <div id="mobile-arrow-${index}" class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-transform duration-200">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLLAPSIBLE DROPDOWN DRAWER -->
+            <div id="mobile-drawer-${index}" class="hidden pt-4 mt-4 border-t border-slate-100">
+                <div class="grid grid-cols-4 gap-2 mb-4 text-center">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase">1st Qtr</div>
+                        <div class="text-sm font-black text-slate-700 mt-0.5">${student.q1 || '-'}</div>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '2nd')">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase">2nd Qtr</div>
+                        <div class="text-sm font-black text-slate-700 mt-0.5">${student.q2 || '-'}</div>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '3rd')">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase">3rd Qtr</div>
+                        <div class="text-sm font-black text-slate-700 mt-0.5">${student.q3 || '-'}</div>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '4th')">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase">4th Qtr</div>
+                        <div class="text-sm font-black text-slate-700 mt-0.5">${student.q4 || '-'}</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between pt-2">
+                    <div>${remarksUI}</div>
+                    <button onclick="openSlidePanel('${student.studentNumber}', '${student.subject}')" class="text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100 shadow-sm">Manage Grades</button>
+                </div>
+            </div>
+        `;
+        mobileList.appendChild(card);
+    });
+}
+
+function toggleMobileCard(index) {
+    const drawer = document.getElementById(`mobile-drawer-${index}`);
+    const arrow = document.getElementById(`mobile-arrow-${index}`);
+    if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+        arrow.classList.add('bg-indigo-50', 'text-indigo-600');
+    } else {
+        drawer.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+        arrow.classList.remove('bg-indigo-50', 'text-indigo-600');
+    }
+}
+
 document.getElementById('admin-search').addEventListener('input', applyAdminFilters);
 document.getElementById('section-filter').addEventListener('change', applyAdminFilters);
 
@@ -322,6 +415,7 @@ function applyAdminFilters() {
     const sec = document.getElementById('section-filter').value;
     const filtered = currentAdminData.filter(s => (s.name.toLowerCase().includes(search) || s.studentNumber.toString().includes(search)) && (sec === "All" || s.section === sec));
     renderAdminTable(filtered);
+    renderAdminMobileCards(filtered);
 }
 
 function populateSectionFilter() {
@@ -415,21 +509,20 @@ function changeStudentSubject(subject) {
 function renderStudentDashboard(subject) {
     const g = currentStudentData.subjects[subject].grades;
     
-    // --- ENHANCED TONAL BADGES WITH ICONS FOR STUDENTS ---
     const getRemarksUI = (rem) => rem === 'Passed' 
-        ? '<span class="badge-passed px-3.5 py-1.5 rounded-full text-sm font-bold shadow-sm"><svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> PASSED</span>' 
+        ? '<span class="badge-passed px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm"><svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> PASSED</span>' 
         : (rem === 'Failed' 
-            ? '<span class="badge-failed px-3.5 py-1.5 rounded-full text-sm font-bold shadow-sm"><svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> FAILED</span>' 
+            ? '<span class="badge-failed px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm"><svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> FAILED</span>' 
             : '<span class="text-slate-400 font-semibold">-</span>');
 
     document.getElementById('student-main-grades').innerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
-            <div onclick="openBreakdown('1st', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1st Quarter</span><span class="text-3xl font-black text-slate-800">${g.q1 || '-'}</span></div>
-            <div onclick="openBreakdown('2nd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2nd Quarter</span><span class="text-3xl font-black text-slate-800">${g.q2 || '-'}</span></div>
-            <div onclick="openBreakdown('3rd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">3rd Quarter</span><span class="text-3xl font-black text-slate-800">${g.q3 || '-'}</span></div>
-            <div onclick="openBreakdown('4th', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">4th Quarter</span><span class="text-3xl font-black text-slate-800">${g.q4 || '-'}</span></div>
-            <div class="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-5 shadow-md flex flex-col items-center justify-center text-white"><span class="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-2">Final Grade</span><span class="text-4xl font-black">${g.final || '-'}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Status</span>${getRemarksUI(g.remarks)}</div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-6">
+            <div onclick="openBreakdown('1st', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">1st Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q1 || '-'}</span></div>
+            <div onclick="openBreakdown('2nd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">2nd Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q2 || '-'}</span></div>
+            <div onclick="openBreakdown('3rd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">3rd Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q3 || '-'}</span></div>
+            <div onclick="openBreakdown('4th', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">4th Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q4 || '-'}</span></div>
+            <div class="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col items-center justify-center text-white"><span class="text-[10px] sm:text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1 sm:mb-2">Final Grade</span><span class="text-3xl sm:text-4xl font-black">${g.final || '-'}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 sm:mb-3">Status</span>${getRemarksUI(g.remarks)}</div>
         </div>
     `;
 }
@@ -451,15 +544,15 @@ function openBreakdown(quarter, subject) {
     if (!breakdown) { document.getElementById('breakdown-content').innerHTML = `<div class="p-8 text-slate-400 text-center font-medium">Breakdown not available yet.</div>`; showScreen('breakdown'); return; }
 
     let html = `
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="breakdown-grid-row">
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Quizzes</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Participation</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Attendance</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Exams</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span></div>
-            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex flex-col items-center justify-center"><span class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">Total</span><span class="text-3xl font-black text-indigo-700" id="bd-total">${breakdown.total}</span></div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4" id="breakdown-grid-row">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Quizzes</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Participation</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Attendance</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Exams</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span></div>
+            <div class="col-span-2 sm:col-span-1 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center"><span class="text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 sm:mb-2">Total</span><span class="text-2xl sm:text-3xl font-black text-indigo-700" id="bd-total">${breakdown.total}</span></div>
         </div>
     `;
-    if (adminPin !== "") html += `<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end no-print"><button onclick="toggleBreakdownEdit(this, '${quarter}', '${subject}')" class="bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors">Edit Breakdown</button></div>`;
+    if (adminPin !== "") html += `<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end no-print"><button onclick="toggleBreakdownEdit(this, '${quarter}', '${subject}')" class="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm">Edit Breakdown</button></div>`;
     document.getElementById('breakdown-content').innerHTML = html; showScreen('breakdown');
 }
 
@@ -468,9 +561,9 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
     if (!btn.innerText.includes("Save")) {
         ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => {
             const t = gridRow.querySelector(`div[data-field="${f}"] .value-text`);
-            t.innerHTML = `<input type="number" class="w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none" value="${t.innerText === '-' ? '' : t.innerText}">`;
+            t.innerHTML = `<input type="number" class="w-16 sm:w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none text-base" value="${t.innerText === '-' ? '' : t.innerText}">`;
         });
-        btn.innerText = "Save Changes"; btn.className = "bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-semibold transition-colors";
+        btn.innerText = "Save Changes"; btn.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-semibold transition-colors text-sm";
     } else {
         btn.innerText = "Saving..."; btn.disabled = true;
         const bd = {}; ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => bd[f] = Number(gridRow.querySelector(`div[data-field="${f}"] .value-text input`).value || 0));
@@ -478,14 +571,56 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
         if (res.success) {
             document.getElementById('bd-total').innerText = res.newTotal;
             ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => gridRow.querySelector(`div[data-field="${f}"] .value-text`).innerHTML = bd[f]);
-            btn.innerText = "Edit Breakdown"; btn.className = "bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 font-semibold transition-colors"; btn.disabled = false;
+            btn.innerText = "Edit Breakdown"; btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 font-semibold transition-colors text-sm"; btn.disabled = false;
             showToast("Breakdown successfully updated.");
+            updateLastSavedTimestamp();
             await loadAdminDashboard();
         } else { showToast("Failed to save changes.", "error"); btn.innerText = "Save Changes"; btn.disabled = false; }
     }
 }
 
 document.getElementById('back-to-dashboard-btn').addEventListener('click', () => adminPin !== "" ? showScreen('admin') : showScreen('student'));
+
+// ==========================================
+// EXPORT CSV BACKUP
+// ==========================================
+function exportTableToCSV(filename) {
+    if (!currentAdminData || currentAdminData.length === 0) {
+        showToast("No data available to export.", "error");
+        return;
+    }
+
+    let csv = [];
+    csv.push(["Student Number", "Full Name", "Section", "Subject", "1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter", "Final Grade", "Remarks"].join(","));
+
+    currentAdminData.forEach(student => {
+        let row = [
+            `"${student.studentNumber || ''}"`,
+            `"${(student.name || '').replace(/"/g, '""')}"`,
+            `"${(student.section || '').replace(/"/g, '""')}"`,
+            `"${(student.subject || '').replace(/"/g, '""')}"`,
+            student.q1 || '',
+            student.q2 || '',
+            student.q3 || '',
+            student.q4 || '',
+            student.final || '',
+            `"${student.remarks || ''}"`
+        ];
+        csv.push(row.join(","));
+    });
+
+    const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+    const downloadLink = document.createElement("a");
+    downloadLink.download = filename;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = "none";
+    
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+
+    showToast("Backup exported successfully!");
+}
 
 // ==========================================
 // SLIDE PANEL (CRUD)
@@ -528,6 +663,7 @@ async function savePanelInfo() {
         document.getElementById('panel-old-student-id').value = newId; document.getElementById('panel-old-student-subject').value = newSubject;
         document.getElementById('panel-subject-label').innerText = newSubject; btn.innerText = "Saved"; 
         showToast("Profile successfully updated.");
+        updateLastSavedTimestamp();
     } else { showToast(res.message, "error"); }
     setTimeout(() => { btn.innerText = "Update Profile & Subject"; btn.disabled = false; }, 1500);
 }
@@ -539,6 +675,7 @@ async function savePanelGrades() {
     if (res.success) { 
         await loadAdminDashboard(); btn.innerText = "Saved"; 
         showToast("Grades explicitly saved.", "success");
+        updateLastSavedTimestamp();
     } else { showToast(res.message, "error"); }
     setTimeout(() => { btn.innerText = "Save Grades"; btn.disabled = false; }, 1500);
 }
@@ -548,6 +685,7 @@ async function deleteStudentFromPanel() {
         const res = await apiCall({ action: "deleteStudent", pin: adminPin, studentNumber: activeManageStudentId }); 
         if (res.success) { 
             showToast("Student deleted permanently.");
+            updateLastSavedTimestamp();
             await loadAdminDashboard(); closeSlidePanel(); 
         } else { showToast(res.message, "error"); } 
     } 
@@ -565,6 +703,7 @@ async function saveNewStudent() {
     if(res.success) { 
         showToast(`Student ${name} successfully enrolled.`);
         closeAddStudentModal(); await loadAdminDashboard(); 
+        updateLastSavedTimestamp();
         document.getElementById('new-student-id').value = '';
         document.getElementById('new-student-name').value = '';
     } else {
@@ -793,6 +932,7 @@ async function confirmDataTransfer() {
         status.classList.remove('hidden'); cancelBtn.innerText = "Close"; cancelBtn.disabled = false;
         
         showToast(`Successfully processed ${successCount} entries!`);
+        updateLastSavedTimestamp();
         await loadAdminDashboard(); 
 
     } catch (error) {
