@@ -1,0 +1,828 @@
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwjoi5ItKz5p17T2G-aiA1df52_Vsucl9HuLONQoyXvxOVEUQ2iQYWxzNDrKpl4WwVh/exec";
+
+let availableSubjects = []; 
+let currentAdminData = [];
+let currentStudentData = null;
+let adminPin = "";
+let pendingImportData = [];
+let activeManageStudentId = null;
+let activeAdminSubject = "All"; 
+let activeManageSubject = "";
+let activeStudentSubject = "";
+
+const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
+
+// --- TOAST NOTIFICATION SYSTEM ---
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    const bg = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : 'bg-slate-800');
+    const icon = type === 'success' ? '✅' : (type === 'error' ? '⚠️' : 'ℹ️');
+    
+    toast.className = `${bg} text-white px-5 py-3.5 rounded-2xl shadow-lg transform transition-all duration-300 translate-y-10 opacity-0 flex items-center gap-3 text-sm font-bold w-max max-w-sm border border-white/10`;
+    toast.innerHTML = `<span class="text-lg">${icon}</span> <span>${message}</span>`;
+    
+    container.appendChild(toast);
+    
+    requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// --- ANNOUNCEMENT LOGIC ---
+async function loadAnnouncement() {
+    try {
+        const res = await apiCall({ action: "getAnnouncement" });
+        if (res.success && res.message) {
+            const aInput = document.getElementById('admin-announcement-input');
+            if (aInput) aInput.value = res.message;
+            
+            const sBanner = document.getElementById('student-announcement-banner');
+            const sText = document.getElementById('student-announcement-text');
+            if (sBanner && sText) {
+                sText.innerText = res.message;
+                sBanner.classList.remove('hidden');
+            }
+        } else {
+            const sBanner = document.getElementById('student-announcement-banner');
+            if (sBanner) sBanner.classList.add('hidden');
+        }
+    } catch (e) { console.error("Could not fetch announcements"); }
+}
+
+async function broadcastAnnouncement(btn) {
+    const input = document.getElementById('admin-announcement-input');
+    const msg = input.value.trim();
+    
+    btn.innerText = "Sending..."; btn.disabled = true;
+
+    const res = await apiCall({ action: "saveAnnouncement", pin: adminPin, message: msg });
+    if (res.success) showToast("Announcement broadcasted to all students!");
+    else showToast("Failed to broadcast.", "error");
+    
+    btn.innerText = "Broadcast"; btn.disabled = false;
+}
+
+window.onload = async () => { await fetchSubjects(); };
+
+async function fetchSubjects() {
+    try {
+        const res = await apiCall({ action: "getSubjects" });
+        if (res.success) {
+            availableSubjects = res.subjects || [];
+            populateSubjectUIs();
+        }
+    } catch (err) { 
+        console.error("Could not fetch subjects."); 
+        document.getElementById('admin-subject-filter').innerHTML = `<option>Error Connecting</option>`;
+    }
+}
+
+function populateSubjectUIs() {
+    const adminFilter = document.getElementById('admin-subject-filter');
+    const importSubject = document.getElementById('import-subject');
+    const addCheckboxes = document.getElementById('add-subject-checkboxes');
+    const regCheckboxes = document.getElementById('reg-subject-checkboxes');
+
+    if (availableSubjects.length === 0) {
+        if(adminFilter) adminFilter.innerHTML = `<option value="All">No Subjects Added Yet</option>`;
+        if(importSubject) importSubject.innerHTML = `<option>No Subjects Available</option>`;
+        if(addCheckboxes) addCheckboxes.innerHTML = `<span class="text-sm font-bold text-rose-500">Please add a subject in 'Manage Subjects' first.</span>`;
+        if(regCheckboxes) regCheckboxes.innerHTML = `<span class="text-sm font-bold text-rose-500">No classes available for enrollment.</span>`;
+        return;
+    }
+
+    const optionsHTML = availableSubjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    const checkboxesHTML = availableSubjects.map(s => `<label class="font-medium text-sm text-slate-600 flex items-center cursor-pointer"><input type="checkbox" value="${s}" class="mr-1.5 accent-indigo-600 w-4 h-4" checked> ${s}</label>`).join('');
+
+    if(adminFilter) {
+        adminFilter.innerHTML = `<option value="All">All Subjects</option>` + optionsHTML;
+        adminFilter.value = activeAdminSubject;
+    }
+    if(importSubject) importSubject.innerHTML = optionsHTML;
+    if(addCheckboxes) addCheckboxes.innerHTML = checkboxesHTML;
+    if(regCheckboxes) regCheckboxes.innerHTML = checkboxesHTML;
+}
+
+function showScreen(screenName) {
+    Object.values(screens).forEach(screen => screen.classList.add('hidden-screen'));
+    screens[screenName].classList.remove('hidden-screen');
+}
+
+document.getElementById('login-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('login-btn');
+    const inputVal = document.getElementById('login-input').value.trim();
+    if (!inputVal) return;
+
+    btn.innerText = "Authenticating..."; btn.disabled = true;
+    document.getElementById('login-error').classList.add('hidden-screen');
+
+    try {
+        if (inputVal.length <= 6 && !isNaN(inputVal) && !inputVal.includes("-")) {
+            const res = await apiCall({ action: "adminLogin", pin: inputVal });
+            if (res.success) {
+                adminPin = inputVal;
+                showToast(`Welcome back!`);
+                loadAnnouncement();
+                await loadAdminDashboard();
+                showScreen('admin');
+            } else { throw new Error("Invalid Teacher PIN."); }
+        } else {
+            const res = await apiCall({ action: "getStudent", studentNumber: inputVal });
+            if (res && res.subjects && Object.keys(res.subjects).length > 0) {
+                currentStudentData = res;
+                
+                document.getElementById('student-info-header').innerText = `ID: ${res.studentNumber} • ${res.name}`;
+                document.getElementById('print-student-name').innerText = `Academic Report: ${res.name}`;
+                
+                initializeStudentDropdowns(Object.keys(res.subjects));
+                
+                showToast(`Logged in as ${res.name}`);
+                loadAnnouncement();
+                showScreen('student');
+            } else { throw new Error("Student not found or has no enrolled subjects."); }
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+    btn.innerText = "Log In"; btn.disabled = false;
+});
+
+document.querySelectorAll('.logout-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.getElementById('login-input').value = ""; 
+    adminPin = ""; 
+    currentStudentData = null; 
+    localStorage.clear();
+    showScreen('login');
+}));
+
+function openManageSubjectsModal() { document.getElementById('manage-subjects-modal').classList.remove('hidden-screen'); renderSubjectsListUI(); }
+function closeManageSubjectsModal() { document.getElementById('manage-subjects-modal').classList.add('hidden-screen'); }
+
+function renderSubjectsListUI() {
+    const listUI = document.getElementById('subjects-list-ui');
+    if (availableSubjects.length === 0) { listUI.innerHTML = `<li class="p-4 text-center text-slate-400 text-sm font-medium">No subjects found.</li>`; return; }
+    listUI.innerHTML = availableSubjects.map(s => `
+        <li class="p-4 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors">
+            <span class="font-bold text-slate-700 text-sm">${s}</span>
+            <div class="flex gap-2">
+                <button onclick="handleEditSubject('${s}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors">Rename</button>
+                <button onclick="handleDeleteSubject('${s}')" class="text-rose-600 hover:text-rose-800 text-xs font-bold px-3 py-1.5 bg-rose-50 rounded-lg transition-colors">Delete</button>
+            </div>
+        </li>
+    `).join('');
+}
+
+async function handleAddSubject() {
+    const input = document.getElementById('new-subject-input'); const val = input.value.trim();
+    if (!val) return;
+    const btn = event.target; btn.innerText = "...";
+    const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "add", subjectName: val });
+    if (res.success) { 
+        input.value = ""; 
+        showToast(`Subject '${val}' added successfully!`);
+        await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
+    } else {
+        showToast(res.message || "Failed to add subject", 'error');
+    }
+    btn.innerText = "Add";
+}
+
+async function handleEditSubject(oldName) {
+    const newName = prompt(`Rename subject '${oldName}' to:`);
+    if (!newName || newName.trim() === "" || newName === oldName) return;
+    document.getElementById('subjects-list-ui').innerHTML = `<li class="p-4 text-center text-indigo-500 text-sm font-bold">Updating database...</li>`;
+    const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "update", oldName: oldName, newName: newName.trim() });
+    if (res.success) { 
+        if(activeAdminSubject === oldName) activeAdminSubject = newName.trim(); 
+        showToast(`Subject renamed to '${newName.trim()}'`);
+        await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
+    } else { 
+        showToast("Failed to rename subject.", "error"); 
+        renderSubjectsListUI(); 
+    }
+}
+
+async function handleDeleteSubject(name) {
+    if(!confirm(`WARNING: Deleting '${name}' will also delete ALL grades for this subject across the entire database. This cannot be undone.\n\nProceed?`)) return;
+    document.getElementById('subjects-list-ui').innerHTML = `<li class="p-4 text-center text-rose-500 text-sm font-bold">Deleting...</li>`;
+    const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "delete", subjectName: name });
+    if (res.success) { 
+        if(activeAdminSubject === name) activeAdminSubject = "All"; 
+        showToast(`Subject '${name}' deleted forever.`, 'success');
+        await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
+    } else { 
+        showToast("Failed to delete subject.", "error"); 
+        renderSubjectsListUI(); 
+    }
+}
+
+document.getElementById('admin-subject-filter').addEventListener('change', async (e) => {
+    activeAdminSubject = e.target.value;
+    await loadAdminDashboard();
+});
+
+async function loadAdminDashboard() {
+    const tbody = document.getElementById('admin-table-body');
+    const syncIndicator = document.getElementById('sync-indicator');
+    
+    if (availableSubjects.length === 0) {
+        tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="9">Please add a subject to start managing students.</td></tr>`;
+        return;
+    }
+
+    const cacheKey = `adminData_${adminPin}_${activeAdminSubject}`;
+    const cachedData = localStorage.getItem(cacheKey);
+
+    if (cachedData) {
+        try {
+            currentAdminData = JSON.parse(cachedData);
+            populateSectionFilter(); 
+            renderAdminTable(currentAdminData);
+            if(syncIndicator) { syncIndicator.classList.remove('hidden'); syncIndicator.classList.add('flex'); }
+        } catch(e) { console.error("Cache read error."); }
+    } else {
+        const skeletonRow = `
+            <tr class="animate-pulse border-b border-slate-100">
+                <td class="p-4"><div class="h-4 bg-slate-200 rounded w-20"></div></td>
+                <td class="p-4"><div class="h-4 bg-slate-200 rounded w-32 mb-1"></div><div class="h-3 bg-slate-100 rounded w-24"></div></td>
+                <td class="p-4"><div class="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
+                <td class="p-4"><div class="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
+                <td class="p-4"><div class="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
+                <td class="p-4"><div class="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
+                <td class="p-4"><div class="h-5 bg-slate-300 rounded w-10 mx-auto"></div></td>
+                <td class="p-4"><div class="h-5 bg-slate-200 rounded-full w-16 mx-auto"></div></td>
+                <td class="p-4"><div class="h-8 bg-slate-200 rounded-lg w-20 mx-auto"></div></td>
+            </tr>
+        `;
+        tbody.innerHTML = skeletonRow.repeat(6);
+    }
+    
+    try {
+        const res = await apiCall({ action: "getAllGrades", pin: adminPin, subject: activeAdminSubject });
+        if (res && Array.isArray(res)) {
+            localStorage.setItem(cacheKey, JSON.stringify(res)); 
+            currentAdminData = res; 
+            populateSectionFilter(); 
+            applyAdminFilters(); 
+        }
+    } catch (error) {
+        if (!cachedData) {
+            tbody.innerHTML = `<tr><td class="p-8 text-center text-rose-500 font-bold" colspan="9">Network Error. Could not load data.</td></tr>`;
+        } else {
+            showToast("Offline: Showing cached data.", "error");
+        }
+    } finally {
+        if(syncIndicator) { syncIndicator.classList.add('hidden'); syncIndicator.classList.remove('flex'); }
+    }
+}
+
+function renderAdminTable(dataToRender) {
+    const tbody = document.getElementById('admin-table-body');
+    tbody.innerHTML = "";
+    if (dataToRender.length === 0) { tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="9">No students found for this subject.</td></tr>`; return; }
+
+    dataToRender.forEach((student) => {
+        const tr = document.createElement('tr'); tr.className = "hover:bg-indigo-50/30 transition-colors group";
+        
+        // --- ENHANCED TONAL BADGES WITH ICONS ---
+        const remarksUI = student.remarks === 'Passed' 
+            ? '<span class="badge-passed px-2.5 py-1 rounded-md text-[11px] font-bold"><svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> PASSED</span>' 
+            : (student.remarks === 'Failed' 
+                ? '<span class="badge-failed px-2.5 py-1 rounded-md text-[11px] font-bold"><svg class="w-3.5 h-3.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> FAILED</span>' 
+                : '<span class="text-slate-400">-</span>');
+
+        tr.innerHTML = `
+            <td class="p-4 font-semibold text-slate-600">${student.studentNumber}</td>
+            <td class="p-4">
+                <div class="font-bold text-slate-800">${student.name}</div>
+                <div class="text-[11px] font-bold text-slate-400 mt-0.5">${student.section} &bull; <span class="text-indigo-500">${student.subject}</span></div>
+            </td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">${student.q1 || '-'}</td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '2nd')">${student.q2 || '-'}</td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '3rd')">${student.q3 || '-'}</td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '4th')">${student.q4 || '-'}</td>
+            <td class="p-4 text-center font-black">${student.final || '-'}</td>
+            <td class="p-4">${remarksUI}</td>
+            <td class="p-4 text-center">
+                <button onclick="openSlidePanel('${student.studentNumber}', '${student.subject}')" class="text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100">Manage</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+document.getElementById('admin-search').addEventListener('input', applyAdminFilters);
+document.getElementById('section-filter').addEventListener('change', applyAdminFilters);
+
+function applyAdminFilters() {
+    const search = document.getElementById('admin-search').value.toLowerCase();
+    const sec = document.getElementById('section-filter').value;
+    const filtered = currentAdminData.filter(s => (s.name.toLowerCase().includes(search) || s.studentNumber.toString().includes(search)) && (sec === "All" || s.section === sec));
+    renderAdminTable(filtered);
+}
+
+function populateSectionFilter() {
+    document.getElementById('section-filter').innerHTML = `<option value="All">All Sections</option>` + [...new Set(currentAdminData.map(s => s.section))].map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+let sortDirectionNo = 1; let sortDirectionName = 1;
+function sortByStudentNo() {
+    sortDirectionNo *= -1; 
+    currentAdminData.sort((a, b) => {
+        const noA = String(a.studentNumber).toLowerCase(); const noB = String(b.studentNumber).toLowerCase();
+        if (noA < noB) return -1 * sortDirectionNo; if (noA > noB) return 1 * sortDirectionNo; return 0;
+    });
+    document.getElementById('student-no-sort-icon').innerHTML = sortDirectionNo === 1 ? '&#8593;' : '&#8595;';
+    document.getElementById('name-sort-icon').innerHTML = '&#8597;'; applyAdminFilters(); 
+}
+
+function sortByName() {
+    sortDirectionName *= -1;
+    currentAdminData.sort((a, b) => {
+        const nameA = String(a.name).toLowerCase(); const nameB = String(b.name).toLowerCase();
+        if (nameA < nameB) return -1 * sortDirectionName; if (nameA > nameB) return 1 * sortDirectionName; return 0;
+    });
+    document.getElementById('name-sort-icon').innerHTML = sortDirectionName === 1 ? '&#8593;' : '&#8595;';
+    document.getElementById('student-no-sort-icon').innerHTML = '&#8597;'; applyAdminFilters();
+}
+
+// ==========================================
+// STUDENT DASHBOARD
+// ==========================================
+
+function initializeStudentDropdowns(subjectsArr) {
+    const sySelect = document.getElementById('student-sy-selector');
+    const subjSelect = document.getElementById('student-subject-selector');
+    
+    let years = new Set();
+    let hasSYFormat = false;
+    
+    subjectsArr.forEach(s => {
+        const match = s.match(/\(SY.*?\)/i);
+        if (match) {
+            years.add(match[0]);
+            hasSYFormat = true;
+        } else {
+            years.add("General Subjects");
+        }
+    });
+
+    if (hasSYFormat) {
+        sySelect.classList.remove('hidden');
+        const sortedYears = Array.from(years).sort().reverse();
+        sySelect.innerHTML = sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
+        changeStudentSY(sortedYears[0]); 
+    } else {
+        sySelect.classList.add('hidden');
+        subjSelect.innerHTML = subjectsArr.map(s => `<option value="${s}">${s}</option>`).join('');
+        changeStudentSubject(subjectsArr[0]);
+    }
+}
+
+function changeStudentSY(selectedYear) {
+    const subjSelect = document.getElementById('student-subject-selector');
+    const allSubjects = Object.keys(currentStudentData.subjects);
+    let filteredSubjects = [];
+    
+    if (selectedYear === "General Subjects") {
+        filteredSubjects = allSubjects.filter(s => !s.match(/\(SY.*?\)/i));
+    } else {
+        filteredSubjects = allSubjects.filter(s => s.includes(selectedYear));
+    }
+
+    if(filteredSubjects.length === 0) {
+        subjSelect.innerHTML = `<option>No subjects found</option>`;
+        document.getElementById('student-main-grades').innerHTML = '';
+        return;
+    }
+
+    subjSelect.innerHTML = filteredSubjects.map(s => `<option value="${s}">${s.replace(` ${selectedYear}`, '').replace(`${selectedYear}`, '')}</option>`).join('');
+    changeStudentSubject(filteredSubjects[0]);
+}
+
+function changeStudentSubject(subject) { 
+    activeStudentSubject = subject; 
+    
+    const cleanLabel = subject.replace(/\(SY.*?\)/i, '').trim();
+    document.getElementById('print-subject-label').innerText = `Subject: ${cleanLabel}`;
+    
+    renderStudentDashboard(subject); 
+}
+
+function renderStudentDashboard(subject) {
+    const g = currentStudentData.subjects[subject].grades;
+    
+    // --- ENHANCED TONAL BADGES WITH ICONS FOR STUDENTS ---
+    const getRemarksUI = (rem) => rem === 'Passed' 
+        ? '<span class="badge-passed px-3.5 py-1.5 rounded-full text-sm font-bold shadow-sm"><svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> PASSED</span>' 
+        : (rem === 'Failed' 
+            ? '<span class="badge-failed px-3.5 py-1.5 rounded-full text-sm font-bold shadow-sm"><svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> FAILED</span>' 
+            : '<span class="text-slate-400 font-semibold">-</span>');
+
+    document.getElementById('student-main-grades').innerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
+            <div onclick="openBreakdown('1st', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1st Quarter</span><span class="text-3xl font-black text-slate-800">${g.q1 || '-'}</span></div>
+            <div onclick="openBreakdown('2nd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2nd Quarter</span><span class="text-3xl font-black text-slate-800">${g.q2 || '-'}</span></div>
+            <div onclick="openBreakdown('3rd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">3rd Quarter</span><span class="text-3xl font-black text-slate-800">${g.q3 || '-'}</span></div>
+            <div onclick="openBreakdown('4th', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">4th Quarter</span><span class="text-3xl font-black text-slate-800">${g.q4 || '-'}</span></div>
+            <div class="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-5 shadow-md flex flex-col items-center justify-center text-white"><span class="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-2">Final Grade</span><span class="text-4xl font-black">${g.final || '-'}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Status</span>${getRemarksUI(g.remarks)}</div>
+        </div>
+    `;
+}
+
+async function openAdminBreakdown(cell, studentNumber, subject, quarter) {
+    const originalText = cell.innerText;
+    cell.innerText = "...";
+    try {
+        const res = await apiCall({ action: "getStudent", studentNumber: studentNumber });
+        if (res && res.studentNumber) { currentStudentData = res; openBreakdown(quarter, subject); }
+    } catch (e) { showToast("Could not load breakdown.", "error"); } finally { cell.innerText = originalText; }
+}
+
+function openBreakdown(quarter, subject) {
+    const breakdown = currentStudentData.subjects[subject].breakdowns.find(b => b.quarter.toString().includes(quarter.replace(/\D/g, '')));
+    document.getElementById('breakdown-title').innerText = `${quarter} Quarter Details`;
+    document.getElementById('breakdown-subject-label').innerText = `${subject.replace(/\(SY.*?\)/i, '').trim()} Component View`;
+
+    if (!breakdown) { document.getElementById('breakdown-content').innerHTML = `<div class="p-8 text-slate-400 text-center font-medium">Breakdown not available yet.</div>`; showScreen('breakdown'); return; }
+
+    let html = `
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="breakdown-grid-row">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Quizzes</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Participation</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Attendance</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Exams</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span></div>
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex flex-col items-center justify-center"><span class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">Total</span><span class="text-3xl font-black text-indigo-700" id="bd-total">${breakdown.total}</span></div>
+        </div>
+    `;
+    if (adminPin !== "") html += `<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end no-print"><button onclick="toggleBreakdownEdit(this, '${quarter}', '${subject}')" class="bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors">Edit Breakdown</button></div>`;
+    document.getElementById('breakdown-content').innerHTML = html; showScreen('breakdown');
+}
+
+async function toggleBreakdownEdit(btn, quarter, subject) {
+    const gridRow = document.getElementById('breakdown-grid-row');
+    if (!btn.innerText.includes("Save")) {
+        ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => {
+            const t = gridRow.querySelector(`div[data-field="${f}"] .value-text`);
+            t.innerHTML = `<input type="number" class="w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none" value="${t.innerText === '-' ? '' : t.innerText}">`;
+        });
+        btn.innerText = "Save Changes"; btn.className = "bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-semibold transition-colors";
+    } else {
+        btn.innerText = "Saving..."; btn.disabled = true;
+        const bd = {}; ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => bd[f] = Number(gridRow.querySelector(`div[data-field="${f}"] .value-text input`).value || 0));
+        const res = await apiCall({ action: "saveBreakdown", pin: adminPin, studentNumber: currentStudentData.studentNumber, subject: subject, quarter: quarter, breakdown: bd });
+        if (res.success) {
+            document.getElementById('bd-total').innerText = res.newTotal;
+            ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => gridRow.querySelector(`div[data-field="${f}"] .value-text`).innerHTML = bd[f]);
+            btn.innerText = "Edit Breakdown"; btn.className = "bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 font-semibold transition-colors"; btn.disabled = false;
+            showToast("Breakdown successfully updated.");
+            await loadAdminDashboard();
+        } else { showToast("Failed to save changes.", "error"); btn.innerText = "Save Changes"; btn.disabled = false; }
+    }
+}
+
+document.getElementById('back-to-dashboard-btn').addEventListener('click', () => adminPin !== "" ? showScreen('admin') : showScreen('student'));
+
+// ==========================================
+// SLIDE PANEL (CRUD)
+// ==========================================
+function openSlidePanel(studentNo, subject) {
+    const student = currentAdminData.find(s => String(s.studentNumber) === String(studentNo) && s.subject === subject);
+    if (!student) return;
+    
+    activeManageStudentId = studentNo;
+    activeManageSubject = subject;
+
+    ['old-student-id', 'student-id'].forEach(id => document.getElementById(`panel-${id}`).value = student.studentNumber);
+    document.getElementById('panel-old-student-subject').value = subject;
+    document.getElementById('panel-student-name').value = student.name; 
+    document.getElementById('panel-student-section').value = student.section;
+    document.getElementById('panel-student-subject').innerHTML = availableSubjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    document.getElementById('panel-student-subject').value = subject;
+    document.getElementById('panel-subject-label').innerText = activeManageSubject;
+    ['q1','q2','q3','q4'].forEach(q => document.getElementById(`panel-${q}`).value = student[q] || '');
+    document.getElementById('panel-header-name').innerText = student.name; document.getElementById('panel-header-id').innerText = `ID: ${student.studentNumber}`;
+    
+    const b = document.getElementById('slide-panel-backdrop'); const p = document.getElementById('slide-panel');
+    b.classList.remove('hidden-screen'); setTimeout(() => { b.classList.remove('opacity-0'); p.classList.remove('translate-x-full'); }, 10);
+}
+
+function closeSlidePanel() { document.getElementById('slide-panel').classList.add('translate-x-full'); document.getElementById('slide-panel-backdrop').classList.add('opacity-0'); setTimeout(() => document.getElementById('slide-panel-backdrop').classList.add('hidden-screen'), 300); }
+
+async function savePanelInfo() {
+    const btn = document.getElementById('panel-save-info-btn'); btn.innerText = "Saving..."; btn.disabled = true;
+    const newId = document.getElementById('panel-student-id').value.trim();
+    const oldId = document.getElementById('panel-old-student-id').value;
+    const newSubject = document.getElementById('panel-student-subject').value;
+    const oldSubject = document.getElementById('panel-old-student-subject').value;
+
+    const newData = { studentNumber: newId, name: document.getElementById('panel-student-name').value.trim(), section: document.getElementById('panel-student-section').value.trim(), subject: newSubject };
+    const res = await apiCall({ action: "updateStudentInfo", pin: adminPin, oldStudentNumber: oldId, oldSubject: oldSubject, newData: newData });
+    
+    if (res.success) { 
+        await loadAdminDashboard(); activeManageStudentId = newId; activeManageSubject = newSubject;
+        document.getElementById('panel-old-student-id').value = newId; document.getElementById('panel-old-student-subject').value = newSubject;
+        document.getElementById('panel-subject-label').innerText = newSubject; btn.innerText = "Saved"; 
+        showToast("Profile successfully updated.");
+    } else { showToast(res.message, "error"); }
+    setTimeout(() => { btn.innerText = "Update Profile & Subject"; btn.disabled = false; }, 1500);
+}
+
+async function savePanelGrades() {
+    const btn = document.getElementById('panel-save-grades-btn'); btn.innerText = "Saving..."; btn.disabled = true;
+    const grades = { q1: document.getElementById('panel-q1').value, q2: document.getElementById('panel-q2').value, q3: document.getElementById('panel-q3').value, q4: document.getElementById('panel-q4').value };
+    const res = await apiCall({ action: "saveGrades", pin: adminPin, studentNumber: activeManageStudentId, subject: activeManageSubject, grades: grades });
+    if (res.success) { 
+        await loadAdminDashboard(); btn.innerText = "Saved"; 
+        showToast("Grades explicitly saved.", "success");
+    } else { showToast(res.message, "error"); }
+    setTimeout(() => { btn.innerText = "Save Grades"; btn.disabled = false; }, 1500);
+}
+
+async function deleteStudentFromPanel() { 
+    if(confirm("Erase student profile completely? This cannot be undone.")) { 
+        const res = await apiCall({ action: "deleteStudent", pin: adminPin, studentNumber: activeManageStudentId }); 
+        if (res.success) { 
+            showToast("Student deleted permanently.");
+            await loadAdminDashboard(); closeSlidePanel(); 
+        } else { showToast(res.message, "error"); } 
+    } 
+}
+
+function openAddStudentModal() { document.getElementById('add-student-modal').classList.remove('hidden-screen'); }
+function closeAddStudentModal() { document.getElementById('add-student-modal').classList.add('hidden-screen'); }
+
+async function saveNewStudent() {
+    const id = document.getElementById('new-student-id').value.trim(), name = document.getElementById('new-student-name').value.trim(), sec = document.getElementById('new-student-section').value.trim();
+    const subjects = Array.from(document.querySelectorAll('#add-subject-checkboxes input:checked')).map(cb => cb.value);
+    if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select a subject.", "error"); return; }
+    document.getElementById('save-new-student-btn').innerText = "Saving...";
+    const res = await apiCall({ action: "addStudent", pin: adminPin, studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
+    if(res.success) { 
+        showToast(`Student ${name} successfully enrolled.`);
+        closeAddStudentModal(); await loadAdminDashboard(); 
+        document.getElementById('new-student-id').value = '';
+        document.getElementById('new-student-name').value = '';
+    } else {
+        showToast(res.message || "Failed to save new student.", "error");
+    }
+    document.getElementById('save-new-student-btn').innerText = "Save Student";
+}
+
+// ==========================================
+// SMART PASTE / CSV LOGIC
+// ==========================================
+function toggleImportUI() {
+    const action = document.getElementById('import-action').value;
+    if (action === 'grades') {
+        document.getElementById('import-quarter-container').classList.remove('hidden');
+        document.getElementById('col-mapping-register').classList.add('hidden');
+        document.getElementById('col-mapping-grades').classList.remove('hidden');
+    } else {
+        document.getElementById('import-quarter-container').classList.add('hidden');
+        document.getElementById('col-mapping-register').classList.remove('hidden');
+        document.getElementById('col-mapping-grades').classList.add('hidden');
+    }
+}
+
+function openImportModal() { 
+    document.getElementById('import-modal').classList.remove('hidden-screen'); 
+    document.getElementById('transfer-status').classList.add('hidden'); 
+    document.getElementById('preview-section').classList.add('hidden');
+    document.getElementById('progress-container').classList.add('hidden');
+    document.getElementById('preview-btn').classList.remove('hidden'); 
+    document.getElementById('confirm-btn').classList.add('hidden');
+    document.getElementById('import-cancel-btn').innerText = "Cancel";
+    document.getElementById('import-cancel-btn').disabled = false;
+    
+    document.getElementById('csv-file-input').value = '';
+    document.getElementById('smart-paste-input').value = '';
+    
+    document.getElementById('col-id-reg').value = ''; document.getElementById('col-name').value = ''; document.getElementById('col-sec').value = '';
+    document.getElementById('col-id-grades').value = ''; document.getElementById('col-quiz').value = ''; document.getElementById('col-part').value = ''; document.getElementById('col-att').value = ''; document.getElementById('col-exam').value = '';
+    pendingImportData = [];
+    toggleImportUI();
+}
+
+function closeImportModal() { document.getElementById('import-modal').classList.add('hidden-screen'); }
+const readCSVFile = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = () => rej(new Error()); r.readAsText(file); });
+
+function parseCSV(str) { 
+    const result = []; let cell = ''; let inQuotes = false; 
+    for (let i = 0; i < str.length; i++) { 
+        const char = str[i]; 
+        if (char === '"' && str[i+1] === '"') { cell += '"'; i++; } 
+        else if (char === '"') { inQuotes = !inQuotes; } 
+        else if (char === ',' && !inQuotes) { result.push(cell.trim()); cell = ''; } 
+        else { cell += char; } 
+    } 
+    result.push(cell.trim()); 
+    return result; 
+}
+
+const getCol = id => {
+    const val = document.getElementById(id).value.trim().toUpperCase();
+    if(!val) return -1;
+    return val.charCodeAt(0) - 65;
+};
+
+async function previewDataTransfer() {
+    const action = document.getElementById('import-action').value;
+    const fileInput = document.getElementById('csv-file-input'); 
+    const pasteInput = document.getElementById('smart-paste-input').value;
+    const status = document.getElementById('transfer-status');
+    const previewSection = document.getElementById('preview-section');
+    const thead = document.getElementById('preview-thead');
+    const tbody = document.getElementById('preview-table-body');
+    const btn = document.getElementById('preview-btn');
+
+    status.classList.add('hidden'); previewSection.classList.add('hidden'); pendingImportData = [];
+
+    if (!fileInput.files.length && !pasteInput.trim()) { 
+        showToast("Please provide CSV file or paste data.", "error"); return; 
+    }
+    
+    btn.innerHTML = "Reading..."; btn.disabled = true;
+
+    try {
+        const subj = document.getElementById('import-subject').value;
+        let rawRows = [];
+        let isPaste = false;
+        
+        if (pasteInput.trim()) {
+            rawRows = pasteInput.trim().split('\n');
+            isPaste = true;
+        } else {
+            rawRows = (await readCSVFile(fileInput.files[0])).split('\n');
+        }
+
+        tbody.innerHTML = '';
+        const startRow = isPaste ? 0 : 1;
+
+        if (action === 'register') {
+            const cId = getCol('col-id-reg'), cName = getCol('col-name'), cSec = getCol('col-sec');
+            if (cId < 0 || cName < 0) throw new Error("ID and Name columns are required.");
+            
+            thead.innerHTML = `<tr><th class="p-3 font-bold">Student No.</th><th class="p-3 font-bold">Name</th>${cSec >= 0 ? '<th class="p-3 font-bold">Section</th>' : ''}</tr>`;
+
+            for (let i = startRow; i < rawRows.length; i++) {
+                if (!rawRows[i].trim()) continue;
+                const cols = isPaste ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, '')) : parseCSV(rawRows[i]);
+                
+                if (cols[cId] && cols[cName]) {
+                    if(String(cols[cId]).toLowerCase().includes('student')) continue;
+                    const cleanNo = String(cols[cId]).trim();
+                    const sec = cSec >= 0 ? (cols[cSec] || "").trim() : "";
+                    
+                    pendingImportData.push({ studentNumber: cleanNo, name: cols[cName].trim(), section: sec, enrolledSubjects: [subj] });
+                    
+                    let rowHTML = `<tr class="hover:bg-slate-50 transition-colors"><td class="p-3 border-b border-slate-100 font-semibold">${cleanNo}</td><td class="p-3 border-b border-slate-100 font-bold text-slate-700">${cols[cName].trim()}</td>`;
+                    if(cSec >= 0) rowHTML += `<td class="p-3 border-b border-slate-100 text-slate-500">${sec}</td>`;
+                    rowHTML += `</tr>`;
+                    tbody.innerHTML += rowHTML;
+                }
+            }
+        } else if (action === 'grades') {
+            const cId = getCol('col-id-grades');
+            const cQz = getCol('col-quiz');
+            const cPa = getCol('col-part');
+            const cAt = getCol('col-att');
+            const cEx = getCol('col-exam');
+
+            if (cId < 0) throw new Error("Student ID column is required.");
+            if (cQz < 0 && cPa < 0 && cAt < 0 && cEx < 0) throw new Error("Please map at least one grade category.");
+
+            let headHTML = `<tr><th class="p-3 font-bold">Student No.</th>`;
+            if(cQz >= 0) headHTML += `<th class="p-3 font-bold text-center">Quizzes</th>`;
+            if(cPa >= 0) headHTML += `<th class="p-3 font-bold text-center">Part.</th>`;
+            if(cAt >= 0) headHTML += `<th class="p-3 font-bold text-center">Att.</th>`;
+            if(cEx >= 0) headHTML += `<th class="p-3 font-bold text-center">Exams</th>`;
+            headHTML += `</tr>`;
+            thead.innerHTML = headHTML;
+
+            for (let i = startRow; i < rawRows.length; i++) {
+                if (!rawRows[i].trim()) continue;
+                const cols = isPaste ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, '')) : parseCSV(rawRows[i]);
+                
+                if (cols[cId]) {
+                    if(String(cols[cId]).toLowerCase().includes('student')) continue;
+
+                    const cleanNo = String(cols[cId]).trim();
+                    const qz = cQz >= 0 ? (Number(cols[cQz]) || 0) : null;
+                    const pa = cPa >= 0 ? (Number(cols[cPa]) || 0) : null;
+                    const at = cAt >= 0 ? (Number(cols[cAt]) || 0) : null;
+                    const ex = cEx >= 0 ? (Number(cols[cEx]) || 0) : null;
+
+                    pendingImportData.push({ studentNumber: cleanNo, quizzes: qz, participation: pa, attendance: at, exams: ex });
+                    
+                    let rowHTML = `<tr class="hover:bg-slate-50 transition-colors"><td class="p-3 border-b border-slate-100 font-semibold">${cleanNo}</td>`;
+                    if(cQz >= 0) rowHTML += `<td class="p-3 border-b border-slate-100 font-bold text-slate-700 text-center">${qz}</td>`;
+                    if(cPa >= 0) rowHTML += `<td class="p-3 border-b border-slate-100 font-bold text-slate-700 text-center">${pa}</td>`;
+                    if(cAt >= 0) rowHTML += `<td class="p-3 border-b border-slate-100 font-bold text-slate-700 text-center">${at}</td>`;
+                    if(cEx >= 0) rowHTML += `<td class="p-3 border-b border-slate-100 font-bold text-slate-700 text-center">${ex}</td>`;
+                    rowHTML += `</tr>`;
+                    tbody.innerHTML += rowHTML;
+                }
+            }
+        }
+
+        if (pendingImportData.length > 0) {
+            status.innerText = `Found ${pendingImportData.length} valid entries to process.`; 
+            status.className = "bg-emerald-50 border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
+            status.classList.remove('hidden'); previewSection.classList.remove('hidden');
+            btn.classList.add('hidden'); document.getElementById('confirm-btn').classList.remove('hidden');
+        } else {
+            showToast("No valid data found. Check columns.", "error");
+        }
+    } catch (e) { 
+        showToast(e.message, "error");
+    }
+    btn.innerHTML = "Preview Data"; btn.disabled = false;
+}
+
+async function confirmDataTransfer() {
+    const btn = document.getElementById('confirm-btn'), cancelBtn = document.getElementById('import-cancel-btn');
+    const status = document.getElementById('transfer-status'), progressContainer = document.getElementById('progress-container');
+    
+    btn.classList.add('hidden'); cancelBtn.disabled = true; status.classList.add('hidden'); progressContainer.classList.remove('hidden');
+    
+    const action = document.getElementById('import-action').value;
+    const subj = document.getElementById('import-subject').value;
+    const qtr = document.getElementById('import-quarter').value;
+    const totalItems = pendingImportData.length; let successCount = 0; const startTime = Date.now();
+    
+    try {
+        for (let i = 0; i < totalItems; i++) {
+            const item = pendingImportData[i];
+            if (action === 'register') {
+                await apiCall({ action: "registerStudent", studentData: item });
+            } else {
+                const studentRes = await apiCall({ action: "getStudent", studentNumber: item.studentNumber });
+                let bd = { quizzes: 0, participation: 0, attendance: 0, exams: 0 };
+                
+                if (studentRes && studentRes.subjects && studentRes.subjects[subj]) {
+                    const existing = studentRes.subjects[subj].breakdowns.find(b => b.quarter.toString().includes(qtr.replace(/\D/g, '')));
+                    if (existing) bd = existing;
+                }
+
+                if (item.quizzes !== null) bd.quizzes = item.quizzes;
+                if (item.participation !== null) bd.participation = item.participation;
+                if (item.attendance !== null) bd.attendance = item.attendance;
+                if (item.exams !== null) bd.exams = item.exams;
+
+                await apiCall({ action: "saveBreakdown", pin: adminPin, studentNumber: item.studentNumber, subject: subj, quarter: qtr, breakdown: bd });
+            }
+            successCount++;
+            
+            const percent = Math.round((successCount / totalItems) * 100);
+            const elapsedTime = (Date.now() - startTime) / 1000;
+            const estimatedSecondsLeft = Math.round((elapsedTime / successCount) * (totalItems - successCount));
+            
+            document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+            document.getElementById('progress-percentage').innerText = `${percent}%`;
+            document.getElementById('progress-count').innerText = `${successCount} of ${totalItems} processed`;
+            document.getElementById('progress-eta').innerText = estimatedSecondsLeft > 60 ? `~${Math.floor(estimatedSecondsLeft/60)}m ${estimatedSecondsLeft%60}s remaining` : (estimatedSecondsLeft > 1 ? `~${estimatedSecondsLeft}s remaining` : "Almost done...");
+        }
+
+        status.innerText = `Success! Updated ${successCount} records.`;
+        status.className = "bg-emerald-50 border border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
+        status.classList.remove('hidden'); cancelBtn.innerText = "Close"; cancelBtn.disabled = false;
+        
+        showToast(`Successfully processed ${successCount} entries!`);
+        await loadAdminDashboard(); 
+
+    } catch (error) {
+        showToast("Error during transfer", "error");
+        btn.classList.remove('hidden'); cancelBtn.disabled = false;
+    }
+}
+
+// ==========================================
+// PUBLIC REGISTRATION
+// ==========================================
+function openRegisterModal() { document.getElementById('register-modal').classList.remove('hidden-screen'); }
+function closeRegisterModal() { document.getElementById('register-modal').classList.add('hidden-screen'); }
+
+async function submitRegistration() {
+    const id = document.getElementById('reg-student-id').value.trim(), name = document.getElementById('reg-student-name').value.trim(), sec = document.getElementById('reg-student-section').value.trim();
+    const subjects = Array.from(document.querySelectorAll('#reg-subject-checkboxes input:checked')).map(cb => cb.value);
+    if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select subjects.", "error"); return; }
+    document.getElementById('submit-reg-btn').innerText = "Registering...";
+    
+    const res = await apiCall({ action: "registerStudent", studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
+    if(res.success) { 
+        closeRegisterModal(); 
+        showToast("Registration successful! Logging you in...");
+        document.getElementById('login-input').value = id; 
+        document.getElementById('login-btn').click(); 
+    } else {
+        showToast("Failed to register. ID may be taken.", "error");
+    }
+    document.getElementById('submit-reg-btn').innerText = "Register Profile";
+}
+
+async function apiCall(payload) { return await (await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) })).json(); }
