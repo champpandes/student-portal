@@ -44,7 +44,7 @@ function updateLastSavedTimestamp() {
     badge.classList.remove('hidden');
 }
 
-// --- ANNOUNCEMENT LOGIC ---
+// --- ANNOUNCEMENT & COMMENT THREAD LOGIC ---
 async function loadAnnouncement() {
     try {
         const res = await apiCall({ action: "getAnnouncement" });
@@ -62,6 +62,7 @@ async function loadAnnouncement() {
             const sBanner = document.getElementById('student-announcement-banner');
             if (sBanner) sBanner.classList.add('hidden');
         }
+        loadComments();
     } catch (e) { console.error("Could not fetch announcements"); }
 }
 
@@ -78,7 +79,95 @@ async function broadcastAnnouncement(btn) {
     btn.innerText = "Broadcast"; btn.disabled = false;
 }
 
-window.onload = async () => { await fetchSubjects(); };
+async function loadComments() {
+    try {
+        const res = await apiCall({ action: "getComments" });
+        const studentFeed = document.getElementById('comments-feed');
+        const adminFeed = document.getElementById('admin-comments-feed');
+        
+        if (res.success && res.comments) {
+            // Students see Student Number only
+            const studentCommentsHTML = res.comments.length === 0 
+                ? `<div class="text-xs text-white/70 italic">No comments yet. Start the conversation!</div>` 
+                : res.comments.map(c => {
+                    const displayName = c.studentNumber === "TEACHER_ADMIN" ? "Teacher Admin" : `Student ID: ${c.studentNumber}`;
+                    return `
+                        <div class="bg-white/90 backdrop-blur-sm p-2.5 rounded-xl text-xs shadow-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-indigo-900">${displayName}</span>
+                                <span class="text-[10px] text-slate-400">${c.timestamp}</span>
+                            </div>
+                            <p class="text-slate-700 font-medium">${c.text}</p>
+                        </div>
+                    `;
+                }).join('');
+
+            // Teachers see Full Name and Student Number
+            const adminCommentsHTML = res.comments.length === 0 
+                ? `<div class="text-xs text-slate-400 italic">No comments yet.</div>` 
+                : res.comments.map(c => {
+                    const displayName = c.studentNumber === "TEACHER_ADMIN" ? "Teacher Admin" : `${c.studentName} (${c.studentNumber})`;
+                    return `
+                        <div class="bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs shadow-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-indigo-900">${displayName}</span>
+                                <span class="text-[10px] text-slate-400">${c.timestamp}</span>
+                            </div>
+                            <p class="text-slate-700 font-medium">${c.text}</p>
+                        </div>
+                    `;
+                }).join('');
+
+            if (studentFeed) studentFeed.innerHTML = studentCommentsHTML;
+            if (adminFeed) adminFeed.innerHTML = adminCommentsHTML;
+        }
+    } catch (e) { console.error("Could not fetch comments"); }
+}
+
+async function submitStudentComment() {
+    const input = document.getElementById('new-comment-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const studentNo = currentStudentData ? currentStudentData.studentNumber : "UNKNOWN";
+    const res = await apiCall({ action: "postComment", studentNumber: studentNo, commentText: text });
+    if (res.success) {
+        input.value = "";
+        showToast("Comment posted!");
+        loadComments();
+    } else {
+        showToast("Failed to post comment.", "error");
+    }
+}
+
+async function submitAdminComment() {
+    const input = document.getElementById('admin-new-comment-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const res = await apiCall({ action: "postComment", studentNumber: "TEACHER_ADMIN", commentText: text });
+    if (res.success) {
+        input.value = "";
+        showToast("Reply posted!");
+        loadComments();
+    } else {
+        showToast("Failed to post reply.", "error");
+    }
+}
+
+async function clearClassComments() {
+    if (!confirm("Are you sure you want to clear all comments from the discussion thread? This cannot be undone.")) return;
+
+    const res = await apiCall({ action: "clearComments", pin: adminPin });
+    if (res.success) {
+        showToast("Discussion thread cleared!");
+        loadComments();
+    } else {
+        showToast("Failed to clear comments.", "error");
+    }
+}
+
+window.onload = async () => { await fetchSubjects(); loadComments(); };
 
 async function fetchSubjects() {
     try {
@@ -299,7 +388,6 @@ async function loadAdminDashboard() {
     }
 }
 
-// FEATURE 2: UPDATE CLASS SUMMARY METRICS
 function updateSummaryMetrics(data) {
     const total = data.length;
     document.getElementById('stat-total-students').innerText = total;
@@ -323,7 +411,6 @@ function updateSummaryMetrics(data) {
     }
 }
 
-// FEATURE 3: QUARTER FILTER PILLS LOGIC
 function filterByQuarter(q) {
     activeQuarterFilter = q;
     document.querySelectorAll('.quarter-pill').forEach(btn => {
@@ -334,7 +421,6 @@ function filterByQuarter(q) {
         activeBtn.className = "quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm shrink-0 transition-all";
     }
 
-    // Toggle table columns visibility if desktop table
     ['1st', '2nd', '3rd', '4th'].forEach(qtr => {
         document.querySelectorAll(`.col-q-${qtr}`).forEach(el => {
             if (q === 'All' || q === qtr) el.classList.remove('hidden');
@@ -620,7 +706,7 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
         if (res.success) {
             document.getElementById('bd-total').innerText = res.newTotal;
             ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => gridRow.querySelector(`div[data-field="${f}"] .value-text`).innerHTML = bd[f]);
-            btn.innerText = "Edit Breakdown"; btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 font-semibold transition-colors text-sm"; btn.disabled = false;
+            btn.innerText = "Edit Breakdown"; btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm"; btn.disabled = false;
             showToast("Breakdown successfully updated.");
             updateLastSavedTimestamp();
             await loadAdminDashboard();
