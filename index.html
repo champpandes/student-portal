@@ -83,7 +83,32 @@
                 <button onclick="broadcastAnnouncement(this)" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-md transition-all w-full sm:w-auto whitespace-nowrap">Broadcast</button>
             </div>
 
-            <div class="flex flex-col lg:flex-row gap-3 mb-6 items-center box-border w-full">
+            <!-- FEATURE 2: LIVE CLASS PERFORMANCE SUMMARY BAR -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 box-border w-full">
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Enrolled</div>
+                        <div id="stat-total-students" class="text-2xl font-black text-slate-800 mt-0.5">0</div>
+                    </div>
+                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-bold">👥</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Passing Rate</div>
+                        <div id="stat-passing-rate" class="text-2xl font-black text-emerald-600 mt-0.5">0%</div>
+                    </div>
+                    <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold">📈</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Class Average</div>
+                        <div id="stat-class-average" class="text-2xl font-black text-blue-600 mt-0.5">-</div>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold">🏆</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-3 mb-4 items-center box-border w-full">
                 <div class="relative flex-1 w-full box-border">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -131,6 +156,16 @@
                 </div>
             </div>
 
+            <!-- FEATURE 3: QUICK-JUMP QUARTER FILTER PILLS -->
+            <div class="flex items-center gap-2 mb-6 overflow-x-auto pb-1 no-scrollbar box-border w-full">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">Filter Quarter:</span>
+                <button onclick="filterByQuarter('All')" id="q-pill-All" class="quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm shrink-0 transition-all">All Quarters</button>
+                <button onclick="filterByQuarter('1st')" id="q-pill-1st" class="quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">1st Quarter</button>
+                <button onclick="filterByQuarter('2nd')" id="q-pill-2nd" class="quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">2nd Quarter</button>
+                <button onclick="filterByQuarter('3rd')" id="q-pill-3rd" class="quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">3rd Quarter</button>
+                <button onclick="filterByQuarter('4th')" id="q-pill-4th" class="quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">4th Quarter</button>
+            </div>
+
             <!-- DESKTOP TABLE VIEW (Hidden on Mobile) -->
             <div class="hidden md:block bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden w-full max-w-full box-border">
                 <div class="overflow-x-auto w-full">
@@ -143,10 +178,10 @@
                                 <th class="p-4 cursor-pointer hover:text-indigo-600 select-none transition-colors group" onclick="sortByName()">
                                     <div class="flex items-center">Name <span id="name-sort-icon" class="ml-1 text-[10px] text-slate-400 group-hover:text-indigo-500">&#8597;</span></div>
                                 </th>
-                                <th class="p-4 text-center">1st</th>
-                                <th class="p-4 text-center">2nd</th>
-                                <th class="p-4 text-center">3rd</th>
-                                <th class="p-4 text-center">4th</th>
+                                <th class="p-4 text-center col-q col-q-1st">1st</th>
+                                <th class="p-4 text-center col-q col-q-2nd">2nd</th>
+                                <th class="p-4 text-center col-q col-q-3rd">3rd</th>
+                                <th class="p-4 text-center col-q col-q-4th">4th</th>
                                 <th class="p-4 text-center bg-slate-100/50">Final</th>
                                 <th class="p-4">Remarks</th>
                                 <th class="p-4 text-center">Action</th>

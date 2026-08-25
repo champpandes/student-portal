@@ -9,6 +9,7 @@ let activeManageStudentId = null;
 let activeAdminSubject = "All"; 
 let activeManageSubject = "";
 let activeStudentSubject = "";
+let activeQuarterFilter = "All";
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
@@ -254,8 +255,8 @@ async function loadAdminDashboard() {
         try {
             currentAdminData = JSON.parse(cachedData);
             populateSectionFilter(); 
-            renderAdminTable(currentAdminData);
-            renderAdminMobileCards(currentAdminData);
+            updateSummaryMetrics(currentAdminData);
+            applyAdminFilters();
             if(syncIndicator) { syncIndicator.classList.remove('hidden'); syncIndicator.classList.add('flex'); }
         } catch(e) { console.error("Cache read error."); }
     } else {
@@ -282,6 +283,7 @@ async function loadAdminDashboard() {
             localStorage.setItem(cacheKey, JSON.stringify(res)); 
             currentAdminData = res; 
             populateSectionFilter(); 
+            updateSummaryMetrics(currentAdminData);
             applyAdminFilters(); 
             updateLastSavedTimestamp();
         }
@@ -295,6 +297,52 @@ async function loadAdminDashboard() {
     } finally {
         if(syncIndicator) { syncIndicator.classList.add('hidden'); syncIndicator.classList.remove('flex'); }
     }
+}
+
+// FEATURE 2: UPDATE CLASS SUMMARY METRICS
+function updateSummaryMetrics(data) {
+    const total = data.length;
+    document.getElementById('stat-total-students').innerText = total;
+
+    if (total === 0) {
+        document.getElementById('stat-passing-rate').innerText = "0%";
+        document.getElementById('stat-class-average').innerText = "-";
+        return;
+    }
+
+    const passedCount = data.filter(s => s.remarks === 'Passed').length;
+    const passingRate = Math.round((passedCount / total) * 100);
+    document.getElementById('stat-passing-rate').innerText = `${passingRate}%`;
+
+    const finals = data.map(s => Number(s.final)).filter(f => !isNaN(f) && f > 0);
+    if (finals.length > 0) {
+        const avg = Math.round(finals.reduce((a, b) => a + b, 0) / finals.length);
+        document.getElementById('stat-class-average').innerText = avg;
+    } else {
+        document.getElementById('stat-class-average').innerText = "-";
+    }
+}
+
+// FEATURE 3: QUARTER FILTER PILLS LOGIC
+function filterByQuarter(q) {
+    activeQuarterFilter = q;
+    document.querySelectorAll('.quarter-pill').forEach(btn => {
+        btn.className = "quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50";
+    });
+    const activeBtn = document.getElementById(`q-pill-${q}`);
+    if (activeBtn) {
+        activeBtn.className = "quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm shrink-0 transition-all";
+    }
+
+    // Toggle table columns visibility if desktop table
+    ['1st', '2nd', '3rd', '4th'].forEach(qtr => {
+        document.querySelectorAll(`.col-q-${qtr}`).forEach(el => {
+            if (q === 'All' || q === qtr) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        });
+    });
+
+    applyAdminFilters();
 }
 
 function renderAdminTable(dataToRender) {
@@ -317,10 +365,10 @@ function renderAdminTable(dataToRender) {
                 <div class="font-bold text-slate-800">${student.name}</div>
                 <div class="text-[11px] font-bold text-slate-400 mt-0.5">${student.section} &bull; <span class="text-indigo-500">${student.subject}</span></div>
             </td>
-            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">${student.q1 || '-'}</td>
-            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '2nd')">${student.q2 || '-'}</td>
-            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '3rd')">${student.q3 || '-'}</td>
-            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '4th')">${student.q4 || '-'}</td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800 col-q col-q-1st ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '1st' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">${student.q1 || '-'}</td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800 col-q col-q-2nd ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '2nd' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '2nd')">${student.q2 || '-'}</td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800 col-q col-q-3rd ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '3rd' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '3rd')">${student.q3 || '-'}</td>
+            <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold hover:text-indigo-800 col-q col-q-4th ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '4th' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '4th')">${student.q4 || '-'}</td>
             <td class="p-4 text-center font-black">${student.final || '-'}</td>
             <td class="p-4">${remarksUI}</td>
             <td class="p-4 text-center">
@@ -366,19 +414,19 @@ function renderAdminMobileCards(dataToRender) {
             <!-- COLLAPSIBLE DROPDOWN DRAWER -->
             <div id="mobile-drawer-${index}" class="hidden pt-4 mt-4 border-t border-slate-100">
                 <div class="grid grid-cols-4 gap-2 mb-4 text-center">
-                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '1st' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">
                         <div class="text-[10px] font-bold text-slate-400 uppercase">1st Qtr</div>
                         <div class="text-sm font-black text-slate-700 mt-0.5">${student.q1 || '-'}</div>
                     </div>
-                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '2nd')">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '2nd' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '2nd')">
                         <div class="text-[10px] font-bold text-slate-400 uppercase">2nd Qtr</div>
                         <div class="text-sm font-black text-slate-700 mt-0.5">${student.q2 || '-'}</div>
                     </div>
-                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '3rd')">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '3rd' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '3rd')">
                         <div class="text-[10px] font-bold text-slate-400 uppercase">3rd Qtr</div>
                         <div class="text-sm font-black text-slate-700 mt-0.5">${student.q3 || '-'}</div>
                     </div>
-                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '4th')">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '4th' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '4th')">
                         <div class="text-[10px] font-bold text-slate-400 uppercase">4th Qtr</div>
                         <div class="text-sm font-black text-slate-700 mt-0.5">${student.q4 || '-'}</div>
                     </div>
@@ -414,6 +462,7 @@ function applyAdminFilters() {
     const search = document.getElementById('admin-search').value.toLowerCase();
     const sec = document.getElementById('section-filter').value;
     const filtered = currentAdminData.filter(s => (s.name.toLowerCase().includes(search) || s.studentNumber.toString().includes(search)) && (sec === "All" || s.section === sec));
+    updateSummaryMetrics(filtered);
     renderAdminTable(filtered);
     renderAdminMobileCards(filtered);
 }
