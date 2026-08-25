@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Portal</title>
-    <!-- Modern Font -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -13,12 +13,20 @@
         .clickable { cursor: pointer; transition: all 0.2s ease; }
         .clickable:hover { opacity: 0.7; transform: translateY(-1px); }
         
-        /* Smooth Modal Entrance */
+        /* Modal Entrance Animation */
         @keyframes modalEnter {
             from { opacity: 0; transform: scale(0.95) translateY(10px); }
             to { opacity: 1; transform: scale(1) translateY(0); }
         }
         .modal-animate { animation: modalEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* Smooth Logo Floating Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        .logo-float { animation: float 3.5s ease-in-out infinite; }
 
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -31,28 +39,33 @@
 
     <!-- ======================= LOGIN SCREEN ======================= -->
     <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white p-10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 w-full max-w-md text-center transform transition-all">
-            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+        <div class="bg-white p-10 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 w-full max-w-md text-center transform transition-all relative overflow-hidden">
+            <!-- Decorative background blob -->
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
+            
+            <!-- Animated Hero Logo -->
+            <div class="relative w-20 h-20 bg-gradient-to-tr from-indigo-100 to-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-indigo-100/50 logo-float">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-10 h-10">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
                 </svg>
             </div>
-            <h1 class="text-3xl font-bold mb-2 text-slate-800 tracking-tight">Portal Login</h1>
-            <p class="text-sm text-slate-500 mb-8 font-medium">Enter Student Number or Teacher PIN</p>
+            
+            <h1 class="text-3xl font-bold mb-2 text-slate-800 tracking-tight relative z-10">Portal Login</h1>
+            <p class="text-sm text-slate-500 mb-8 font-medium relative z-10">Enter Student Number or Teacher PIN</p>
             
             <input type="password" id="login-input" placeholder="e.g., 11-05075 or PIN" 
-                   class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 mb-5 text-center font-medium transition-all placeholder:font-normal">
+                   class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 mb-5 text-center font-medium transition-all placeholder:font-normal relative z-10">
             
-            <button id="login-btn" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all font-semibold tracking-wide">
+            <button id="login-btn" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all font-semibold tracking-wide relative z-10">
                 Log In
             </button>
             
-            <div id="login-error" class="hidden-screen mt-5 bg-rose-50 border border-rose-200 text-rose-600 p-3.5 rounded-xl text-sm text-left shadow-sm flex items-center font-medium">
+            <div id="login-error" class="hidden-screen mt-5 bg-rose-50 border border-rose-200 text-rose-600 p-3.5 rounded-xl text-sm text-left shadow-sm flex items-center font-medium relative z-10">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <span id="login-error-text"></span>
             </div>
             
-            <p class="mt-8 text-sm text-slate-500 font-medium">
+            <p class="mt-8 text-sm text-slate-500 font-medium relative z-10">
                 Not in the system yet? <br>
                 <span class="text-indigo-600 font-bold clickable mt-1 inline-block" onclick="openRegisterModal()">Register as a new student</span>
             </p>
@@ -63,40 +76,49 @@
     <div id="admin-dashboard" class="hidden-screen flex-1 flex flex-col">
         <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
             <div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <div class="flex items-center gap-3">
+                    <!-- Unified Brand Logo (Admin) -->
+                    <div class="w-9 h-9 bg-indigo-600 rounded-[0.65rem] flex items-center justify-center shadow-md shadow-indigo-600/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-white">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
+                        </svg>
                     </div>
-                    <h2 class="text-xl font-bold text-slate-800 tracking-tight">Teacher Dashboard</h2>
+                    <h2 class="text-xl font-bold text-slate-800 tracking-tight hidden sm:block">Teacher Dashboard</h2>
                 </div>
-                <button class="logout-btn flex items-center text-sm font-semibold text-slate-500 hover:text-rose-600 transition-colors bg-slate-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-rose-200">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                    Logout
-                </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="openManageSubjectsModal()" class="flex items-center text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:border-indigo-200">
+                        ⚙️ Subjects
+                    </button>
+                    <button class="logout-btn flex items-center text-sm font-semibold text-slate-500 hover:text-rose-600 transition-colors bg-slate-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-rose-200">
+                        Logout
+                    </button>
+                </div>
             </div>
         </header>
 
         <div class="p-4 sm:p-6 lg:p-8 max-w-[90rem] mx-auto w-full">
-            <!-- Toolbar -->
             <div class="flex flex-col md:flex-row gap-4 mb-6 items-center">
                 <div class="relative flex-1 w-full">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
                     <input type="text" id="admin-search" placeholder="Search students..." 
-                           class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all font-medium placeholder:font-normal text-sm">
+                           class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 shadow-sm text-sm font-medium">
                 </div>
                 
-                <select id="section-filter" class="w-full md:w-48 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all text-sm font-medium text-slate-700 cursor-pointer">
+                <select id="admin-subject-filter" class="w-full md:w-48 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 shadow-sm text-sm font-medium text-slate-700 cursor-pointer">
+                    <option>Loading...</option>
+                </select>
+
+                <select id="section-filter" class="w-full md:w-48 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 shadow-sm text-sm font-medium text-slate-700 cursor-pointer">
                     <option value="All">All Sections</option>
                 </select>
                 
                 <div class="flex gap-3 w-full md:w-auto">
-                    <button onclick="openImportModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all text-sm font-semibold whitespace-nowrap">
-                        <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    <button onclick="openImportModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 shadow-sm text-sm font-semibold whitespace-nowrap">
                         Import CSV
                     </button>
-                    <button onclick="openAddStudentModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all text-sm font-semibold whitespace-nowrap">
+                    <button onclick="openAddStudentModal()" class="flex-1 md:flex-none flex items-center justify-center px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md text-sm font-semibold whitespace-nowrap">
                         <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         Add Student
                     </button>
@@ -125,14 +147,6 @@
                             </tr>
                         </thead>
                         <tbody id="admin-table-body" class="text-sm font-medium text-slate-700 divide-y divide-slate-100">
-                            <tr>
-                                <td class="p-8 text-center text-slate-400" colspan="9">
-                                    <div class="flex flex-col items-center justify-center">
-                                        <svg class="animate-spin h-6 w-6 text-indigo-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                        Loading secure database...
-                                    </div>
-                                </td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -145,25 +159,33 @@
         <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
             <div class="max-w-[60rem] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center border border-indigo-100 shadow-sm">
-                        <span class="text-indigo-600 font-bold text-lg">🎓</span>
+                    <!-- Unified Brand Logo (Student) -->
+                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
+                        </svg>
                     </div>
                     <div>
                         <h2 class="text-lg font-bold text-slate-800 leading-tight">Student Portal</h2>
                         <p id="student-info-header" class="text-xs text-slate-500 font-medium tracking-wide"></p>
                     </div>
                 </div>
-                <button class="logout-btn flex items-center text-sm font-semibold text-slate-500 hover:text-rose-600 transition-colors bg-slate-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-rose-200">
+                <button class="logout-btn flex items-center text-sm font-semibold text-slate-500 hover:text-rose-600 transition-colors bg-slate-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-slate-200">
                     Logout
                 </button>
             </div>
         </header>
 
         <div class="p-4 sm:p-6 lg:p-8 max-w-[60rem] mx-auto w-full">
-            <h3 class="text-xl font-bold text-slate-800 mb-6">Your Academic Performance</h3>
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Your Academic Performance</h3>
+                <select id="student-subject-selector" onchange="changeStudentSubject(this.value)" class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-indigo-700 cursor-pointer">
+                </select>
+            </div>
+            
             <div id="student-main-grades"></div>
+            
             <div class="mt-8 flex items-center justify-center p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-700 text-sm font-medium">
-                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Click on any quarterly grade card above to view the detailed breakdown.
             </div>
         </div>
@@ -171,163 +193,146 @@
 
     <!-- ======================= BREAKDOWN SCREEN ======================= -->
     <div id="breakdown-screen" class="hidden-screen p-4 sm:p-6 lg:p-8 max-w-[50rem] mx-auto w-full mt-4">
-        <button id="back-to-dashboard-btn" class="mb-6 flex items-center text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 px-4 py-2 rounded-xl border border-slate-200 shadow-sm hover:shadow">
-            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        <button id="back-to-dashboard-btn" class="mb-6 flex items-center text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
             Back to Dashboard
         </button>
         
         <div class="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6 sm:p-8">
             <div class="flex items-center mb-8 pb-4 border-b border-slate-100">
-                <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mr-4 text-indigo-600">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <!-- Unified Brand Logo (Breakdown) -->
+                <div class="w-12 h-12 bg-indigo-50 rounded-[0.85rem] flex items-center justify-center mr-4 text-indigo-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-7 h-7">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
+                    </svg>
                 </div>
                 <div>
                     <h2 id="breakdown-title" class="text-2xl font-bold text-slate-800 tracking-tight">Quarter Breakdown</h2>
-                    <p class="text-sm font-medium text-slate-500">Detailed component view</p>
+                    <p class="text-sm font-medium text-slate-500" id="breakdown-subject-label">Detailed component view</p>
                 </div>
             </div>
             <div id="breakdown-content"></div>
         </div>
     </div>
 
-    <!-- ======================= MANAGE STUDENT SLIDE PANEL (CRUD) ======================= -->
+    <!-- ======================= SLIDE PANEL (CRUD) ======================= -->
     <div id="slide-panel-backdrop" class="hidden-screen fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 transition-opacity opacity-0 duration-300" onclick="closeSlidePanel()"></div>
     
     <div id="slide-panel" class="fixed inset-y-0 right-0 w-full max-w-md bg-slate-50 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-l border-slate-200">
-        
-        <!-- Panel Header -->
         <div class="px-6 py-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm">
             <div>
                 <h3 id="panel-header-name" class="text-lg font-bold text-slate-800 leading-tight">Student Name</h3>
                 <p id="panel-header-id" class="text-xs font-semibold text-slate-500 tracking-wider">ID: 00-0000</p>
             </div>
-            <button onclick="closeSlidePanel()" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+            <button onclick="closeSlidePanel()" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors">&times;</button>
         </div>
 
-        <!-- Panel Scrollable Body -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
-            
-            <!-- SECTION 1: Profile Info -->
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center uppercase tracking-wide">
-                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                    Profile Settings
-                </h4>
+                <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center uppercase tracking-wide">Profile Settings</h4>
                 <div class="space-y-3">
                     <input type="hidden" id="panel-old-student-id">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Student No.</label>
-                        <input type="text" id="panel-student-id" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Full Name</label>
-                        <input type="text" id="panel-student-name" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Section</label>
-                        <input type="text" id="panel-student-section" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm font-medium">
-                    </div>
-                    <button id="panel-save-info-btn" onclick="savePanelInfo()" class="w-full mt-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-all font-bold text-sm">Update Profile</button>
+                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Student No.</label><input type="text" id="panel-student-id" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Full Name</label><input type="text" id="panel-student-name" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Section</label><input type="text" id="panel-student-section" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium"></div>
+                    <button id="panel-save-info-btn" onclick="savePanelInfo()" class="w-full mt-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-sm">Update Profile</button>
                 </div>
             </div>
 
-            <!-- SECTION 2: Grades -->
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center uppercase tracking-wide">
-                    <svg class="w-4 h-4 mr-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    Adjust Grades
-                </h4>
+                <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center uppercase tracking-wide">Adjust Grades (<span id="panel-subject-label" class="text-indigo-600">Subject</span>)</h4>
                 <div class="grid grid-cols-2 gap-3 mb-4">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">1st Quarter</label>
-                        <input type="number" id="panel-q1" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">2nd Quarter</label>
-                        <input type="number" id="panel-q2" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">3rd Quarter</label>
-                        <input type="number" id="panel-q3" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">4th Quarter</label>
-                        <input type="number" id="panel-q4" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
-                    </div>
+                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">1st Quarter</label><input type="number" id="panel-q1" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">2nd Quarter</label><input type="number" id="panel-q2" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">3rd Quarter</label><input type="number" id="panel-q3" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">4th Quarter</label><input type="number" id="panel-q4" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none"></div>
                 </div>
-                <button id="panel-save-grades-btn" onclick="savePanelGrades()" class="w-full px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-all font-bold text-sm">Save Grades</button>
+                <button id="panel-save-grades-btn" onclick="savePanelGrades()" class="w-full px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold text-sm">Save Grades</button>
             </div>
 
-            <!-- SECTION 3: Danger Zone -->
             <div class="bg-rose-50/50 p-5 rounded-2xl border border-rose-100 mt-8">
-                <h4 class="text-sm font-bold text-rose-800 mb-2 flex items-center uppercase tracking-wide">
-                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    Danger Zone
-                </h4>
-                <p class="text-[11px] text-rose-600 font-medium mb-4">Permanently remove this student and all associated grades. This action cannot be undone.</p>
-                <button onclick="deleteStudentFromPanel()" class="w-full px-4 py-2 bg-white border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all font-bold text-sm">Delete Student</button>
+                <h4 class="text-sm font-bold text-rose-800 mb-2 uppercase">Danger Zone</h4>
+                <p class="text-[11px] text-rose-600 font-medium mb-4">Permanently remove this student from ALL classes in the database.</p>
+                <button onclick="deleteStudentFromPanel()" class="w-full px-4 py-2 bg-white border border-rose-200 text-rose-600 rounded-lg font-bold text-sm">Delete Student</button>
             </div>
-            
         </div>
     </div>
-    <!-- ========================================================================= -->
 
     <!-- ======================= MODALS ======================= -->
+    
+    <!-- MANAGE SUBJECTS MODAL -->
+    <div id="manage-subjects-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-md border border-slate-100 modal-animate">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-slate-800">Manage Subjects</h3>
+                <button onclick="closeManageSubjectsModal()" class="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
+            </div>
+            <p class="text-sm text-slate-500 mb-6 font-medium">Add, rename, or delete subjects from your curriculum.</p>
+            
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="new-subject-input" placeholder="e.g., Physical Education" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500">
+                <button onclick="handleAddSubject()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-sm">Add</button>
+            </div>
+
+            <div class="max-h-60 overflow-y-auto border border-slate-100 rounded-xl bg-slate-50">
+                <ul id="subjects-list-ui" class="divide-y divide-slate-100">
+                    <li class="p-4 text-center text-slate-400 text-sm font-medium">Loading subjects...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <!-- ADD STUDENT MODAL -->
-    <div id="add-student-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
-        <div class="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-md border border-slate-100 modal-animate relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-400 to-indigo-600"></div>
-            <h3 class="text-2xl font-bold mb-1 text-slate-800">Add New Student</h3>
+    <div id="add-student-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-md border border-slate-100 modal-animate relative">
+            <h3 class="text-2xl font-bold mb-1">Add New Student</h3>
             <p class="text-sm text-slate-500 mb-6 font-medium">Enter details to enroll a student.</p>
             
             <div class="space-y-4">
+                <div><label class="block text-sm font-bold text-slate-700 mb-1 ml-1">Student Number</label><input type="text" id="new-student-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-1 ml-1">Full Name</label><input type="text" id="new-student-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-1 ml-1">Section</label><input type="text" id="new-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"></div>
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Student Number</label>
-                    <input type="text" id="new-student-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium placeholder:font-normal" placeholder="e.g., 24-0001">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Full Name</label>
-                    <input type="text" id="new-student-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium placeholder:font-normal" placeholder="Last Name, First Name">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Section / Block</label>
-                    <input type="text" id="new-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium placeholder:font-normal" placeholder="e.g., Grade 10 - Rizal">
+                    <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Enrolled Subjects</label>
+                    <div class="flex gap-4 flex-wrap bg-slate-50 border border-slate-200 p-3 rounded-xl" id="add-subject-checkboxes">
+                    </div>
                 </div>
             </div>
             <div id="add-student-error" class="hidden text-rose-600 text-sm mt-4 font-bold bg-rose-50 p-3 rounded-lg border border-rose-100"></div>
             <div class="mt-8 flex justify-end gap-3">
-                <button onclick="closeAddStudentModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-semibold">Cancel</button>
-                <button id="save-new-student-btn" onclick="saveNewStudent()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all font-semibold">Save Student</button>
+                <button onclick="closeAddStudentModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl font-semibold">Cancel</button>
+                <button id="save-new-student-btn" onclick="saveNewStudent()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold">Save Student</button>
             </div>
         </div>
     </div>
 
-    <!-- IMPORT CSV MODAL WITH LOADING BAR & ETA -->
+    <!-- IMPORT MODAL (WITH PREVIEW & PROGRESS BAR) -->
     <div id="import-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-xl border border-slate-100 modal-animate relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
-            <h3 class="text-2xl font-bold mb-1 text-slate-800">Sync Form Data</h3>
+            <h3 class="text-2xl font-bold mb-1 text-slate-800">Import CSV</h3>
             <p class="text-sm text-slate-500 mb-6 font-medium">Upload downloaded Google Sheet CSV file.</p>
             
             <div class="mb-5">
+                <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Subject to Import Into</label>
+                <select id="import-subject" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700"></select>
+            </div>
+
+            <div class="mb-5">
                 <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Upload CSV File</label>
-                <input type="file" id="csv-file-input" accept=".csv" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 transition-all text-sm font-medium text-slate-600 cursor-pointer file:cursor-pointer file:border-0 file:py-1.5 file:px-4 file:mr-4 file:bg-purple-100 file:text-purple-700 file:rounded-lg file:font-semibold hover:file:bg-purple-200">
+                <input type="file" id="csv-file-input" accept=".csv" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 cursor-pointer">
             </div>
 
             <div class="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide text-center">Student No. Col</label>
-                    <input type="text" id="col-id" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 uppercase font-bold text-center text-purple-700 shadow-sm transition-all" placeholder="e.g., B">
+                    <input type="text" id="col-id" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 shadow-sm transition-all" placeholder="e.g., A">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide text-center">Name Col</label>
-                    <input type="text" id="col-name" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 uppercase font-bold text-center text-purple-700 shadow-sm transition-all" placeholder="e.g., C">
+                    <input type="text" id="col-name" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 shadow-sm transition-all" placeholder="e.g., B">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide text-center">Section Col</label>
-                    <input type="text" id="col-sec" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 uppercase font-bold text-center text-purple-700 shadow-sm transition-all" placeholder="e.g., D">
+                    <input type="text" id="col-sec" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 shadow-sm transition-all" placeholder="e.g., C">
                 </div>
             </div>
 
@@ -354,9 +359,8 @@
                     <span id="progress-status-text">Importing records...</span>
                     <span id="progress-percentage">0%</span>
                 </div>
-                <!-- Progress Bar Track -->
                 <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner mb-2">
-                    <div id="progress-bar-fill" class="bg-gradient-to-r from-purple-500 to-indigo-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    <div id="progress-bar-fill" class="bg-indigo-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
                 </div>
                 <div class="flex justify-between items-center text-[11px] font-semibold text-slate-400">
                     <span id="progress-count">0 of 0 imported</span>
@@ -367,13 +371,11 @@
             <div id="transfer-status" class="hidden mt-4 p-3 rounded-xl border font-bold text-sm text-center"></div>
             
             <div class="mt-8 flex justify-end gap-3">
-                <button id="import-cancel-btn" onclick="closeImportModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-semibold">Cancel</button>
-                <button id="preview-btn" onclick="previewDataTransfer()" class="px-5 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 shadow-md transform hover:-translate-y-0.5 transition-all font-semibold flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                <button id="import-cancel-btn" onclick="closeImportModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 font-semibold transition-all">Cancel</button>
+                <button id="preview-btn" onclick="previewDataTransfer()" class="px-5 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 shadow-md font-semibold transition-all">
                     Preview Data
                 </button>
-                <button id="confirm-btn" onclick="confirmDataTransfer()" class="hidden px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all font-semibold flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                <button id="confirm-btn" onclick="confirmDataTransfer()" class="hidden px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md font-semibold transition-all">
                     Confirm & Import
                 </button>
             </div>
@@ -382,67 +384,78 @@
 
     <!-- REGISTER MODAL -->
     <div id="register-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-md border border-slate-100 modal-animate relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-            <h3 class="text-2xl font-bold mb-1 text-slate-800">Student Registration</h3>
-            <p class="text-sm text-slate-500 mb-6 font-medium">Create your profile to view your grades.</p>
+        <div class="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-md border border-slate-100 modal-animate relative">
+            <h3 class="text-2xl font-bold mb-1">Student Registration</h3>
             
-            <div class="space-y-4">
+            <div class="space-y-4 mt-6">
+                <div><label class="block text-sm font-bold text-slate-700 mb-1">Student Number</label><input type="text" id="reg-student-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-1">Full Name</label><input type="text" id="reg-student-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-1">Section / Block</label><input type="text" id="reg-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"></div>
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Student Number</label>
-                    <input type="text" id="reg-student-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium placeholder:font-normal" placeholder="e.g., 24-0001">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Full Name</label>
-                    <input type="text" id="reg-student-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium placeholder:font-normal" placeholder="Last Name, First Name">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Section / Block</label>
-                    <input type="text" id="reg-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium placeholder:font-normal" placeholder="e.g., Grade 10 - Rizal">
+                    <label class="block text-sm font-bold text-slate-700 mb-1.5">Enrolled Subjects</label>
+                    <div class="flex gap-4 flex-wrap bg-slate-50 border border-slate-200 p-3 rounded-xl" id="reg-subject-checkboxes">
+                    </div>
                 </div>
             </div>
-            <div id="reg-error" class="hidden text-rose-600 text-sm mt-4 font-bold bg-rose-50 p-3 rounded-lg border border-rose-100"></div>
+            <div id="reg-error" class="hidden text-rose-600 text-sm mt-4 font-bold bg-rose-50 p-3 rounded-lg"></div>
             <div class="mt-8 flex justify-end gap-3">
-                <button onclick="closeRegisterModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-semibold">Cancel</button>
-                <button id="submit-reg-btn" onclick="submitRegistration()" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all font-semibold">Register Profile</button>
+                <button onclick="closeRegisterModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl font-semibold">Cancel</button>
+                <button id="submit-reg-btn" onclick="submitRegistration()" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold">Register Profile</button>
             </div>
         </div>
     </div>
 
     <!-- ======================= SCRIPTS ======================= -->
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwjoi5ItKz5p17T2G-aiA1df52_Vsucl9HuLONQoyXvxOVEUQ2iQYWxzNDrKpl4WwVh/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwjoi5ItKz5p17T2G-aiA1df52_Vsucl9HuLONQoyXvxOVEUQ2iQYWxzNDrKpl4WwVh/exec";
         
+        let availableSubjects = []; 
         let currentAdminData = [];
         let currentStudentData = null;
         let adminPin = "";
-        let pendingImportData = []; 
+        let pendingImportData = [];
         let activeManageStudentId = null;
+        let activeAdminSubject = "All"; 
+        let activeManageSubject = "";
+        let activeStudentSubject = "";
 
-        const screens = {
-            login: document.getElementById('login-screen'),
-            admin: document.getElementById('admin-dashboard'),
-            student: document.getElementById('student-dashboard'),
-            breakdown: document.getElementById('breakdown-screen')
-        };
-        const loginBtn = document.getElementById('login-btn');
-        const loginInput = document.getElementById('login-input');
-        const loginError = document.getElementById('login-error');
-        const loginErrorText = document.getElementById('login-error-text');
-        const logoutBtns = document.querySelectorAll('.logout-btn');
+        const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
+
+        window.onload = async () => { await fetchSubjects(); };
+
+        async function fetchSubjects() {
+            try {
+                const res = await apiCall({ action: "getSubjects" });
+                if (res.success && res.subjects.length > 0) {
+                    availableSubjects = res.subjects;
+                    populateSubjectUIs();
+                }
+            } catch (err) { console.error("Could not fetch subjects."); }
+        }
+
+        function populateSubjectUIs() {
+            const optionsHTML = availableSubjects.map(s => `<option value="${s}">${s}</option>`).join('');
+            const checkboxesHTML = availableSubjects.map(s => `<label class="font-medium text-sm text-slate-600 flex items-center cursor-pointer"><input type="checkbox" value="${s}" class="mr-1.5 accent-indigo-600 w-4 h-4" checked> ${s}</label>`).join('');
+
+            document.getElementById('admin-subject-filter').innerHTML = `<option value="All">All Subjects</option>` + optionsHTML;
+            document.getElementById('admin-subject-filter').value = activeAdminSubject;
+            document.getElementById('import-subject').innerHTML = optionsHTML;
+            document.getElementById('add-subject-checkboxes').innerHTML = checkboxesHTML;
+            document.getElementById('reg-subject-checkboxes').innerHTML = checkboxesHTML;
+        }
 
         function showScreen(screenName) {
             Object.values(screens).forEach(screen => screen.classList.add('hidden-screen'));
             screens[screenName].classList.remove('hidden-screen');
         }
 
-        loginBtn.addEventListener('click', async () => {
-            const inputVal = loginInput.value.trim();
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('login-btn');
+            const inputVal = document.getElementById('login-input').value.trim();
             if (!inputVal) return;
 
-            loginBtn.innerText = "Authenticating...";
-            loginBtn.disabled = true;
-            loginError.classList.add('hidden-screen');
+            btn.innerText = "Authenticating..."; btn.disabled = true;
+            document.getElementById('login-error').classList.add('hidden-screen');
 
             try {
                 if (inputVal.length <= 6 && !isNaN(inputVal) && !inputVal.includes("-")) {
@@ -451,527 +464,298 @@
                         adminPin = inputVal;
                         await loadAdminDashboard();
                         showScreen('admin');
-                    } else {
-                        throw new Error("Invalid Teacher PIN.");
-                    }
+                    } else { throw new Error("Invalid Teacher PIN."); }
                 } else {
                     const res = await apiCall({ action: "getStudent", studentNumber: inputVal });
-                    if (res && res.grades) {
+                    if (res && res.subjects && Object.keys(res.subjects).length > 0) {
                         currentStudentData = res;
-                        renderStudentDashboard();
+                        const subjSelect = document.getElementById('student-subject-selector');
+                        subjSelect.innerHTML = Object.keys(res.subjects).map(s => `<option value="${s}">${s}</option>`).join('');
+                        activeStudentSubject = Object.keys(res.subjects)[0];
+                        document.getElementById('student-info-header').innerText = `ID: ${res.studentNumber} • ${res.name}`;
+                        renderStudentDashboard(activeStudentSubject);
                         showScreen('student');
-                    } else {
-                        throw new Error("Student not found. Please check your Student Number.");
-                    }
+                    } else { throw new Error("Student not found or has no enrolled subjects."); }
                 }
             } catch (error) {
-                loginErrorText.innerText = error.message || "Login failed. Try again.";
-                loginError.classList.remove('hidden-screen');
+                document.getElementById('login-error-text').innerText = error.message;
+                document.getElementById('login-error').classList.remove('hidden-screen');
             }
-
-            loginBtn.innerText = "Log In";
-            loginBtn.disabled = false;
+            btn.innerText = "Log In"; btn.disabled = false;
         });
 
-        logoutBtns.forEach(btn => btn.addEventListener('click', () => {
-            loginInput.value = "";
-            adminPin = "";
-            currentStudentData = null;
-            showScreen('login');
+        document.querySelectorAll('.logout-btn').forEach(btn => btn.addEventListener('click', () => {
+            document.getElementById('login-input').value = ""; adminPin = ""; currentStudentData = null; showScreen('login');
         }));
 
-        function renderStudentDashboard() {
-            document.getElementById('student-info-header').innerText = `ID: ${currentStudentData.studentNumber}`;
-            const container = document.getElementById('student-main-grades');
-            const g = currentStudentData.grades;
+        function openManageSubjectsModal() { document.getElementById('manage-subjects-modal').classList.remove('hidden-screen'); renderSubjectsListUI(); }
+        function closeManageSubjectsModal() { document.getElementById('manage-subjects-modal').classList.add('hidden-screen'); }
 
-            if (!g) {
-                container.innerHTML = `<div class="p-8 text-slate-400 text-center font-medium bg-slate-50 rounded-2xl border border-slate-100">No grades posted yet.</div>`;
-                return;
-            }
-
-            const getRemarksUI = (rem) => {
-                if (rem === 'Passed') return '<span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-bold border border-emerald-200 shadow-sm">PASSED</span>';
-                if (rem === 'Failed') return '<span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-sm font-bold border border-rose-200 shadow-sm">FAILED</span>';
-                return '<span class="text-slate-400">-</span>';
-            };
-
-            container.innerHTML = `
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
-                    <div onclick="openBreakdown('1st')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center transform hover:-translate-y-1 transition-all duration-200 group cursor-pointer">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 group-hover:text-indigo-500 transition-colors">1st Quarter</span>
-                        <span class="text-3xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors">${g.q1 || '-'}</span>
+        function renderSubjectsListUI() {
+            const listUI = document.getElementById('subjects-list-ui');
+            if (availableSubjects.length === 0) { listUI.innerHTML = `<li class="p-4 text-center text-slate-400 text-sm font-medium">No subjects found.</li>`; return; }
+            listUI.innerHTML = availableSubjects.map(s => `
+                <li class="p-4 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors">
+                    <span class="font-bold text-slate-700 text-sm">${s}</span>
+                    <div class="flex gap-2">
+                        <button onclick="handleEditSubject('${s}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold px-2 py-1 bg-indigo-50 rounded">Rename</button>
+                        <button onclick="handleDeleteSubject('${s}')" class="text-rose-600 hover:text-rose-800 text-xs font-bold px-2 py-1 bg-rose-50 rounded">Delete</button>
                     </div>
-                    <div onclick="openBreakdown('2nd')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center transform hover:-translate-y-1 transition-all duration-200 group cursor-pointer">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 group-hover:text-indigo-500 transition-colors">2nd Quarter</span>
-                        <span class="text-3xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors">${g.q2 || '-'}</span>
-                    </div>
-                    <div onclick="openBreakdown('3rd')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center transform hover:-translate-y-1 transition-all duration-200 group cursor-pointer">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 group-hover:text-indigo-500 transition-colors">3rd Quarter</span>
-                        <span class="text-3xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors">${g.q3 || '-'}</span>
-                    </div>
-                    <div onclick="openBreakdown('4th')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center transform hover:-translate-y-1 transition-all duration-200 group cursor-pointer">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 group-hover:text-indigo-500 transition-colors">4th Quarter</span>
-                        <span class="text-3xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors">${g.q4 || '-'}</span>
-                    </div>
-                    <div class="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-5 shadow-md flex flex-col items-center justify-center text-white transform hover:scale-[1.02] transition-all duration-200">
-                        <span class="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-2 drop-shadow-sm">Final Grade</span>
-                        <span class="text-4xl font-black drop-shadow-md">${g.final || '-'}</span>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Status</span>
-                        ${getRemarksUI(g.remarks)}
-                    </div>
-                </div>
-            `;
+                </li>
+            `).join('');
         }
 
-        function openBreakdown(quarter) {
-            const breakdown = currentStudentData.breakdowns.find(b => b.quarter.toString().includes(quarter.replace(/\D/g, '')));
-            const container = document.getElementById('breakdown-content');
-            document.getElementById('breakdown-title').innerText = `${quarter} Quarter Details`;
-
-            if (!breakdown) {
-                container.innerHTML = `<div class="p-8 text-slate-400 text-center font-medium bg-slate-50 rounded-2xl border border-slate-100">Breakdown not available yet.</div>`;
-                showScreen('breakdown');
-                return;
-            }
-
-            let html = `
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="breakdown-grid-row">
-                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="quizzes">
-                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Quizzes<br><span class="text-[10px] text-slate-400">35%</span></span>
-                        <span class="text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="participation">
-                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Participation<br><span class="text-[10px] text-slate-400">15%</span></span>
-                        <span class="text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="attendance">
-                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Attendance<br><span class="text-[10px] text-slate-400">10%</span></span>
-                        <span class="text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="exams">
-                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Exams<br><span class="text-[10px] text-slate-400">40%</span></span>
-                        <span class="text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span>
-                    </div>
-                    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex flex-col items-center justify-center col-span-2 md:col-span-1 shadow-sm">
-                        <span class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">Total Grade</span>
-                        <span class="text-3xl font-black text-indigo-700" id="bd-total">${breakdown.total}</span>
-                    </div>
-                </div>
-            `;
-
-            if (adminPin !== "") {
-                html += `
-                    <div class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
-                        <button id="bd-edit-btn" onclick="toggleBreakdownEditResponsive(this, '${quarter}')" class="bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm transition-all font-semibold flex items-center hover:border-indigo-300 hover:text-indigo-600">
-                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                            Edit Breakdown
-                        </button>
-                    </div>
-                `;
-            }
-            container.innerHTML = html;
-            showScreen('breakdown');
+        async function handleAddSubject() {
+            const input = document.getElementById('new-subject-input'); const val = input.value.trim();
+            if (!val) return;
+            const btn = event.target; btn.innerText = "...";
+            const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "add", subjectName: val });
+            if (res.success) { input.value = ""; await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); }
+            btn.innerText = "Add";
         }
 
-        document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-            if (adminPin !== "") {
-                showScreen('admin');
-            } else {
-                showScreen('student');
-            }
+        async function handleEditSubject(oldName) {
+            const newName = prompt(`Rename subject '${oldName}' to:`);
+            if (!newName || newName.trim() === "" || newName === oldName) return;
+            document.getElementById('subjects-list-ui').innerHTML = `<li class="p-4 text-center text-indigo-500 text-sm font-bold">Updating database...</li>`;
+            const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "update", oldName: oldName, newName: newName.trim() });
+            if (res.success) { if(activeAdminSubject === oldName) activeAdminSubject = newName.trim(); await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); } 
+            else { alert("Failed to rename."); renderSubjectsListUI(); }
+        }
+
+        async function handleDeleteSubject(name) {
+            if(!confirm(`WARNING: Deleting '${name}' will also delete ALL grades for this subject across the entire database. This cannot be undone.\n\nProceed?`)) return;
+            document.getElementById('subjects-list-ui').innerHTML = `<li class="p-4 text-center text-rose-500 text-sm font-bold">Deleting...</li>`;
+            const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "delete", subjectName: name });
+            if (res.success) { if(activeAdminSubject === name) activeAdminSubject = "All"; await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); } 
+            else { alert("Failed to delete."); renderSubjectsListUI(); }
+        }
+
+        document.getElementById('admin-subject-filter').addEventListener('change', async (e) => {
+            activeAdminSubject = e.target.value;
+            await loadAdminDashboard();
         });
 
         async function loadAdminDashboard() {
             const tbody = document.getElementById('admin-table-body');
-            tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400" colspan="9"><div class="flex flex-col items-center justify-center"><svg class="animate-spin h-6 w-6 text-indigo-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Loading student records...</div></td></tr>`;
+            const label = activeAdminSubject === "All" ? "all subjects" : activeAdminSubject;
+            tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400" colspan="9">Loading ${label}...</td></tr>`;
             
-            const res = await apiCall({ action: "getAllGrades", pin: adminPin });
+            const res = await apiCall({ action: "getAllGrades", pin: adminPin, subject: activeAdminSubject });
             if (res && Array.isArray(res)) {
-                currentAdminData = res;
-                populateSectionFilter();
-                renderAdminTable(currentAdminData);
+                currentAdminData = res; populateSectionFilter(); renderAdminTable(currentAdminData);
             }
         }
 
         function renderAdminTable(dataToRender) {
             const tbody = document.getElementById('admin-table-body');
             tbody.innerHTML = "";
+            if (dataToRender.length === 0) { tbody.innerHTML = `<tr><td class="p-8 text-center text-slate-400" colspan="9">No students found.</td></tr>`; return; }
 
             dataToRender.forEach((student) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-indigo-50/30 transition-colors group";
-                
-                const remarksUI = student.remarks === 'Passed' 
-                    ? '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-200 tracking-wide uppercase">PASSED</span>'
-                    : (student.remarks === 'Failed' 
-                        ? '<span class="bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-200 tracking-wide uppercase">FAILED</span>' 
-                        : '<span class="text-slate-400">-</span>');
+                const tr = document.createElement('tr'); tr.className = "hover:bg-indigo-50/30 transition-colors group";
+                const remarksUI = student.remarks === 'Passed' ? '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-[11px] font-bold border border-emerald-200">PASSED</span>' : (student.remarks === 'Failed' ? '<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded-md text-[11px] font-bold border border-rose-200">FAILED</span>' : '<span class="text-slate-400">-</span>');
 
                 tr.innerHTML = `
                     <td class="p-4 font-semibold text-slate-600">${student.studentNumber}</td>
                     <td class="p-4">
                         <div class="font-bold text-slate-800">${student.name}</div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide mt-0.5">${student.section}</div>
+                        <div class="text-[11px] font-bold text-slate-400 mt-0.5">${student.section} &bull; <span class="text-indigo-500">${student.subject}</span></div>
                     </td>
-                    <td class="p-4 text-center cursor-pointer text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '1st')">${student.q1 || '-'}</td>
-                    <td class="p-4 text-center cursor-pointer text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '2nd')">${student.q2 || '-'}</td>
-                    <td class="p-4 text-center cursor-pointer text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '3rd')">${student.q3 || '-'}</td>
-                    <td class="p-4 text-center cursor-pointer text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '4th')">${student.q4 || '-'}</td>
-                    <td class="p-4 text-center font-black text-slate-800 bg-slate-50 group-hover:bg-transparent transition-colors">${student.final || '-'}</td>
+                    <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">${student.q1 || '-'}</td>
+                    <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '2nd')">${student.q2 || '-'}</td>
+                    <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '3rd')">${student.q3 || '-'}</td>
+                    <td class="p-4 text-center cursor-pointer text-indigo-600 font-bold" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '4th')">${student.q4 || '-'}</td>
+                    <td class="p-4 text-center font-black">${student.final || '-'}</td>
                     <td class="p-4">${remarksUI}</td>
                     <td class="p-4 text-center">
-                        <button onclick="openSlidePanel('${student.studentNumber}')" class="text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:border-indigo-600 hover:text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center mx-auto opacity-70 group-hover:opacity-100">
-                            <svg class="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            Manage
-                        </button>
+                        <button onclick="openSlidePanel('${student.studentNumber}', '${student.subject}')" class="text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors">Manage</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        document.getElementById('admin-search').addEventListener('input', (e) => {
-            filterAdminTable(e.target.value.toLowerCase(), document.getElementById('section-filter').value);
-        });
-
-        document.getElementById('section-filter').addEventListener('change', (e) => {
-            filterAdminTable(document.getElementById('admin-search').value.toLowerCase(), e.target.value);
-        });
-
-        function populateSectionFilter() {
-            const select = document.getElementById('section-filter');
-            const sections = [...new Set(currentAdminData.map(s => s.section))];
-            select.innerHTML = `<option value="All">All Sections</option>` + 
-                sections.map(s => `<option value="${s}">${s}</option>`).join('');
-        }
-
-        function filterAdminTable(searchTerm, sectionFilter) {
-            const filtered = currentAdminData.filter(s => {
-                const matchesSearch = s.name.toLowerCase().includes(searchTerm) || s.studentNumber.toString().includes(searchTerm);
-                const matchesSection = sectionFilter === "All" || s.section === sectionFilter;
-                return matchesSearch && matchesSection;
-            });
+        document.getElementById('admin-search').addEventListener('input', applyAdminFilters);
+        document.getElementById('section-filter').addEventListener('change', applyAdminFilters);
+        
+        function applyAdminFilters() {
+            const search = document.getElementById('admin-search').value.toLowerCase();
+            const sec = document.getElementById('section-filter').value;
+            const filtered = currentAdminData.filter(s => (s.name.toLowerCase().includes(search) || s.studentNumber.toString().includes(search)) && (sec === "All" || s.section === sec));
             renderAdminTable(filtered);
         }
+        
+        function populateSectionFilter() {
+            document.getElementById('section-filter').innerHTML = `<option value="All">All Sections</option>` + [...new Set(currentAdminData.map(s => s.section))].map(s => `<option value="${s}">${s}</option>`).join('');
+        }
 
-        async function openAdminBreakdown(cellElement, studentNumber, quarter) {
-            if (cellElement.querySelector('input')) return;
+        // ==========================================
+        // SORTING LOGIC
+        // ==========================================
+        let sortDirectionNo = 1;
+        let sortDirectionName = 1;
 
-            const originalText = cellElement.innerText;
-            cellElement.innerText = "...";
+        function sortByStudentNo() {
+            sortDirectionNo *= -1; 
+            currentAdminData.sort((a, b) => {
+                const noA = String(a.studentNumber).toLowerCase();
+                const noB = String(b.studentNumber).toLowerCase();
+                if (noA < noB) return -1 * sortDirectionNo;
+                if (noA > noB) return 1 * sortDirectionNo;
+                return 0;
+            });
+            document.getElementById('student-no-sort-icon').innerHTML = sortDirectionNo === 1 ? '&#8593;' : '&#8595;';
+            document.getElementById('name-sort-icon').innerHTML = '&#8597;';
+            applyAdminFilters(); 
+        }
 
+        function sortByName() {
+            sortDirectionName *= -1;
+            currentAdminData.sort((a, b) => {
+                const nameA = String(a.name).toLowerCase();
+                const nameB = String(b.name).toLowerCase();
+                if (nameA < nameB) return -1 * sortDirectionName;
+                if (nameA > nameB) return 1 * sortDirectionName;
+                return 0;
+            });
+            document.getElementById('name-sort-icon').innerHTML = sortDirectionName === 1 ? '&#8593;' : '&#8595;';
+            document.getElementById('student-no-sort-icon').innerHTML = '&#8597;';
+            applyAdminFilters();
+        }
+
+        // ==========================================
+        // STUDENT DASHBOARD
+        // ==========================================
+        function changeStudentSubject(subject) { activeStudentSubject = subject; renderStudentDashboard(subject); }
+
+        function renderStudentDashboard(subject) {
+            const g = currentStudentData.subjects[subject].grades;
+            const getRemarksUI = (rem) => rem === 'Passed' ? '<span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-bold border border-emerald-200">PASSED</span>' : (rem === 'Failed' ? '<span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-sm font-bold border border-rose-200">FAILED</span>' : '<span class="text-slate-400">-</span>');
+
+            document.getElementById('student-main-grades').innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
+                    <div onclick="openBreakdown('1st', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1st Quarter</span><span class="text-3xl font-black text-slate-800">${g.q1 || '-'}</span></div>
+                    <div onclick="openBreakdown('2nd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2nd Quarter</span><span class="text-3xl font-black text-slate-800">${g.q2 || '-'}</span></div>
+                    <div onclick="openBreakdown('3rd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">3rd Quarter</span><span class="text-3xl font-black text-slate-800">${g.q3 || '-'}</span></div>
+                    <div onclick="openBreakdown('4th', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">4th Quarter</span><span class="text-3xl font-black text-slate-800">${g.q4 || '-'}</span></div>
+                    <div class="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-5 shadow-md flex flex-col items-center justify-center text-white"><span class="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-2">Final Grade</span><span class="text-4xl font-black">${g.final || '-'}</span></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Status</span>${getRemarksUI(g.remarks)}</div>
+                </div>
+            `;
+        }
+
+        async function openAdminBreakdown(cell, studentNumber, subject, quarter) {
+            cell.innerText = "...";
             try {
                 const res = await apiCall({ action: "getStudent", studentNumber: studentNumber });
-                if (res && res.studentNumber) {
-                    currentStudentData = res;
-                    openBreakdown(quarter);
-                } else {
-                    alert("Could not load details.");
-                }
-            } catch (error) {
-                alert("Error connecting to database.");
-            } finally {
-                cellElement.innerText = originalText;
-            }
+                if (res && res.studentNumber) { currentStudentData = res; openBreakdown(quarter, subject); }
+            } catch (e) { alert("Error"); } finally { cell.innerText = "View"; }
         }
 
-        async function toggleBreakdownEditResponsive(btn, quarter) {
+        function openBreakdown(quarter, subject) {
+            const breakdown = currentStudentData.subjects[subject].breakdowns.find(b => b.quarter.toString().includes(quarter.replace(/\D/g, '')));
+            document.getElementById('breakdown-title').innerText = `${quarter} Quarter Details`;
+            document.getElementById('breakdown-subject-label').innerText = `${subject} Component View`;
+
+            if (!breakdown) { document.getElementById('breakdown-content').innerHTML = `<div class="p-8 text-slate-400 text-center font-medium">Breakdown not available yet.</div>`; showScreen('breakdown'); return; }
+
+            let html = `
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="breakdown-grid-row">
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Quizzes</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Participation</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Attendance</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Exams</span><span class="text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span></div>
+                    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex flex-col items-center justify-center"><span class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">Total</span><span class="text-3xl font-black text-indigo-700" id="bd-total">${breakdown.total}</span></div>
+                </div>
+            `;
+            if (adminPin !== "") html += `<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end"><button onclick="toggleBreakdownEdit(this, '${quarter}', '${subject}')" class="bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold">Edit Breakdown</button></div>`;
+            document.getElementById('breakdown-content').innerHTML = html; showScreen('breakdown');
+        }
+
+        async function toggleBreakdownEdit(btn, quarter, subject) {
             const gridRow = document.getElementById('breakdown-grid-row');
-            const isEditing = btn.innerText.includes("Save");
-
-            if (!isEditing) {
-                ['quizzes', 'participation', 'attendance', 'exams'].forEach(field => {
-                    const container = gridRow.querySelector(`div[data-field="${field}"]`);
-                    const textSpan = container.querySelector('.value-text');
-                    const val = textSpan.innerText === '-' || textSpan.innerText === '' ? '' : textSpan.innerText;
-                    textSpan.innerHTML = `<input type="number" class="w-24 border-2 border-indigo-200 rounded-xl px-2 py-1.5 text-center bg-white focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-indigo-700" value="${val}" data-original="${val}">`;
+            if (!btn.innerText.includes("Save")) {
+                ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => {
+                    const t = gridRow.querySelector(`div[data-field="${f}"] .value-text`);
+                    t.innerHTML = `<input type="number" class="w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none" value="${t.innerText === '-' ? '' : t.innerText}">`;
                 });
-                
-                btn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Changes`;
-                btn.className = "bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all font-semibold flex items-center";
-                
-                const cancelBtn = document.createElement('button');
-                cancelBtn.innerText = "Cancel";
-                cancelBtn.className = "text-slate-600 hover:text-slate-800 font-semibold px-5 py-2.5 ml-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all cancel-btn";
-                cancelBtn.onclick = () => {
-                    ['quizzes', 'participation', 'attendance', 'exams'].forEach(field => {
-                        const container = gridRow.querySelector(`div[data-field="${field}"]`);
-                        const textSpan = container.querySelector('.value-text');
-                        textSpan.innerHTML = textSpan.querySelector('input').getAttribute('data-original') || '-';
-                    });
-                    btn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg> Edit Breakdown`;
-                    btn.className = "bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm transition-all font-semibold flex items-center hover:border-indigo-300 hover:text-indigo-600";
-                    cancelBtn.remove();
-                };
-                btn.parentNode.appendChild(cancelBtn);
+                btn.innerText = "Save Changes"; btn.className = "bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-semibold";
             } else {
-                btn.innerHTML = "Saving...";
-                btn.disabled = true;
-                
-                const updatedBreakdown = {};
-                ['quizzes', 'participation', 'attendance', 'exams'].forEach(field => {
-                    const container = gridRow.querySelector(`div[data-field="${field}"]`);
-                    const input = container.querySelector('.value-text input');
-                    updatedBreakdown[field] = input.value === '' ? 0 : Number(input.value);
-                });
-
-                const res = await apiCall({
-                    action: "saveBreakdown",
-                    pin: adminPin,
-                    studentNumber: currentStudentData.studentNumber,
-                    quarter: quarter,
-                    breakdown: updatedBreakdown
-                });
-
+                btn.innerText = "Saving..."; btn.disabled = true;
+                const bd = {}; ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => bd[f] = Number(gridRow.querySelector(`div[data-field="${f}"] .value-text input`).value || 0));
+                const res = await apiCall({ action: "saveBreakdown", pin: adminPin, studentNumber: currentStudentData.studentNumber, subject: subject, quarter: quarter, breakdown: bd });
                 if (res.success) {
                     document.getElementById('bd-total').innerText = res.newTotal;
-                    ['quizzes', 'participation', 'attendance', 'exams'].forEach(field => {
-                        const container = gridRow.querySelector(`div[data-field="${field}"]`);
-                        const textSpan = container.querySelector('.value-text');
-                        textSpan.innerHTML = updatedBreakdown[field];
-                    });
-                    
-                    btn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg> Edit Breakdown`;
-                    btn.className = "bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm transition-all font-semibold flex items-center hover:border-indigo-300 hover:text-indigo-600";
-                    btn.disabled = false;
-                    
-                    const cancelBtn = btn.parentNode.querySelector('.cancel-btn');
-                    if (cancelBtn) cancelBtn.remove();
-                    
+                    ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => gridRow.querySelector(`div[data-field="${f}"] .value-text`).innerHTML = bd[f]);
+                    btn.innerText = "Edit Breakdown"; btn.className = "bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 font-semibold"; btn.disabled = false;
                     await loadAdminDashboard();
-                } else {
-                    alert("Failed to save breakdown.");
-                    btn.innerText = "Save Changes";
-                    btn.disabled = false;
-                }
+                } else { alert("Failed to save."); btn.innerText = "Save Changes"; btn.disabled = false; }
             }
         }
 
-        // ==========================================
-        // SLIDE-OUT PANEL LOGIC (CRUD)
-        // ==========================================
-        function openSlidePanel(studentNo) {
-            const student = currentAdminData.find(s => String(s.studentNumber) === String(studentNo));
+        document.getElementById('back-to-dashboard-btn').addEventListener('click', () => adminPin !== "" ? showScreen('admin') : showScreen('student'));
+
+        function openSlidePanel(studentNo, subject) {
+            const student = currentAdminData.find(s => String(s.studentNumber) === String(studentNo) && s.subject === subject);
             if (!student) return;
-
+            
             activeManageStudentId = studentNo;
+            activeManageSubject = subject;
 
-            document.getElementById('panel-old-student-id').value = student.studentNumber;
-            document.getElementById('panel-student-id').value = student.studentNumber;
-            document.getElementById('panel-student-name').value = student.name;
-            document.getElementById('panel-student-section').value = student.section;
-
-            document.getElementById('panel-q1').value = student.q1 || '';
-            document.getElementById('panel-q2').value = student.q2 || '';
-            document.getElementById('panel-q3').value = student.q3 || '';
-            document.getElementById('panel-q4').value = student.q4 || '';
-
-            document.getElementById('panel-header-name').innerText = student.name;
-            document.getElementById('panel-header-id').innerText = `ID: ${student.studentNumber}`;
-
-            document.getElementById('panel-save-info-btn').innerText = "Update Profile";
-            document.getElementById('panel-save-grades-btn').innerText = "Save Grades";
-
-            const backdrop = document.getElementById('slide-panel-backdrop');
-            const panel = document.getElementById('slide-panel');
+            ['old-student-id', 'student-id'].forEach(id => document.getElementById(`panel-${id}`).value = student.studentNumber);
+            document.getElementById('panel-student-name').value = student.name; document.getElementById('panel-student-section').value = student.section;
+            document.getElementById('panel-subject-label').innerText = activeManageSubject;
+            ['q1','q2','q3','q4'].forEach(q => document.getElementById(`panel-${q}`).value = student[q] || '');
+            document.getElementById('panel-header-name').innerText = student.name; document.getElementById('panel-header-id').innerText = `ID: ${student.studentNumber}`;
             
-            backdrop.classList.remove('hidden-screen');
-            setTimeout(() => {
-                backdrop.classList.remove('opacity-0');
-                panel.classList.remove('translate-x-full');
-            }, 10);
+            const b = document.getElementById('slide-panel-backdrop'); const p = document.getElementById('slide-panel');
+            b.classList.remove('hidden-screen'); setTimeout(() => { b.classList.remove('opacity-0'); p.classList.remove('translate-x-full'); }, 10);
         }
-
-        function closeSlidePanel() {
-            const backdrop = document.getElementById('slide-panel-backdrop');
-            const panel = document.getElementById('slide-panel');
-            
-            panel.classList.add('translate-x-full');
-            backdrop.classList.add('opacity-0');
-            setTimeout(() => {
-                backdrop.classList.add('hidden-screen');
-            }, 300);
-        }
+        function closeSlidePanel() { document.getElementById('slide-panel').classList.add('translate-x-full'); document.getElementById('slide-panel-backdrop').classList.add('opacity-0'); setTimeout(() => document.getElementById('slide-panel-backdrop').classList.add('hidden-screen'), 300); }
 
         async function savePanelInfo() {
-            const btn = document.getElementById('panel-save-info-btn');
-            const oldId = document.getElementById('panel-old-student-id').value;
+            const btn = document.getElementById('panel-save-info-btn'); btn.innerText = "Saving..."; btn.disabled = true;
             const newId = document.getElementById('panel-student-id').value.trim();
-            const name = document.getElementById('panel-student-name').value.trim();
-            const section = document.getElementById('panel-student-section').value.trim();
-            
-            if (!newId || !name || !section) { alert("Please fill in all Profile fields."); return; }
-
-            btn.innerText = "Saving...";
-            btn.disabled = true;
-
-            try {
-                const res = await apiCall({
-                    action: "updateStudentInfo", pin: adminPin, oldStudentNumber: oldId,
-                    newData: { studentNumber: newId, name: name, section: section }
-                });
-
-                if (res.success) {
-                    await loadAdminDashboard();
-                    
-                    document.getElementById('panel-old-student-id').value = newId;
-                    activeManageStudentId = newId;
-                    document.getElementById('panel-header-name').innerText = name;
-                    document.getElementById('panel-header-id').innerText = `ID: ${newId}`;
-                    
-                    btn.innerText = "✓ Saved Successfully";
-                    btn.classList.replace('text-indigo-700', 'text-emerald-700');
-                    btn.classList.replace('bg-indigo-50', 'bg-emerald-50');
-                    
-                    setTimeout(() => {
-                        btn.innerText = "Update Profile";
-                        btn.classList.replace('text-emerald-700', 'text-indigo-700');
-                        btn.classList.replace('bg-emerald-50', 'bg-indigo-50');
-                        btn.disabled = false;
-                    }, 2000);
-                } else {
-                    alert(res.message);
-                    btn.innerText = "Update Profile";
-                    btn.disabled = false;
-                }
-            } catch (err) {
-                alert("Error connecting to database.");
-                btn.innerText = "Update Profile";
-                btn.disabled = false;
-            }
+            const res = await apiCall({ action: "updateStudentInfo", pin: adminPin, oldStudentNumber: document.getElementById('panel-old-student-id').value, newData: { studentNumber: newId, name: document.getElementById('panel-student-name').value.trim(), section: document.getElementById('panel-student-section').value.trim() } });
+            if (res.success) { await loadAdminDashboard(); activeManageStudentId = newId; document.getElementById('panel-old-student-id').value = newId; btn.innerText = "Saved"; } else { alert(res.message); }
+            setTimeout(() => { btn.innerText = "Update Profile"; btn.disabled = false; }, 1500);
         }
 
         async function savePanelGrades() {
-            const btn = document.getElementById('panel-save-grades-btn');
-            const q1 = document.getElementById('panel-q1').value;
-            const q2 = document.getElementById('panel-q2').value;
-            const q3 = document.getElementById('panel-q3').value;
-            const q4 = document.getElementById('panel-q4').value;
-
-            btn.innerText = "Saving...";
-            btn.disabled = true;
-
-            const updatedGrades = {
-                q1: q1 === '' ? '' : Number(q1),
-                q2: q2 === '' ? '' : Number(q2),
-                q3: q3 === '' ? '' : Number(q3),
-                q4: q4 === '' ? '' : Number(q4)
-            };
-
-            try {
-                const res = await apiCall({
-                    action: "saveGrades", pin: adminPin, studentNumber: activeManageStudentId, grades: updatedGrades
-                });
-
-                if (res.success) {
-                    await loadAdminDashboard();
-                    
-                    btn.innerText = "✓ Grades Saved";
-                    setTimeout(() => {
-                        btn.innerText = "Save Grades";
-                        btn.disabled = false;
-                    }, 2000);
-                } else {
-                    alert(res.message);
-                    btn.innerText = "Save Grades";
-                    btn.disabled = false;
-                }
-            } catch (err) {
-                alert("Error connecting to database.");
-                btn.innerText = "Save Grades";
-                btn.disabled = false;
-            }
+            const btn = document.getElementById('panel-save-grades-btn'); btn.innerText = "Saving..."; btn.disabled = true;
+            const grades = { q1: document.getElementById('panel-q1').value, q2: document.getElementById('panel-q2').value, q3: document.getElementById('panel-q3').value, q4: document.getElementById('panel-q4').value };
+            
+            const res = await apiCall({ action: "saveGrades", pin: adminPin, studentNumber: activeManageStudentId, subject: activeManageSubject, grades: grades });
+            
+            if (res.success) { await loadAdminDashboard(); btn.innerText = "Saved"; } else { alert(res.message); }
+            setTimeout(() => { btn.innerText = "Save Grades"; btn.disabled = false; }, 1500);
         }
 
-        async function deleteStudentFromPanel() {
-            if (!activeManageStudentId) return;
+        async function deleteStudentFromPanel() { if(confirm("Erase student profile completely?")) { const res = await apiCall({ action: "deleteStudent", pin: adminPin, studentNumber: activeManageStudentId }); if (res.success) { await loadAdminDashboard(); closeSlidePanel(); } else { alert(res.message); } } }
 
-            const isConfirmed = confirm(`Are you absolutely sure you want to delete Student ID: ${activeManageStudentId}?\n\nThis will erase their profile and all grades across the entire database.`);
-            if (!isConfirmed) return;
-
-            try {
-                const res = await apiCall({
-                    action: "deleteStudent", pin: adminPin, studentNumber: activeManageStudentId
-                });
-
-                if (res.success) {
-                    await loadAdminDashboard();
-                    closeSlidePanel();
-                } else {
-                    alert(res.message);
-                }
-            } catch (error) {
-                alert("Error connecting to the database.");
-            }
-        }
-
-        // ==========================================
-        // ADD NEW STUDENT
-        // ==========================================
-        function openAddStudentModal() {
-            document.getElementById('add-student-modal').classList.remove('hidden-screen');
-            document.getElementById('new-student-id').value = '';
-            document.getElementById('new-student-name').value = '';
-            document.getElementById('new-student-section').value = '';
-            document.getElementById('add-student-error').classList.add('hidden');
-        }
-
-        function closeAddStudentModal() {
-            document.getElementById('add-student-modal').classList.add('hidden-screen');
-        }
-
+        function openAddStudentModal() { document.getElementById('add-student-modal').classList.remove('hidden-screen'); }
+        function closeAddStudentModal() { document.getElementById('add-student-modal').classList.add('hidden-screen'); }
+        
         async function saveNewStudent() {
-            const id = document.getElementById('new-student-id').value.trim();
-            const name = document.getElementById('new-student-name').value.trim();
-            const section = document.getElementById('new-student-section').value.trim();
-            const errorDiv = document.getElementById('add-student-error');
-            const btn = document.getElementById('save-new-student-btn');
-
-            if (!id || !name || !section) {
-                errorDiv.innerText = "Please fill in all fields.";
-                errorDiv.classList.remove('hidden');
-                return;
-            }
-
-            btn.innerText = "Saving...";
-            btn.disabled = true;
-            errorDiv.classList.add('hidden');
-
-            try {
-                const res = await apiCall({
-                    action: "addStudent",
-                    pin: adminPin,
-                    studentData: { studentNumber: id, name: name, section: section }
-                });
-
-                if (res.success) {
-                    closeAddStudentModal();
-                    await loadAdminDashboard();
-                } else {
-                    errorDiv.innerText = res.message || "Failed to add student.";
-                    errorDiv.classList.remove('hidden');
-                }
-            } catch (err) {
-                errorDiv.innerText = "Error connecting to database.";
-                errorDiv.classList.add('hidden');
-            } finally {
-                btn.innerText = "Save Student";
-                btn.disabled = false;
-            }
+            const id = document.getElementById('new-student-id').value.trim(), name = document.getElementById('new-student-name').value.trim(), sec = document.getElementById('new-student-section').value.trim();
+            const subjects = Array.from(document.querySelectorAll('#add-subject-checkboxes input:checked')).map(cb => cb.value);
+            if (!id || !name || !sec || subjects.length === 0) { alert("Fill all fields and select a subject."); return; }
+            document.getElementById('save-new-student-btn').innerText = "Saving...";
+            const res = await apiCall({ action: "addStudent", pin: adminPin, studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
+            if(res.success) { closeAddStudentModal(); await loadAdminDashboard(); }
+            document.getElementById('save-new-student-btn').innerText = "Save Student";
         }
 
         // ==========================================
-        // FILE UPLOAD, DUPLICATE CHECKER & IMPORT WITH PROGRESS BAR & ETA
+        // RESTORED IMPORT CSV LOGIC
         // ==========================================
-        function openImportModal() {
-            document.getElementById('import-modal').classList.remove('hidden-screen');
-            document.getElementById('transfer-status').classList.add('hidden');
+        function openImportModal() { 
+            document.getElementById('import-modal').classList.remove('hidden-screen'); 
+            document.getElementById('transfer-status').classList.add('hidden'); 
             document.getElementById('preview-section').classList.add('hidden');
             document.getElementById('progress-container').classList.add('hidden');
-            document.getElementById('preview-btn').classList.remove('hidden');
+            document.getElementById('preview-btn').classList.remove('hidden'); 
             document.getElementById('confirm-btn').classList.add('hidden');
             document.getElementById('import-cancel-btn').innerText = "Cancel";
             document.getElementById('import-cancel-btn').disabled = false;
@@ -983,10 +767,15 @@
             pendingImportData = [];
         }
 
-        function closeImportModal() {
-            document.getElementById('import-modal').classList.add('hidden-screen');
+        function closeImportModal() { 
+            document.getElementById('import-modal').classList.add('hidden-screen'); 
         }
 
+        const readCSVFile = (file) => new Promise((res, rej) => { 
+            const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = () => rej(new Error()); r.readAsText(file); 
+        });
+
+        // Restored proper CSV parsing to handle quoted strings
         function parseCSV(str) {
             const result = [];
             let cell = '';
@@ -1002,126 +791,81 @@
             return result;
         }
 
-        const readCSVFile = (file) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = e => resolve(e.target.result);
-            reader.onerror = () => reject(new Error("Failed to read file"));
-            reader.readAsText(file);
-        });
-
         async function previewDataTransfer() {
-            const btn = document.getElementById('preview-btn');
+            const fileInput = document.getElementById('csv-file-input'); 
             const status = document.getElementById('transfer-status');
             const previewSection = document.getElementById('preview-section');
             const tbody = document.getElementById('preview-table-body');
-            const fileInput = document.getElementById('csv-file-input');
-            
+            const btn = document.getElementById('preview-btn');
+
             status.classList.add('hidden');
             previewSection.classList.add('hidden');
-            pendingImportData = []; 
-            
-            if (!fileInput.files.length) {
-                status.innerText = "Please select a CSV file first.";
-                status.className = "bg-rose-50 border border-rose-200 text-rose-600 mt-4 p-3 rounded-xl font-bold text-sm text-center";
-                status.classList.remove('hidden');
-                return;
-            }
-            
-            const getColIndex = (id) => document.getElementById(id).value.toUpperCase().charCodeAt(0) - 65;
-            
-            let colId, colName, colSec;
-            try {
-                colId = getColIndex('col-id');
-                colName = getColIndex('col-name');
-                colSec = getColIndex('col-sec');
-                if (isNaN(colId) || isNaN(colName) || isNaN(colSec) || colId < 0 || colName < 0 || colSec < 0) throw new Error();
-            } catch(e) {
-                status.innerText = "Please enter valid, single column letters (e.g., A, B, C).";
-                status.className = "bg-rose-50 border border-rose-200 text-rose-600 mt-4 p-3 rounded-xl font-bold text-sm text-center";
-                status.classList.remove('hidden');
-                return;
-            }
+            pendingImportData = [];
 
+            if (!fileInput.files.length) { 
+                status.innerText = "Please select a CSV file first."; 
+                status.className = "bg-rose-50 border border-rose-200 text-rose-600 mt-4 p-3 rounded-xl font-bold text-sm text-center";
+                status.classList.remove('hidden'); 
+                return; 
+            }
+            
             btn.innerHTML = "Reading...";
             btn.disabled = true;
 
             try {
-                const existingStudentNumbers = currentAdminData.map(s => String(s.studentNumber).trim().toLowerCase());
-                let duplicateCount = 0;
+                const getCol = id => document.getElementById(id).value.toUpperCase().charCodeAt(0) - 65;
+                const cId = getCol('col-id');
+                const cName = getCol('col-name');
+                const cSec = getCol('col-sec');
+                const subj = document.getElementById('import-subject').value;
+                
+                if (isNaN(cId) || isNaN(cName) || cId < 0 || cName < 0) throw new Error("Invalid columns");
 
-                const csvText = await readCSVFile(fileInput.files[0]);
-                const rows = csvText.split('\n');
-                tbody.innerHTML = ''; 
+                const rows = (await readCSVFile(fileInput.files[0])).split('\n');
+                tbody.innerHTML = '';
 
-                for (let i = 1; i < rows.length; i++) { 
+                for (let i = 1; i < rows.length; i++) {
                     if (!rows[i].trim()) continue;
                     
                     const cols = parseCSV(rows[i]);
-                    const studentNo = cols[colId];
-                    const name = cols[colName];
-                    const section = cols[colSec];
+                    const studentNo = cols[cId];
+                    const name = cols[cName];
+                    const section = cols[cSec] || "";
 
-                    if (studentNo && name && section) {
+                    if (studentNo && name) {
                         const cleanStudentNo = String(studentNo).trim();
-                        const isDuplicate = existingStudentNumbers.includes(cleanStudentNo.toLowerCase());
+                        pendingImportData.push({ studentNumber: cleanStudentNo, name: name.trim(), section: section.trim(), enrolledSubjects: [subj] });
                         
                         const tr = document.createElement('tr');
-                        
-                        if (isDuplicate) {
-                            duplicateCount++;
-                            tr.className = "bg-rose-50/50 text-slate-400";
-                            tr.innerHTML = `
-                                <td class="p-3 border-b border-rose-100 line-through">${cleanStudentNo}</td>
-                                <td class="p-3 border-b border-rose-100 font-medium line-through">${name}</td>
-                                <td class="p-3 border-b border-rose-100 text-rose-600 text-[10px] uppercase font-black tracking-widest">Already Exists</td>
-                            `;
-                        } else {
-                            pendingImportData.push({ studentNumber: cleanStudentNo, name: name, section: section });
-                            tr.className = "hover:bg-slate-50 transition-colors";
-                            tr.innerHTML = `
-                                <td class="p-3 border-b border-slate-100 font-semibold">${cleanStudentNo}</td>
-                                <td class="p-3 border-b border-slate-100 font-bold text-slate-700">${name}</td>
-                                <td class="p-3 border-b border-slate-100 text-slate-500">${section}</td>
-                            `;
-                        }
+                        tr.className = "hover:bg-slate-50 transition-colors";
+                        tr.innerHTML = `
+                            <td class="p-3 border-b border-slate-100 font-semibold">${cleanStudentNo}</td>
+                            <td class="p-3 border-b border-slate-100 font-bold text-slate-700">${name.trim()}</td>
+                            <td class="p-3 border-b border-slate-100 text-slate-500">${section.trim()}</td>
+                        `;
                         tbody.appendChild(tr);
                     }
                 }
 
-                let statusMsg = `Found ${pendingImportData.length} new entries to import.`;
-                if (duplicateCount > 0) {
-                    statusMsg += ` Skipped ${duplicateCount} duplicate(s).`;
-                }
-
                 if (pendingImportData.length > 0) {
-                    status.innerText = statusMsg;
-                    status.className = "bg-emerald-50 border border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
+                    status.innerText = `Found ${pendingImportData.length} entries to import into ${subj}.`; 
+                    status.className = "bg-emerald-50 border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
                     status.classList.remove('hidden');
-                    
                     previewSection.classList.remove('hidden');
                     btn.classList.add('hidden'); 
-                    document.getElementById('confirm-btn').classList.remove('hidden'); 
-                } else if (duplicateCount > 0) {
-                    previewSection.classList.remove('hidden');
-                    status.innerText = `All ${duplicateCount} entries found are already in the database. Nothing new to import.`;
-                    status.className = "bg-amber-50 border border-amber-200 text-amber-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
-                    status.classList.remove('hidden');
-                    btn.innerHTML = `Preview Data`;
-                    btn.disabled = false;
+                    document.getElementById('confirm-btn').classList.remove('hidden');
                 } else {
                     status.innerText = "No valid data found in those columns. Check your letters.";
                     status.className = "bg-rose-50 border border-rose-200 text-rose-600 mt-4 p-3 rounded-xl font-bold text-sm text-center";
                     status.classList.remove('hidden');
-                    btn.innerHTML = `Preview Data`;
-                    btn.disabled = false;
                 }
-            } catch (error) {
-                status.innerText = "Error: " + error.message;
+            } catch (e) { 
+                status.innerText = "Error: Please enter valid column letters (e.g., A, B, C).";
                 status.className = "bg-rose-50 border border-rose-200 text-rose-600 mt-4 p-3 rounded-xl font-bold text-sm text-center";
                 status.classList.remove('hidden');
-                btn.innerHTML = `Preview Data`;
-                btn.disabled = false;
             }
+            btn.innerHTML = "Preview Data";
+            btn.disabled = false;
         }
 
         async function confirmDataTransfer() {
@@ -1146,22 +890,16 @@
             try {
                 for (let i = 0; i < totalItems; i++) {
                     const student = pendingImportData[i];
-                    
-                    await apiCall({
-                        action: "registerStudent",
-                        studentData: student
-                    });
+                    await apiCall({ action: "registerStudent", studentData: student });
                     
                     successCount++;
                     
-                    // Compute metrics
                     const percent = Math.round((successCount / totalItems) * 100);
-                    const elapsedTime = (Date.now() - startTime) / 1000; // in seconds
+                    const elapsedTime = (Date.now() - startTime) / 1000;
                     const avgTimePerItem = elapsedTime / successCount;
                     const remainingItems = totalItems - successCount;
                     const estimatedSecondsLeft = Math.round(avgTimePerItem * remainingItems);
                     
-                    // Format ETA text
                     let etaText = "Less than a sec remaining";
                     if (estimatedSecondsLeft > 60) {
                         const mins = Math.floor(estimatedSecondsLeft / 60);
@@ -1171,15 +909,13 @@
                         etaText = `~${estimatedSecondsLeft}s remaining`;
                     }
 
-                    // Update UI elements
                     progressBarFill.style.width = `${percent}%`;
                     progressPercentage.innerText = `${percent}%`;
                     progressCount.innerText = `${successCount} of ${totalItems} imported`;
                     progressEta.innerText = etaText;
                 }
 
-                // Final Success State
-                status.innerText = `Success! Transferred ${successCount} new students into the database.`;
+                status.innerText = `Success! Processed ${successCount} entries.`;
                 status.className = "bg-emerald-50 border border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
                 status.classList.remove('hidden');
                 cancelBtn.innerText = "Close";
@@ -1197,79 +933,21 @@
         }
 
         // ==========================================
-        // PUBLIC REGISTRATION LOGIC
+        // PUBLIC REGISTRATION
         // ==========================================
-        function openRegisterModal() {
-            document.getElementById('register-modal').classList.remove('hidden-screen');
-            document.getElementById('reg-student-id').value = '';
-            document.getElementById('reg-student-name').value = '';
-            document.getElementById('reg-student-section').value = '';
-            document.getElementById('reg-error').classList.add('hidden');
-        }
-
-        function closeRegisterModal() {
-            document.getElementById('register-modal').classList.add('hidden-screen');
-        }
-
+        function openRegisterModal() { document.getElementById('register-modal').classList.remove('hidden-screen'); }
+        function closeRegisterModal() { document.getElementById('register-modal').classList.add('hidden-screen'); }
         async function submitRegistration() {
-            const id = document.getElementById('reg-student-id').value.trim();
-            const name = document.getElementById('reg-student-name').value.trim();
-            const section = document.getElementById('reg-student-section').value.trim();
-            const errorDiv = document.getElementById('reg-error');
-            const btn = document.getElementById('submit-reg-btn');
-
-            if (!id || !name || !section) {
-                errorDiv.innerText = "Please fill in all fields.";
-                errorDiv.classList.remove('hidden');
-                return;
-            }
-            
-            if (id.length <= 6 && !isNaN(id) && !id.includes("-")) {
-                 errorDiv.innerText = "Student numbers cannot look like a Teacher PIN.";
-                 errorDiv.classList.remove('hidden');
-                 return;
-            }
-
-            btn.innerText = "Registering...";
-            btn.disabled = true;
-            errorDiv.classList.add('hidden');
-
-            try {
-                const res = await apiCall({
-                    action: "registerStudent",
-                    studentData: { studentNumber: id, name: name, section: section }
-                });
-
-                if (res.success) {
-                    closeRegisterModal();
-                    document.getElementById('login-input').value = id;
-                    document.getElementById('login-btn').click();
-                } else {
-                    errorDiv.innerText = res.message || "Failed to register.";
-                    errorDiv.classList.remove('hidden');
-                }
-            } catch (err) {
-                errorDiv.innerText = "Error connecting to database.";
-                errorDiv.classList.remove('hidden');
-            } finally {
-                btn.innerText = "Register Profile";
-                btn.disabled = false;
-            }
+            const id = document.getElementById('reg-student-id').value.trim(), name = document.getElementById('reg-student-name').value.trim(), sec = document.getElementById('reg-student-section').value.trim();
+            const subjects = Array.from(document.querySelectorAll('#reg-subject-checkboxes input:checked')).map(cb => cb.value);
+            if (!id || !name || !sec || subjects.length === 0) { alert("Fill all fields and select subjects."); return; }
+            document.getElementById('submit-reg-btn').innerText = "Registering...";
+            const res = await apiCall({ action: "registerStudent", studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
+            if(res.success) { closeRegisterModal(); document.getElementById('login-input').value = id; document.getElementById('login-btn').click(); }
+            document.getElementById('submit-reg-btn').innerText = "Register Profile";
         }
 
-        async function apiCall(payload) {
-            try {
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
-                });
-                return await response.json();
-            } catch (error) {
-                console.error("API Error:", error);
-                throw error;
-            }
-        }
+        async function apiCall(payload) { return await (await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) })).json(); }
     </script>
 </body>
 </html>
