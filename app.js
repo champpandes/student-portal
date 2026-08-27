@@ -1109,25 +1109,52 @@ async function confirmDataTransfer() {
 // ==========================================
 // PUBLIC REGISTRATION
 // ==========================================
-function openRegisterModal() { document.getElementById('register-modal').classList.remove('hidden-screen'); }
+function openRegisterModal() { 
+    document.getElementById('reg-error').classList.add('hidden');
+    document.getElementById('register-modal').classList.remove('hidden-screen'); 
+}
 function closeRegisterModal() { document.getElementById('register-modal').classList.add('hidden-screen'); }
 
 async function submitRegistration() {
-    const id = document.getElementById('reg-student-id').value.trim(), name = document.getElementById('reg-student-name').value.trim(), sec = document.getElementById('reg-student-section').value;
+    const id = document.getElementById('reg-student-id').value.trim();
+    const name = document.getElementById('reg-student-name').value.trim();
+    const sec = document.getElementById('reg-student-section').value;
     const subjects = Array.from(document.querySelectorAll('#reg-subject-checkboxes input:checked')).map(cb => cb.value);
-    if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select a section/subject.", "error"); return; }
-    document.getElementById('submit-reg-btn').innerText = "Registering...";
     
-    const res = await apiCall({ action: "registerStudent", studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
-    if(res.success) { 
-        closeRegisterModal(); 
-        showToast("Registration successful! Logging you in...");
-        document.getElementById('login-input').value = id; 
-        document.getElementById('login-btn').click(); 
-    } else {
-        showToast("Failed to register. ID may be taken.", "error");
+    const errorBox = document.getElementById('reg-error');
+    errorBox.classList.add('hidden');
+    errorBox.innerText = "";
+
+    if (!id || !name || !sec || subjects.length === 0) {
+        errorBox.innerText = "Please fill in all fields and select a section and at least one subject.";
+        errorBox.classList.remove('hidden');
+        return;
     }
-    document.getElementById('submit-reg-btn').innerText = "Register Profile";
+
+    const btn = document.getElementById('submit-reg-btn');
+    btn.innerText = "Checking ID...";
+    btn.disabled = true;
+    
+    try {
+        const res = await apiCall({ action: "registerStudent", studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
+        
+        if(res.success) { 
+            closeRegisterModal(); 
+            showToast("Registration successful! Logging you in...");
+            document.getElementById('login-input').value = id; 
+            document.getElementById('login-btn').click(); 
+        } else {
+            errorBox.innerText = res.message || "Student number already exists or registration failed.";
+            errorBox.classList.remove('hidden');
+            showToast(res.message || "Registration failed.", "error");
+        }
+    } catch (err) {
+        errorBox.innerText = "Network error. Please try again.";
+        errorBox.classList.remove('hidden');
+    }
+    
+    btn.innerText = "Register Profile";
+    btn.disabled = false;
 }
 
 async function apiCall(payload) { return await (await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) })).json(); }
