@@ -83,7 +83,7 @@
                 <button onclick="broadcastAnnouncement(this)" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-md transition-all w-full sm:w-auto whitespace-nowrap">Broadcast</button>
             </div>
 
-            <!-- ADMIN ANNOUNCEMENT COMMENT THREAD DRAWER WITH CLEAR BUTTON -->
+            <!-- ADMIN ANNOUNCEMENT COMMENT THREAD DRAWER -->
             <div id="admin-announcement-comments-container" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6 box-border">
                 <div class="flex justify-between items-center mb-2">
                     <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Announcement Discussion Thread (Teacher View)</div>
@@ -255,7 +255,7 @@
                     </div>
                 </div>
 
-                <!-- Discussion Thread Inside Announcement (Student view shows Student Number only) -->
+                <!-- Discussion Thread Inside Announcement -->
                 <div id="announcement-comments-section" class="pt-4 border-t border-white/20">
                     <div class="text-xs font-bold uppercase tracking-wider text-indigo-100 mb-2">Class Discussion Thread</div>
                     <div id="comments-feed" class="space-y-2 max-h-48 overflow-y-auto mb-3 pr-1 text-slate-800">
@@ -343,7 +343,10 @@
                     <input type="hidden" id="panel-old-student-subject">
                     <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Student No.</label><input type="text" id="panel-student-id" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium box-border"></div>
                     <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Full Name</label><input type="text" id="panel-student-name" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium box-border"></div>
-                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Section</label><input type="text" id="panel-student-section" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium box-border"></div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Section</label>
+                        <select id="panel-student-section" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 box-border"></select>
+                    </div>
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Enrolled Subject</label>
                         <select id="panel-student-subject" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 box-border"></select>
@@ -402,7 +405,12 @@
             <div class="space-y-4 box-border w-full">
                 <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1 ml-1">Student Number</label><input type="text" id="new-student-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
                 <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1 ml-1">Full Name</label><input type="text" id="new-student-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
-                <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1 ml-1">Section</label><input type="text" id="new-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
+                <div>
+                    <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1 ml-1">Section / Block</label>
+                    <select id="new-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 box-border">
+                        <option value="">Select Section...</option>
+                    </select>
+                </div>
                 <div>
                     <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5 ml-1">Enrolled Subjects</label>
                     <div class="flex gap-3 flex-wrap bg-slate-50 border border-slate-200 p-3 rounded-xl max-h-40 overflow-y-auto box-border w-full" id="add-subject-checkboxes">
@@ -526,22 +534,50 @@
     <!-- REGISTER MODAL -->
     <div id="register-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4 no-print overflow-y-auto box-border">
         <div class="bg-white rounded-[2rem] shadow-2xl p-6 sm:p-8 w-full max-w-md border border-slate-100 modal-animate relative my-8 box-border">
-            <h3 class="text-xl sm:text-2xl font-bold mb-1">Student Registration</h3>
+            <div class="absolute -top-12 -right-12 w-32 h-32 bg-blue-50 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
             
-            <div class="space-y-4 mt-6 box-border w-full">
-                <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1">Student Number</label><input type="text" id="reg-student-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
-                <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1">Full Name</label><input type="text" id="reg-student-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
-                <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1">Section / Block</label><input type="text" id="reg-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
+            <div class="flex items-center justify-between mb-4 relative z-10">
                 <div>
-                    <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">Enrolled Subjects</label>
-                    <div class="flex gap-3 flex-wrap bg-slate-50 border border-slate-200 p-3 rounded-xl max-h-40 overflow-y-auto box-border w-full" id="reg-subject-checkboxes">
+                    <h3 class="text-2xl font-black text-slate-800 tracking-tight">Student Registration</h3>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5">Create your student profile and enroll</p>
+                </div>
+                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100/50">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                </div>
+            </div>
+            
+            <div class="space-y-4 mt-6 box-border w-full relative z-10">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Student Number</label>
+                    <input type="text" id="reg-student-id" placeholder="e.g., 11-05075" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500 transition-all box-border">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Full Name</label>
+                    <input type="text" id="reg-student-name" placeholder="e.g., Dela Cruz, Juan A." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500 transition-all box-border">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Section / Block</label>
+                    <div class="relative">
+                        <select id="reg-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-indigo-700 focus:outline-none focus:border-indigo-500 transition-all box-border cursor-pointer appearance-none">
+                            <option value="">Select your section...</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Enrolled Subjects</label>
+                    <div class="flex gap-3 flex-wrap bg-slate-50 border border-slate-200 p-3.5 rounded-xl max-h-40 overflow-y-auto box-border w-full shadow-inner" id="reg-subject-checkboxes">
                     </div>
                 </div>
             </div>
-            <div id="reg-error" class="hidden text-rose-600 text-sm mt-4 font-bold bg-rose-50 p-3 rounded-lg"></div>
-            <div class="mt-8 flex justify-end gap-3 box-border">
-                <button onclick="closeRegisterModal()" class="px-4 sm:px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl font-semibold hover:bg-slate-50 transition-colors text-sm">Cancel</button>
-                <button id="submit-reg-btn" onclick="submitRegistration()" class="px-4 sm:px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors text-sm">Register Profile</button>
+            
+            <div id="reg-error" class="hidden text-rose-600 text-xs font-bold bg-rose-50 p-3 rounded-xl border border-rose-100 mt-4"></div>
+            
+            <div class="mt-8 flex justify-end gap-3 relative z-10">
+                <button onclick="closeRegisterModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl font-semibold hover:bg-slate-50 transition-colors text-sm shadow-sm">Cancel</button>
+                <button id="submit-reg-btn" onclick="submitRegistration()" class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all text-sm">Register Profile</button>
             </div>
         </div>
     </div>

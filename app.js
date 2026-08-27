@@ -86,7 +86,6 @@ async function loadComments() {
         const adminFeed = document.getElementById('admin-comments-feed');
         
         if (res.success && res.comments) {
-            // Students see Student Number only
             const studentCommentsHTML = res.comments.length === 0 
                 ? `<div class="text-xs text-white/70 italic">No comments yet. Start the conversation!</div>` 
                 : res.comments.map(c => {
@@ -102,7 +101,6 @@ async function loadComments() {
                     `;
                 }).join('');
 
-            // Teachers see Full Name and Student Number
             const adminCommentsHTML = res.comments.length === 0 
                 ? `<div class="text-xs text-slate-400 italic">No comments yet.</div>` 
                 : res.comments.map(c => {
@@ -167,7 +165,36 @@ async function clearClassComments() {
     }
 }
 
-window.onload = async () => { await fetchSubjects(); loadComments(); };
+window.onload = async () => { 
+    await fetchSubjects(); 
+    loadComments(); 
+    await fetchAllSectionsForDropdowns();
+};
+
+async function fetchAllSectionsForDropdowns() {
+    try {
+        const res = await apiCall({ action: "getAllGrades", pin: adminPin || "6589", subject: "All" });
+        if (res && Array.isArray(res)) {
+            const sections = [...new Set(res.map(s => s.section))].filter(Boolean).sort();
+            populateSectionDropdownsUI(sections);
+        }
+    } catch(e) {
+        console.error("Could not load sections for dropdowns");
+    }
+}
+
+function populateSectionDropdownsUI(sections) {
+    const defaultSections = sections.length > 0 ? sections : ["Section A", "Section B", "Block 1", "Block 2"];
+    const optionsHTML = defaultSections.map(sec => `<option value="${sec}">${sec}</option>`).join('');
+
+    const regSecSelect = document.getElementById('reg-student-section');
+    const addSecSelect = document.getElementById('new-student-section');
+    const panelSecSelect = document.getElementById('panel-student-section');
+
+    if (regSecSelect) regSecSelect.innerHTML = `<option value="">Select section...</option>` + optionsHTML;
+    if (addSecSelect) addSecSelect.innerHTML = `<option value="">Select section...</option>` + optionsHTML;
+    if (panelSecSelect) panelSecSelect.innerHTML = optionsHTML;
+}
 
 async function fetchSubjects() {
     try {
@@ -375,6 +402,9 @@ async function loadAdminDashboard() {
             updateSummaryMetrics(currentAdminData);
             applyAdminFilters(); 
             updateLastSavedTimestamp();
+            
+            const sections = [...new Set(res.map(s => s.section))].filter(Boolean).sort();
+            populateSectionDropdownsUI(sections);
         }
     } catch (error) {
         if (!cachedData) {
@@ -706,7 +736,7 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
         if (res.success) {
             document.getElementById('bd-total').innerText = res.newTotal;
             ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => gridRow.querySelector(`div[data-field="${f}"] .value-text`).innerHTML = bd[f]);
-            btn.innerText = "Edit Breakdown"; btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm"; btn.disabled = false;
+            btn.innerText = "Edit Breakdown"; btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 font-semibold transition-colors text-sm"; btn.disabled = false;
             showToast("Breakdown successfully updated.");
             updateLastSavedTimestamp();
             await loadAdminDashboard();
@@ -790,7 +820,7 @@ async function savePanelInfo() {
     const newSubject = document.getElementById('panel-student-subject').value;
     const oldSubject = document.getElementById('panel-old-student-subject').value;
 
-    const newData = { studentNumber: newId, name: document.getElementById('panel-student-name').value.trim(), section: document.getElementById('panel-student-section').value.trim(), subject: newSubject };
+    const newData = { studentNumber: newId, name: document.getElementById('panel-student-name').value.trim(), section: document.getElementById('panel-student-section').value, subject: newSubject };
     const res = await apiCall({ action: "updateStudentInfo", pin: adminPin, oldStudentNumber: oldId, oldSubject: oldSubject, newData: newData });
     
     if (res.success) { 
@@ -830,9 +860,9 @@ function openAddStudentModal() { document.getElementById('add-student-modal').cl
 function closeAddStudentModal() { document.getElementById('add-student-modal').classList.add('hidden-screen'); }
 
 async function saveNewStudent() {
-    const id = document.getElementById('new-student-id').value.trim(), name = document.getElementById('new-student-name').value.trim(), sec = document.getElementById('new-student-section').value.trim();
+    const id = document.getElementById('new-student-id').value.trim(), name = document.getElementById('new-student-name').value.trim(), sec = document.getElementById('new-student-section').value;
     const subjects = Array.from(document.querySelectorAll('#add-subject-checkboxes input:checked')).map(cb => cb.value);
-    if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select a subject.", "error"); return; }
+    if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select a section/subject.", "error"); return; }
     document.getElementById('save-new-student-btn').innerText = "Saving...";
     const res = await apiCall({ action: "addStudent", pin: adminPin, studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
     if(res.success) { 
@@ -1083,9 +1113,9 @@ function openRegisterModal() { document.getElementById('register-modal').classLi
 function closeRegisterModal() { document.getElementById('register-modal').classList.add('hidden-screen'); }
 
 async function submitRegistration() {
-    const id = document.getElementById('reg-student-id').value.trim(), name = document.getElementById('reg-student-name').value.trim(), sec = document.getElementById('reg-student-section').value.trim();
+    const id = document.getElementById('reg-student-id').value.trim(), name = document.getElementById('reg-student-name').value.trim(), sec = document.getElementById('reg-student-section').value;
     const subjects = Array.from(document.querySelectorAll('#reg-subject-checkboxes input:checked')).map(cb => cb.value);
-    if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select subjects.", "error"); return; }
+    if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select a section/subject.", "error"); return; }
     document.getElementById('submit-reg-btn').innerText = "Registering...";
     
     const res = await apiCall({ action: "registerStudent", studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
