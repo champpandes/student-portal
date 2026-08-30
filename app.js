@@ -10,6 +10,7 @@ let activeAdminSubject = "All";
 let activeManageSubject = "";
 let activeStudentSubject = "";
 let activeQuarterFilter = "All";
+let subjectDescriptions = JSON.parse(localStorage.getItem('subjectDescriptions') || '{}');
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
@@ -32,6 +33,27 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+// --- ADMIN SIDEBAR TAB ROUTING ---
+function switchAdminTab(tabName, btnElement) {
+    document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('hidden-screen'));
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        btn.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white";
+    });
+
+    const activeTab = document.getElementById(`tab-${tabName}`);
+    if (activeTab) activeTab.classList.remove('hidden-screen');
+    
+    if (btnElement) {
+        btnElement.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/20";
+    }
+
+    if (tabName === 'grading-sheet') {
+        const sections = [...new Set(currentAdminData.map(s => s.section))].filter(Boolean).sort();
+        populateGradingSheetSections(sections);
+        updateGradingSheetPreview();
+    }
+}
+
 // --- ACTIVITY TIMESTAMP & AUDIT LOG HELPER ---
 function updateLastSavedTimestamp() {
     const badge = document.getElementById('last-saved-badge');
@@ -40,7 +62,7 @@ function updateLastSavedTimestamp() {
 
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    text.innerText = `Last synced: ${timeString}`;
+    text.innerText = timeString;
     badge.classList.remove('hidden');
 }
 
@@ -91,7 +113,7 @@ async function loadComments() {
                 : res.comments.map(c => {
                     const displayName = c.studentNumber === "TEACHER_ADMIN" ? "Teacher Admin" : `Student ID: ${c.studentNumber}`;
                     return `
-                        <div class="bg-white/90 backdrop-blur-sm p-2.5 rounded-xl text-xs shadow-xs">
+                        <div class="bg-white/95 backdrop-blur-sm p-2.5 rounded-xl text-xs shadow-xs">
                             <div class="flex justify-between items-center mb-1">
                                 <span class="font-bold text-indigo-900">${displayName}</span>
                                 <span class="text-[10px] text-slate-400">${c.timestamp}</span>
@@ -106,7 +128,7 @@ async function loadComments() {
                 : res.comments.map(c => {
                     const displayName = c.studentNumber === "TEACHER_ADMIN" ? "Teacher Admin" : `${c.studentName} (${c.studentNumber})`;
                     return `
-                        <div class="bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs shadow-xs">
+                        <div class="bg-white border border-slate-200/80 p-2.5 rounded-xl text-xs shadow-xs">
                             <div class="flex justify-between items-center mb-1">
                                 <span class="font-bold text-indigo-900">${displayName}</span>
                                 <span class="text-[10px] text-slate-400">${c.timestamp}</span>
@@ -202,6 +224,7 @@ async function fetchSubjects() {
         if (res.success) {
             availableSubjects = res.subjects || [];
             populateSubjectUIs();
+            renderSubjectsListUI();
         }
     } catch (err) { 
         console.error("Could not fetch subjects."); 
@@ -214,12 +237,14 @@ function populateSubjectUIs() {
     const importSubject = document.getElementById('import-subject');
     const addCheckboxes = document.getElementById('add-subject-checkboxes');
     const regCheckboxes = document.getElementById('reg-subject-checkboxes');
+    const gsSubject = document.getElementById('gs-subject');
 
     if (availableSubjects.length === 0) {
         if(adminFilter) adminFilter.innerHTML = `<option value="All">No Subjects Added Yet</option>`;
         if(importSubject) importSubject.innerHTML = `<option>No Subjects Available</option>`;
-        if(addCheckboxes) addCheckboxes.innerHTML = `<span class="text-sm font-bold text-rose-500">Please add a subject in 'Manage Subjects' first.</span>`;
-        if(regCheckboxes) regCheckboxes.innerHTML = `<span class="text-sm font-bold text-rose-500">No classes available for enrollment.</span>`;
+        if(gsSubject) gsSubject.innerHTML = `<option>No Subjects Available</option>`;
+        if(addCheckboxes) addCheckboxes.innerHTML = `<span class="text-sm font-bold text-rose-500">Please add a subject first.</span>`;
+        if(regCheckboxes) regCheckboxes.innerHTML = `<span class="text-sm font-bold text-rose-500">No classes available.</span>`;
         return;
     }
 
@@ -231,6 +256,10 @@ function populateSubjectUIs() {
         adminFilter.value = activeAdminSubject;
     }
     if(importSubject) importSubject.innerHTML = optionsHTML;
+    if(gsSubject) {
+        gsSubject.innerHTML = optionsHTML;
+        updateGradingSheetPreview();
+    }
     if(addCheckboxes) addCheckboxes.innerHTML = checkboxesHTML;
     if(regCheckboxes) regCheckboxes.innerHTML = checkboxesHTML;
 }
@@ -264,7 +293,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
                 currentStudentData = res;
                 
                 document.getElementById('student-info-header').innerText = `ID: ${res.studentNumber} • ${res.name}`;
-                document.getElementById('print-student-name').innerText = `Academic Report: ${res.name}`;
+                document.getElementById('print-student-name').innerText = res.name;
                 
                 initializeStudentDropdowns(Object.keys(res.subjects));
                 
@@ -287,64 +316,125 @@ document.querySelectorAll('.logout-btn').forEach(btn => btn.addEventListener('cl
     showScreen('login');
 }));
 
-function openManageSubjectsModal() { document.getElementById('manage-subjects-modal').classList.remove('hidden-screen'); renderSubjectsListUI(); }
-function closeManageSubjectsModal() { document.getElementById('manage-subjects-modal').classList.add('hidden-screen'); }
-
 function renderSubjectsListUI() {
     const listUI = document.getElementById('subjects-list-ui');
-    if (availableSubjects.length === 0) { listUI.innerHTML = `<li class="p-4 text-center text-slate-400 text-sm font-medium">No subjects found.</li>`; return; }
-    listUI.innerHTML = availableSubjects.map(s => `
-        <li class="p-4 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors">
-            <span class="font-bold text-slate-700 text-sm">${s}</span>
-            <div class="flex gap-2">
-                <button onclick="handleEditSubject('${s}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors">Rename</button>
-                <button onclick="handleDeleteSubject('${s}')" class="text-rose-600 hover:text-rose-800 text-xs font-bold px-3 py-1.5 bg-rose-50 rounded-lg transition-colors">Delete</button>
-            </div>
-        </li>
-    `).join('');
-}
-
-async function handleAddSubject() {
-    const input = document.getElementById('new-subject-input'); const val = input.value.trim();
-    if (!val) return;
-    const btn = event.target; btn.innerText = "...";
-    const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "add", subjectName: val });
-    if (res.success) { 
-        input.value = ""; 
-        showToast(`Subject '${val}' added successfully!`);
-        await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
-    } else {
-        showToast(res.message || "Failed to add subject", 'error');
+    if (!listUI) return;
+    if (availableSubjects.length === 0) { 
+        listUI.innerHTML = `<li class="p-8 text-center text-slate-400 text-sm font-medium">No subjects found in curriculum.</li>`; 
+        return; 
     }
-    btn.innerText = "Add";
+    
+    listUI.innerHTML = availableSubjects.map(s => {
+        const desc = subjectDescriptions[s] || '';
+        return `
+            <li class="px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:bg-slate-50/60 transition-colors">
+                <div class="overflow-hidden pr-2">
+                    <div class="font-bold text-slate-800 text-sm">${s}</div>
+                    <div class="text-xs text-slate-500 font-medium mt-0.5">Description: <span class="italic text-indigo-600 font-semibold">${desc || 'None assigned'}</span></div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button onclick="prepareEditSubject('${s}')" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 rounded-lg text-xs font-bold transition-colors border border-slate-200/60">Edit</button>
+                    <button onclick="handleDeleteSubject('${s}')" class="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-colors border border-rose-100">Delete</button>
+                </div>
+            </li>
+        `;
+    }).join('');
 }
 
-async function handleEditSubject(oldName) {
-    const newName = prompt(`Rename subject '${oldName}' to:`);
-    if (!newName || newName.trim() === "" || newName === oldName) return;
-    document.getElementById('subjects-list-ui').innerHTML = `<li class="p-4 text-center text-indigo-500 text-sm font-bold">Updating database...</li>`;
-    const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "update", oldName: oldName, newName: newName.trim() });
-    if (res.success) { 
-        if(activeAdminSubject === oldName) activeAdminSubject = newName.trim(); 
-        showToast(`Subject renamed to '${newName.trim()}'`);
-        await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
-    } else { 
-        showToast("Failed to rename subject.", "error"); 
-        renderSubjectsListUI(); 
+function prepareEditSubject(subjectName) {
+    const nameInput = document.getElementById('new-subject-input');
+    const descInput = document.getElementById('new-subject-desc-input');
+    const originalField = document.getElementById('editing-original-subject');
+    const submitBtn = document.getElementById('subject-submit-btn');
+    const cancelBtn = document.getElementById('subject-cancel-edit-btn');
+
+    nameInput.value = subjectName;
+    descInput.value = subjectDescriptions[subjectName] || '';
+    originalField.value = subjectName;
+
+    submitBtn.innerText = "Update Subject";
+    submitBtn.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 shadow-md transition-all whitespace-nowrap";
+    cancelBtn.classList.remove('hidden');
+
+    nameInput.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetSubjectForm() {
+    const nameInput = document.getElementById('new-subject-input');
+    const descInput = document.getElementById('new-subject-desc-input');
+    const originalField = document.getElementById('editing-original-subject');
+    const submitBtn = document.getElementById('subject-submit-btn');
+    const cancelBtn = document.getElementById('subject-cancel-edit-btn');
+
+    nameInput.value = '';
+    descInput.value = '';
+    originalField.value = '';
+
+    submitBtn.innerText = "+ Add Subject";
+    submitBtn.className = "w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap";
+    cancelBtn.classList.add('hidden');
+}
+
+async function handleSaveSubject() {
+    const nameInput = document.getElementById('new-subject-input'); 
+    const descInput = document.getElementById('new-subject-desc-input');
+    const originalField = document.getElementById('editing-original-subject');
+    
+    const newName = nameInput.value.trim();
+    const descVal = descInput.value.trim();
+    const oldName = originalField.value;
+
+    if (!newName) {
+        showToast("Please enter a subject name.", "error");
+        return;
+    }
+
+    if (oldName) {
+        if (newName !== oldName) {
+            const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "update", oldName: oldName, newName: newName });
+            if (!res.success) {
+                showToast(res.message || "Failed to update subject name.", "error");
+                return;
+            }
+            if (subjectDescriptions[oldName]) {
+                delete subjectDescriptions[oldName];
+            }
+        }
+        subjectDescriptions[newName] = descVal;
+        localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
+        showToast(`Subject '${newName}' updated successfully!`);
+        resetSubjectForm();
+        await fetchSubjects();
+        renderSubjectsListUI();
+        await loadAdminDashboard();
+    } else {
+        const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "add", subjectName: newName });
+        if (res.success) { 
+            subjectDescriptions[newName] = descVal;
+            localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
+            resetSubjectForm();
+            showToast(`Subject '${newName}' added successfully!`);
+            await fetchSubjects(); 
+            renderSubjectsListUI(); 
+            await loadAdminDashboard(); 
+        } else {
+            showToast(res.message || "Failed to add subject", 'error');
+        }
     }
 }
 
 async function handleDeleteSubject(name) {
     if(!confirm(`WARNING: Deleting '${name}' will also delete ALL grades for this subject across the entire database. This cannot be undone.\n\nProceed?`)) return;
-    document.getElementById('subjects-list-ui').innerHTML = `<li class="p-4 text-center text-rose-500 text-sm font-bold">Deleting...</li>`;
     const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "delete", subjectName: name });
     if (res.success) { 
+        delete subjectDescriptions[name];
+        localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
         if(activeAdminSubject === name) activeAdminSubject = "All"; 
         showToast(`Subject '${name}' deleted forever.`, 'success');
         await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
     } else { 
         showToast("Failed to delete subject.", "error"); 
-        renderSubjectsListUI(); 
     }
 }
 
@@ -405,6 +495,7 @@ async function loadAdminDashboard() {
             
             const sections = [...new Set(res.map(s => s.section))].filter(Boolean).sort();
             populateSectionDropdownsUI(sections);
+            populateGradingSheetSections(sections);
         }
     } catch (error) {
         if (!cachedData) {
@@ -444,11 +535,11 @@ function updateSummaryMetrics(data) {
 function filterByQuarter(q) {
     activeQuarterFilter = q;
     document.querySelectorAll('.quarter-pill').forEach(btn => {
-        btn.className = "quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50";
+        btn.className = "quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50";
     });
     const activeBtn = document.getElementById(`q-pill-${q}`);
     if (activeBtn) {
-        activeBtn.className = "quarter-pill px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm shrink-0 transition-all";
+        activeBtn.className = "quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm shrink-0 transition-all";
     }
 
     ['1st', '2nd', '3rd', '4th'].forEach(qtr => {
@@ -527,7 +618,6 @@ function renderAdminMobileCards(dataToRender) {
                 </div>
             </div>
 
-            <!-- COLLAPSIBLE DROPDOWN DRAWER -->
             <div id="mobile-drawer-${index}" class="hidden pt-4 mt-4 border-t border-slate-100">
                 <div class="grid grid-cols-4 gap-2 mb-4 text-center">
                     <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 ${activeQuarterFilter !== 'All' && activeQuarterFilter !== '1st' ? 'hidden' : ''}" onclick="openAdminBreakdown(this, '${student.studentNumber}', '${student.subject}', '1st')">
@@ -584,7 +674,17 @@ function applyAdminFilters() {
 }
 
 function populateSectionFilter() {
-    document.getElementById('section-filter').innerHTML = `<option value="All">All Sections</option>` + [...new Set(currentAdminData.map(s => s.section))].map(s => `<option value="${s}">${s}</option>`).join('');
+    const sections = [...new Set(currentAdminData.map(s => s.section))].filter(Boolean).sort();
+    document.getElementById('section-filter').innerHTML = `<option value="All">All Sections</option>` + sections.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function populateGradingSheetSections(sections) {
+    const gsSec = document.getElementById('gs-section');
+    if (!gsSec) return;
+    const currentVal = gsSec.value;
+    const defaultSecs = sections.length > 0 ? sections : ["Section A", "Section B", "Block 1", "Block 2"];
+    gsSec.innerHTML = `<option value="All">All Sections</option>` + defaultSecs.map(sec => `<option value="${sec}">${sec}</option>`).join('');
+    if (currentVal) gsSec.value = currentVal;
 }
 
 let sortDirectionNo = 1; let sortDirectionName = 1;
@@ -785,6 +885,135 @@ function exportTableToCSV(filename) {
     document.body.removeChild(downloadLink);
 
     showToast("Backup exported successfully!");
+}
+
+// ==========================================
+// OFFICIAL GRADING SHEET GENERATOR & PREVIEW
+// ==========================================
+function buildGradingSheetHTML(subject, section, semester) {
+    let students = currentAdminData.filter(s => s.subject === subject && (section === 'All' || s.section === section));
+    
+    if (students.length === 0) {
+        return `<div class="p-8 text-center text-slate-400 bg-white rounded-xl font-bold">No students found matching this Subject and Section.</div>`;
+    }
+
+    const syMatch = subject.match(/\(SY.*?\)/i);
+    let schoolYear = "";
+    if (syMatch) {
+        schoolYear = syMatch[0].replace(/- Sem \d/i, "").replace(/[()]/g, "").trim();
+    }
+
+    const cleanSubject = subject.replace(/\s*\(SY.*?\)/i, "").trim();
+    const description = subjectDescriptions[subject] || '----------------';
+
+    const pageSize = 35;
+    let pagesHTML = '';
+    
+    for (let i = 0; i < students.length; i += pageSize) {
+        const chunk = students.slice(i, i + pageSize);
+        
+        let rowsHTML = '';
+        for (let idx = 0; idx < pageSize; idx++) {
+            const student = chunk[idx];
+            const num = i + idx + 1;
+            
+            if (student) {
+                rowsHTML += `
+                    <tr>
+                        <td>${num}</td>
+                        <td style="text-align: left; padding-left: 6px;">${student.name}</td>
+                        <td>${student.q1 || ''}</td>
+                        <td>${student.q2 || ''}</td>
+                        <td>${student.q3 || ''}</td>
+                        <td>${student.q4 || ''}</td>
+                        <td>${student.final || ''}</td>
+                        <td>${student.final || ''}</td>
+                        <td>${student.remarks || ''}</td>
+                    </tr>
+                `;
+            } else {
+                rowsHTML += `
+                    <tr>
+                        <td>${num}</td>
+                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    </tr>
+                `;
+            }
+        }
+
+        pagesHTML += `
+            <div class="gs-preview-page">
+                <div style="text-align: center; font-weight: bold; font-size: 15px;">Pili Capital College, Inc.</div>
+                <div style="text-align: center; font-size: 11px; margin-bottom: 2px;">San Isidro, Pili, Camarines Sur</div>
+                <div style="text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 15px; text-decoration: underline;">COLLEGE GRADING SHEET</div>
+                
+                <table style="width: 100%; font-size: 11px; margin-bottom: 10px;">
+                    <tr>
+                        <td style="text-align: left; border: none;"><b>Subject:</b> ${cleanSubject}</td>
+                        <td style="text-align: right; border: none;"><b>Semester:</b> ${semester}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; border: none;"><b>Description:</b> ${description}</td>
+                        <td style="text-align: right; border: none;"><b>School Year:</b> ${schoolYear || '----------------'}</td>
+                    </tr>
+                </table>
+
+                <table class="gs-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="width: 30px;">#</th>
+                            <th rowspan="2">Name of Student</th>
+                            <th rowspan="2" style="width: 50px;">Prelims</th>
+                            <th rowspan="2" style="width: 50px;">Midterm</th>
+                            <th rowspan="2" style="width: 50px;">Semi Final</th>
+                            <th rowspan="2" style="width: 50px;">Finals</th>
+                            <th colspan="2" style="width: 90px;">Gen. Ave.</th>
+                            <th rowspan="2" style="width: 70px;">Remarks</th>
+                        </tr>
+                        <tr>
+                            <th style="width: 45px;">GWA</th>
+                            <th style="width: 45px;">EQV.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHTML}
+                    </tbody>
+                </table>
+
+                <table style="width: 100%; margin-top: 45px; font-size: 11px; border: none;">
+                    <tr>
+                        <td style="text-align: left; border: none;">Submitted by: <b>Carl Harry M. Pandes</b></td>
+                        <td style="text-align: left; border: none;">Received by: _______________________</td>
+                    </tr>
+                </table>
+            </div>
+        `;
+    }
+    return pagesHTML;
+}
+
+function updateGradingSheetPreview() {
+    const subjectElem = document.getElementById('gs-subject');
+    const sectionElem = document.getElementById('gs-section');
+    const semesterElem = document.getElementById('gs-semester');
+    const container = document.getElementById('gs-preview-container');
+    
+    if (!subjectElem || !sectionElem || !semesterElem || !container) return;
+
+    const subject = subjectElem.value;
+    const section = sectionElem.value;
+    const semester = semesterElem.value;
+    
+    container.innerHTML = buildGradingSheetHTML(subject, section, semester);
+}
+
+function printGradingSheets() {
+    const subject = document.getElementById('gs-subject').value;
+    const section = document.getElementById('gs-section').value;
+    const semester = document.getElementById('gs-semester').value;
+    
+    document.getElementById('grading-sheet-print-area').innerHTML = buildGradingSheetHTML(subject, section, semester);
+    window.print();
 }
 
 // ==========================================
