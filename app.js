@@ -14,6 +14,14 @@ let subjectDescriptions = JSON.parse(localStorage.getItem('subjectDescriptions')
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
+// --- SIDEBAR TOGGLE FUNCTION ---
+function toggleSidebar() {
+    const sidebar = document.getElementById('admin-sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+    }
+}
+
 // --- TOAST NOTIFICATION SYSTEM ---
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');

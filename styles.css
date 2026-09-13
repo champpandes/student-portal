@@ -21,6 +21,27 @@ body { font-family: 'Inter', sans-serif; overflow-x: hidden; width: 100%; positi
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+/* SIDEBAR COLLAPSE STYLES */
+aside {
+    transition: width 0.3s ease-in-out;
+}
+aside.collapsed {
+    width: 80px !important;
+}
+aside.collapsed .sidebar-text,
+aside.collapsed .sidebar-brand-container {
+    display: none !important;
+}
+aside.collapsed nav button {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+aside.collapsed .p-6 {
+    padding: 1.5rem 0.5rem !important;
+    justify-content: center !important;
+}
+
 /* MOBILE RESPONSIVE UTILITIES */
 @media (max-width: 640px) {
     .modal-animate { margin: 1rem; max-width: calc(100% - 2rem) !important; }
