@@ -14,11 +14,14 @@ let subjectDescriptions = JSON.parse(localStorage.getItem('subjectDescriptions')
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
-// --- SIDEBAR TOGGLE FUNCTION ---
+// --- TOP NAVBAR TOGGLE FUNCTION FOR MOBILE ---
 function toggleSidebar() {
-    const sidebar = document.getElementById('admin-sidebar');
-    if (sidebar) {
-        sidebar.classList.toggle('collapsed');
+    if (window.innerWidth < 768) {
+        const topMenu = document.getElementById('mobile-top-nav-menu');
+        if (topMenu) topMenu.classList.toggle('hidden');
+    } else {
+        const sidebar = document.getElementById('admin-sidebar');
+        if (sidebar) sidebar.classList.toggle('collapsed');
     }
 }
 
@@ -53,6 +56,11 @@ function switchAdminTab(tabName, btnElement) {
     
     if (btnElement) {
         btnElement.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/20";
+    }
+
+    if (window.innerWidth < 768) {
+        const topMenu = document.getElementById('mobile-top-nav-menu');
+        if (topMenu) topMenu.classList.add('hidden');
     }
 
     if (tabName === 'grading-sheet') {
@@ -1387,7 +1395,7 @@ async function submitRegistration() {
         }
     } catch (err) {
         errorBox.innerText = "Network error. Please try again.";
-        errorBox.classList.remove('hidden');
+        errorBox.classList.add('hidden');
     }
     
     btn.innerText = "Register Profile";

@@ -21,7 +21,7 @@ body { font-family: 'Inter', sans-serif; overflow-x: hidden; width: 100%; positi
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* SIDEBAR COLLAPSE STYLES */
+/* SIDEBAR COLLAPSE STYLES (Desktop) */
 aside {
     transition: width 0.3s ease-in-out;
 }
@@ -42,12 +42,9 @@ aside.collapsed .p-6 {
     justify-content: center !important;
 }
 
-/* MOBILE RESPONSIVE UTILITIES */
-@media (max-width: 640px) {
+@media (max-width: 767px) {
     .modal-animate { margin: 1rem; max-width: calc(100% - 2rem) !important; }
     #slide-panel { width: 100% !important; max-width: 100% !important; }
-    #admin-dashboard { flex-direction: column !important; }
-    aside { width: 100% !important; height: auto !important; }
 }
 
 /* GRADING SHEET PREVIEW & PRINT STYLING */
