@@ -11,6 +11,7 @@ let activeManageSubject = "";
 let activeStudentSubject = "";
 let activeQuarterFilter = "All";
 let subjectDescriptions = JSON.parse(localStorage.getItem('subjectDescriptions') || '{}');
+let subjectWeights = JSON.parse(localStorage.getItem('subjectWeights') || '{}');
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
@@ -337,11 +338,13 @@ function renderSubjectsListUI() {
     
     listUI.innerHTML = availableSubjects.map(s => {
         const desc = subjectDescriptions[s] || '';
+        const w = subjectWeights[s] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
         return `
             <li class="px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:bg-slate-50/60 transition-colors">
                 <div class="overflow-hidden pr-2">
                     <div class="font-bold text-slate-800 text-sm">${s}</div>
                     <div class="text-xs text-slate-500 font-medium mt-0.5">Description: <span class="italic text-indigo-600 font-semibold">${desc || 'None assigned'}</span></div>
+                    <div class="text-[11px] text-slate-400 mt-1">Weights: Qz: ${w.quizzes}% | Part: ${w.participation}% | Att: ${w.attendance}% | Exam: ${w.exams}%</div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <button onclick="prepareEditSubject('${s}')" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 rounded-lg text-xs font-bold transition-colors border border-slate-200/60">Edit</button>
@@ -363,6 +366,17 @@ function prepareEditSubject(subjectName) {
     descInput.value = subjectDescriptions[subjectName] || '';
     originalField.value = subjectName;
 
+    const w = subjectWeights[subjectName] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
+    const qzInput = document.getElementById('weight-quizzes');
+    const paInput = document.getElementById('weight-participation');
+    const atInput = document.getElementById('weight-attendance');
+    const exInput = document.getElementById('weight-exams');
+    
+    if (qzInput) qzInput.value = w.quizzes;
+    if (paInput) paInput.value = w.participation;
+    if (atInput) atInput.value = w.attendance;
+    if (exInput) exInput.value = w.exams;
+
     submitBtn.innerText = "Update Subject";
     submitBtn.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 shadow-md transition-all whitespace-nowrap";
     cancelBtn.classList.remove('hidden');
@@ -382,6 +396,15 @@ function resetSubjectForm() {
     descInput.value = '';
     originalField.value = '';
 
+    const qzInput = document.getElementById('weight-quizzes');
+    const paInput = document.getElementById('weight-participation');
+    const atInput = document.getElementById('weight-attendance');
+    const exInput = document.getElementById('weight-exams');
+    if (qzInput) qzInput.value = 35;
+    if (paInput) paInput.value = 15;
+    if (atInput) atInput.value = 10;
+    if (exInput) exInput.value = 40;
+
     submitBtn.innerText = "+ Add Subject";
     submitBtn.className = "w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap";
     cancelBtn.classList.add('hidden');
@@ -395,6 +418,16 @@ async function handleSaveSubject() {
     const newName = nameInput.value.trim();
     const descVal = descInput.value.trim();
     const oldName = originalField.value;
+
+    const qW = Number(document.getElementById('weight-quizzes').value) || 0;
+    const pW = Number(document.getElementById('weight-participation').value) || 0;
+    const aW = Number(document.getElementById('weight-attendance').value) || 0;
+    const eW = Number(document.getElementById('weight-exams').value) || 0;
+
+    if ((qW + pW + aW + eW) !== 100) {
+        showToast("Component weights must add up to exactly 100%.", "error");
+        return;
+    }
 
     if (!newName) {
         showToast("Please enter a subject name.", "error");
@@ -411,9 +444,16 @@ async function handleSaveSubject() {
             if (subjectDescriptions[oldName]) {
                 delete subjectDescriptions[oldName];
             }
+            if (subjectWeights[oldName]) {
+                delete subjectWeights[oldName];
+            }
         }
         subjectDescriptions[newName] = descVal;
+        subjectWeights[newName] = { quizzes: qW, participation: pW, attendance: aW, exams: eW };
+        
         localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
+        localStorage.setItem('subjectWeights', JSON.stringify(subjectWeights));
+        
         showToast(`Subject '${newName}' updated successfully!`);
         resetSubjectForm();
         await fetchSubjects();
@@ -423,7 +463,11 @@ async function handleSaveSubject() {
         const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "add", subjectName: newName });
         if (res.success) { 
             subjectDescriptions[newName] = descVal;
+            subjectWeights[newName] = { quizzes: qW, participation: pW, attendance: aW, exams: eW };
+            
             localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
+            localStorage.setItem('subjectWeights', JSON.stringify(subjectWeights));
+            
             resetSubjectForm();
             showToast(`Subject '${newName}' added successfully!`);
             await fetchSubjects(); 
@@ -440,7 +484,9 @@ async function handleDeleteSubject(name) {
     const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "delete", subjectName: name });
     if (res.success) { 
         delete subjectDescriptions[name];
+        delete subjectWeights[name];
         localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
+        localStorage.setItem('subjectWeights', JSON.stringify(subjectWeights));
         if(activeAdminSubject === name) activeAdminSubject = "All"; 
         showToast(`Subject '${name}' deleted forever.`, 'success');
         await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
@@ -815,12 +861,14 @@ function openBreakdown(quarter, subject) {
 
     if (!breakdown) { document.getElementById('breakdown-content').innerHTML = `<div class="p-8 text-slate-400 text-center font-medium">Breakdown not available yet.</div>`; showScreen('breakdown'); return; }
 
+    const w = subjectWeights[subject] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
+
     let html = `
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4" id="breakdown-grid-row">
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Quizzes</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Participation</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Attendance</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Exams</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Quizzes (${w.quizzes}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Participation (${w.participation}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Attendance (${w.attendance}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Exams (${w.exams}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span></div>
             <div class="col-span-2 sm:col-span-1 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center"><span class="text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 sm:mb-2">Total</span><span class="text-2xl sm:text-3xl font-black text-indigo-700" id="bd-total">${breakdown.total}</span></div>
         </div>
     `;
@@ -839,11 +887,23 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
     } else {
         btn.innerText = "Saving..."; btn.disabled = true;
         const bd = {}; ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => bd[f] = Number(gridRow.querySelector(`div[data-field="${f}"] .value-text input`).value || 0));
-        const res = await apiCall({ action: "saveBreakdown", pin: adminPin, studentNumber: currentStudentData.studentNumber, subject: subject, quarter: quarter, breakdown: bd });
+        
+        const weights = subjectWeights[subject] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
+
+        const res = await apiCall({ 
+            action: "saveBreakdown", 
+            pin: adminPin, 
+            studentNumber: currentStudentData.studentNumber, 
+            subject: subject, 
+            quarter: quarter, 
+            breakdown: bd, 
+            weights: weights 
+        });
+
         if (res.success) {
             document.getElementById('bd-total').innerText = res.newTotal;
             ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => gridRow.querySelector(`div[data-field="${f}"] .value-text`).innerHTML = bd[f]);
-            btn.innerText = "Edit Breakdown"; btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 font-semibold transition-colors text-sm"; btn.disabled = false;
+            btn.innerText = "Edit Breakdown"; btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm"; btn.disabled = false;
             showToast("Breakdown successfully updated.");
             updateLastSavedTimestamp();
             await loadAdminDashboard();
@@ -1293,6 +1353,8 @@ async function confirmDataTransfer() {
             if (!res.success) throw new Error("Bulk registration failed.");
             successCount = totalItems;
         } else {
+            const weights = subjectWeights[subj] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
+
             for (let i = 0; i < totalItems; i++) {
                 const item = pendingImportData[i];
                 const studentRes = await apiCall({ action: "getStudent", studentNumber: item.studentNumber });
@@ -1308,7 +1370,15 @@ async function confirmDataTransfer() {
                 if (item.attendance !== null) bd.attendance = item.attendance;
                 if (item.exams !== null) bd.exams = item.exams;
 
-                await apiCall({ action: "saveBreakdown", pin: adminPin, studentNumber: item.studentNumber, subject: subj, quarter: qtr, breakdown: bd });
+                await apiCall({ 
+                    action: "saveBreakdown", 
+                    pin: adminPin, 
+                    studentNumber: item.studentNumber, 
+                    subject: subj, 
+                    quarter: qtr, 
+                    breakdown: bd, 
+                    weights: weights 
+                });
                 await new Promise(resolve => setTimeout(resolve, 100));
 
                 successCount++;
@@ -1338,7 +1408,7 @@ async function confirmDataTransfer() {
         showToast("Error during transfer: " + error.message, "error");
         status.innerText = "Error during transfer. Check console.";
         status.className = "bg-rose-50 border border-rose-200 text-rose-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
-        status.classList.add('hidden');
+        status.classList.remove('hidden');
         btn.classList.remove('hidden'); cancelBtn.disabled = false;
     }
 }
@@ -1391,17 +1461,23 @@ async function submitRegistration() {
     btn.disabled = false;
 }
 
-// Fixed apiCall with text/plain headers to completely bypass CORS preflight failures
 async function apiCall(payload) {
     try {
         const response = await fetch(WEB_APP_URL, {
             method: 'POST',
-            body: JSON.stringify(payload),
+            redirect: 'follow',
             headers: {
-                'Content-Type': 'text/plain;charset=utf-8'
-            }
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(payload)
         });
-        return await response.json();
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (err) {
+            console.error("Non-JSON Response received:", text);
+            return { success: false, message: "Server returned invalid format (Check Google Apps Script deployment access)." };
+        }
     } catch (error) {
         console.error("API Error:", error);
         return { success: false, message: error.toString() };

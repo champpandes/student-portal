@@ -2,764 +2,658 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Student Portal - Admin Panel</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5'/></svg>">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Portal & Student Record System</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden box-border">
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
 
-    <!-- TOAST NOTIFICATION CONTAINER -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none px-4 sm:px-0 max-w-full"></div>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
 
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen" class="flex items-center justify-center min-h-screen p-4 box-border w-full">
-        <div class="bg-white p-6 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 w-full max-w-md text-center transform transition-all relative overflow-hidden box-border">
-            <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
+    <!-- ==================== LOGIN SCREEN ==================== -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xl p-8 w-full max-w-md text-center transform transition-all">
+            <div class="w-16 h-16 bg-indigo-600 text-white rounded-2xl mx-auto flex items-center justify-center text-2xl font-bold shadow-lg shadow-indigo-600/30 mb-6">
+                🎓
+            </div>
+            <h1 class="text-2xl font-black text-slate-900 mb-2">Portal Login</h1>
+            <p class="text-slate-500 text-sm mb-6">Enter Student Number or Teacher PIN</p>
             
-            <div class="relative w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-tr from-indigo-100 to-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-indigo-100/50 logo-float">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-8 h-8 sm:w-10 sm:h-10">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
-                </svg>
+            <div class="space-y-4">
+                <input type="password" id="login-input" placeholder="••••" class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-center text-lg font-bold tracking-widest outline-none focus:border-indigo-600 focus:bg-white transition-all">
+                <button id="login-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all">Log In</button>
             </div>
             
-            <h1 class="text-2xl sm:text-3xl font-bold mb-2 text-slate-800 tracking-tight relative z-10">Portal Login</h1>
-            <p class="text-xs sm:text-sm text-slate-500 mb-8 font-medium relative z-10">Enter Student Number or Teacher PIN</p>
-            
-            <input type="password" id="login-input" placeholder="e.g., 11-05075 or PIN" 
-                   class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 mb-5 text-center text-base font-medium transition-all placeholder:font-normal relative z-10 box-border">
-            
-            <button id="login-btn" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl hover:bg-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all font-semibold tracking-wide relative z-10">
-                Log In
-            </button>
-            
-            <div id="login-error" class="hidden-screen mt-5 bg-rose-50 border border-rose-200 text-rose-600 p-3.5 rounded-xl text-sm text-left shadow-sm flex items-center font-medium relative z-10 box-border">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <span id="login-error-text"></span>
+            <div id="login-error" class="hidden-screen mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
+
+            <div class="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400 font-medium">
+                Not in the system yet? <button onclick="openRegisterModal()" class="text-indigo-600 font-bold hover:underline">Register as a new student</button>
             </div>
-            
-            <p class="mt-8 text-xs sm:text-sm text-slate-500 font-medium relative z-10">
-                Not in the system yet? <br>
-                <span class="text-indigo-600 font-bold clickable mt-1 inline-block" onclick="openRegisterModal()">Register as a new student</span>
-            </p>
         </div>
     </div>
 
-    <!-- ADMIN DASHBOARD (TOP NAVBAR ON MOBILE + SIDEBAR ON DESKTOP) -->
-    <div id="admin-dashboard" class="hidden-screen flex-1 flex flex-col md:flex-row w-full min-h-screen bg-slate-50 overflow-hidden box-border">
-        
-        <!-- MOBILE TOP NAVBAR -->
-        <div class="md:hidden bg-slate-900 text-white w-full border-b border-slate-800 shrink-0 z-30">
-            <div class="p-4 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-sm shadow-md">P</div>
-                    <div>
-                        <h2 class="font-bold text-sm tracking-tight leading-none">Teacher Portal</h2>
-                        <span class="text-[9px] text-slate-400 uppercase tracking-widest font-semibold">Admin Panel</span>
-                    </div>
-                </div>
-                <button onclick="toggleSidebar()" class="text-slate-300 hover:text-white p-2 rounded-xl hover:bg-slate-800 focus:outline-none transition-colors" title="Toggle Menu">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
-            </div>
-            
-            <!-- Collapsible Mobile Top Menu Content -->
-            <div id="mobile-top-nav-menu" class="hidden px-4 pb-4 pt-2 border-t border-slate-800/80 space-y-1.5">
-                <button onclick="switchAdminTab('students', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all bg-indigo-600 text-white shadow-md">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                    <span>Students & Grades</span>
-                </button>
-                <button onclick="switchAdminTab('subjects', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                    <span>Subjects & Descriptions</span>
-                </button>
-                <button onclick="switchAdminTab('grading-sheet', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span>Grading Sheets</span>
-                </button>
-                <button onclick="switchAdminTab('announcements', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-                    <span>Announcements</span>
-                </button>
-                <button onclick="switchAdminTab('import-export', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    <span>Import & Backup</span>
-                </button>
-                <div class="pt-2">
-                    <button class="logout-btn w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-800 hover:bg-rose-900/30 text-slate-300 hover:text-rose-400 transition-colors text-xs font-bold border border-slate-700/50">
-                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        <span>Logout Session</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- DESKTOP LEFT SIDEBAR NAVIGATION (Hidden on mobile) -->
-        <aside id="admin-sidebar" class="hidden md:flex w-64 bg-slate-900 text-slate-300 flex-col justify-between shrink-0 no-print border-r border-slate-800 shadow-xl transition-all duration-300 ease-in-out">
+    <!-- ==================== ADMIN DASHBOARD ==================== -->
+    <div id="admin-dashboard" class="hidden-screen min-h-screen flex flex-col md:flex-row">
+        <!-- Sidebar Navigation -->
+        <aside id="admin-sidebar" class="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col justify-between p-5 transition-all duration-300 shrink-0">
             <div>
-                <!-- Brand Header -->
-                <div class="p-6 flex items-center justify-between border-b border-slate-800/80">
-                    <div class="flex items-center gap-3 overflow-hidden sidebar-brand-container">
-                        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white font-black text-lg shrink-0">
-                            P
-                        </div>
-                        <div class="overflow-hidden sidebar-text">
-                            <h2 class="text-white font-bold text-sm tracking-tight truncate">Teacher Portal</h2>
-                            <p class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Admin Panel</p>
-                        </div>
+                <div class="flex items-center gap-3 mb-8 px-2">
+                    <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black text-lg">P</div>
+                    <div>
+                        <div class="font-bold text-white text-sm">Teacher Portal</div>
+                        <div class="text-[10px] text-indigo-400 font-bold tracking-wider uppercase">Admin Panel</div>
                     </div>
-                    <!-- Hamburger Toggle Button -->
-                    <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors focus:outline-none shrink-0" title="Toggle Sidebar">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
                 </div>
 
-                <!-- Navigation Tabs -->
-                <nav class="p-4 space-y-1.5">
+                <nav class="space-y-1">
                     <button onclick="switchAdminTab('students', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
-                        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        <span class="sidebar-text">Students & Grades</span>
+                        📊 Students & Grades
                     </button>
                     <button onclick="switchAdminTab('subjects', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                        <span class="sidebar-text">Subjects & Descriptions</span>
+                        📚 Subjects & Weights
                     </button>
                     <button onclick="switchAdminTab('grading-sheet', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <span class="sidebar-text">Grading Sheets</span>
+                        🖨️ Grading Sheets
                     </button>
                     <button onclick="switchAdminTab('announcements', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-                        <span class="sidebar-text">Announcements</span>
+                        📢 Announcements
                     </button>
-                    <button onclick="switchAdminTab('import-export', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-                        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                        <span class="sidebar-text">Import & Backup</span>
+                    <button onclick="switchAdminTab('import', this)" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+                        ⚡ Import & Backup
                     </button>
                 </nav>
             </div>
 
-            <!-- Sidebar Footer / Logout -->
-            <div class="p-4 border-t border-slate-800/80">
-                <button class="logout-btn w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-800/60 hover:bg-rose-900/30 text-slate-300 hover:text-rose-400 transition-colors text-xs font-bold border border-slate-700/50">
-                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                    <span class="sidebar-text">Logout Session</span>
+            <div class="pt-6 border-t border-slate-800 mt-6">
+                <button class="logout-btn w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors">
+                    🚪 Log Out
                 </button>
             </div>
         </aside>
 
-        <!-- MAIN CONTENT VIEW AREA -->
-        <main class="flex-1 overflow-y-auto h-full p-4 sm:p-6 lg:p-10 box-border">
-            
-            <!-- TAB 1: STUDENTS & GRADES VIEW -->
-            <div id="tab-students" class="admin-tab-content space-y-6 max-w-[85rem] mx-auto w-full box-border">
-                
-                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                    <div>
-                        <h1 class="text-2xl font-black text-slate-800 tracking-tight">Students & Class Records</h1>
-                        <p class="text-xs sm:text-sm text-slate-500 font-medium">Manage student grades, search records, and filter classes.</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div id="sync-indicator" class="hidden items-center gap-2 px-3.5 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold border border-indigo-100 shadow-sm">
-                            <svg class="animate-spin w-3.5 h-3.5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            <span>Syncing...</span>
-                        </div>
-                        <div id="last-saved-badge" class="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-white text-slate-600 rounded-xl text-xs font-semibold border border-slate-200 shadow-sm">
-                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            <span id="last-saved-text">Never</span>
-                        </div>
-                        <button onclick="openAddStudentModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 shadow-md transition-all flex items-center gap-1.5">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-                            Add Student
-                        </button>
-                    </div>
+        <!-- Main Content Area -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <!-- Top Header Bar -->
+            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+                <div>
+                    <h2 class="text-xl font-black text-slate-900">Portal Dashboard</h2>
+                    <p class="text-xs text-slate-500 font-medium">Manage student grades, search records, and configure classes.</p>
                 </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <div id="last-saved-badge" class="hidden items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-200">
+                        <span>🟢 Saved at <span id="last-saved-text">--:--</span></span>
+                    </div>
+                    <button onclick="openAddStudentModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap">+ Add Student</button>
+                </div>
+            </header>
 
-                <!-- LIVE CLASS PERFORMANCE METRICS -->
+            <!-- TAB 1: STUDENTS & GRADES -->
+            <div id="tab-students" class="admin-tab-content space-y-6">
+                <!-- Metrics Grid -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
                         <div>
                             <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Enrolled</div>
-                            <div id="stat-total-students" class="text-2xl font-black text-slate-800 mt-0.5">0</div>
+                            <div id="stat-total-students" class="text-2xl font-black text-slate-900 mt-1">0</div>
                         </div>
-                        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-bold text-lg">👥</div>
+                        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-bold">👥</div>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
                         <div>
                             <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Passing Rate</div>
-                            <div id="stat-passing-rate" class="text-2xl font-black text-emerald-600 mt-0.5">0%</div>
+                            <div id="stat-passing-rate" class="text-2xl font-black text-emerald-600 mt-1">0%</div>
                         </div>
-                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-bold text-lg">📈</div>
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold">📈</div>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
                         <div>
                             <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Class Average</div>
-                            <div id="stat-class-average" class="text-2xl font-black text-blue-600 mt-0.5">-</div>
+                            <div id="stat-class-average" class="text-2xl font-black text-blue-600 mt-1">-</div>
                         </div>
-                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-bold text-lg">📊</div>
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl font-bold">📊</div>
                     </div>
                 </div>
 
-                <!-- SEARCH & FILTERS BAR -->
-                <div class="flex flex-col sm:flex-row gap-3 items-center">
-                    <div class="relative flex-1 w-full">
-                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        </div>
-                        <input type="text" id="admin-search" placeholder="Search by student name or number..." 
-                               class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 shadow-sm text-sm font-medium">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 w-full sm:w-auto">
-                        <select id="admin-subject-filter" class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 shadow-sm text-sm font-semibold text-slate-700 cursor-pointer">
-                            <option>Loading...</option>
+                <!-- Filters & Controls Bar -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-4 justify-between items-center">
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                        <input type="text" id="admin-search" placeholder="Search by student name or number..." class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium w-full sm:w-80 outline-none focus:border-indigo-600">
+                        <select id="admin-subject-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600">
+                            <option value="All">All Subjects</option>
                         </select>
-                        <select id="section-filter" class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 shadow-sm text-sm font-semibold text-slate-700 cursor-pointer">
+                        <select id="section-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600">
                             <option value="All">All Sections</option>
                         </select>
                     </div>
-                </div>
 
-                <!-- QUICK-JUMP QUARTER FILTER PILLS -->
-                <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">Quarter:</span>
-                    <button onclick="filterByQuarter('All')" id="q-pill-All" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm shrink-0 transition-all">All Quarters</button>
-                    <button onclick="filterByQuarter('1st')" id="q-pill-1st" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">1st Quarter</button>
-                    <button onclick="filterByQuarter('2nd')" id="q-pill-2nd" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">2nd Quarter</button>
-                    <button onclick="filterByQuarter('3rd')" id="q-pill-3rd" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">3rd Quarter</button>
-                    <button onclick="filterByQuarter('4th')" id="q-pill-4th" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">4th Quarter</button>
-                </div>
-
-                <!-- DESKTOP TABLE VIEW -->
-                <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-                    <div class="overflow-x-auto w-full">
-                        <table class="w-full text-left border-collapse whitespace-nowrap">
-                            <thead>
-                                <tr class="bg-slate-50/70 border-b border-slate-200 text-slate-500 uppercase text-xs tracking-wider font-bold">
-                                    <th class="p-4 cursor-pointer hover:text-indigo-600 select-none group" onclick="sortByStudentNo()">
-                                        <div class="flex items-center">Student No. <span id="student-no-sort-icon" class="ml-1 text-[10px] text-slate-400 group-hover:text-indigo-500">&#8597;</span></div>
-                                    </th>
-                                    <th class="p-4 cursor-pointer hover:text-indigo-600 select-none group" onclick="sortByName()">
-                                        <div class="flex items-center">Name <span id="name-sort-icon" class="ml-1 text-[10px] text-slate-400 group-hover:text-indigo-500">&#8597;</span></div>
-                                    </th>
-                                    <th class="p-4 text-center col-q col-q-1st">1st</th>
-                                    <th class="p-4 text-center col-q col-q-2nd">2nd</th>
-                                    <th class="p-4 text-center col-q col-q-3rd">3rd</th>
-                                    <th class="p-4 text-center col-q col-q-4th">4th</th>
-                                    <th class="p-4 text-center bg-slate-100/50">Final</th>
-                                    <th class="p-4">Remarks</th>
-                                    <th class="p-4 text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="admin-table-body" class="text-sm font-medium text-slate-700 divide-y divide-slate-100"></tbody>
-                        </table>
+                    <!-- Quarter Pill Filters -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+                        <span class="text-xs font-bold text-slate-400 mr-2 uppercase">Quarter:</span>
+                        <button onclick="filterByQuarter('All')" id="q-pill-All" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm shrink-0 transition-all">All</button>
+                        <button onclick="filterByQuarter('1st')" id="q-pill-1st" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">1st</button>
+                        <button onclick="filterByQuarter('2nd')" id="q-pill-2nd" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">2nd</button>
+                        <button onclick="filterByQuarter('3rd')" id="q-pill-3rd" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">3rd</button>
+                        <button onclick="filterByQuarter('4th')" id="q-pill-4th" class="quarter-pill px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm shrink-0 transition-all hover:bg-slate-50">4th</button>
                     </div>
                 </div>
 
-                <!-- MOBILE CARD LIST -->
-                <div id="admin-mobile-card-list" class="block md:hidden space-y-3"></div>
+                <!-- Students Table Container (Desktop) -->
+                <div class="hidden md:block bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-400 text-[11px] font-black uppercase tracking-wider">
+                                <th class="p-4 cursor-pointer hover:text-slate-700" onclick="sortByStudentNo()">Student No. <span id="student-no-sort-icon">&#8597;</span></th>
+                                <th class="p-4 cursor-pointer hover:text-slate-700" onclick="sortByName()">Full Name <span id="name-sort-icon">&#8597;</span></th>
+                                <th class="p-4 text-center col-q col-q-1st">1st Qtr</th>
+                                <th class="p-4 text-center col-q col-q-2nd">2nd Qtr</th>
+                                <th class="p-4 text-center col-q col-q-3rd">3rd Qtr</th>
+                                <th class="p-4 text-center col-q col-q-4th">4th Qtr</th>
+                                <th class="p-4 text-center">Final</th>
+                                <th class="p-4">Remarks</th>
+                                <th class="p-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Students Mobile Card List -->
+                <div id="admin-mobile-card-list" class="space-y-3 md:hidden">
+                    <!-- Populated dynamically -->
+                </div>
             </div>
 
-            <!-- TAB 2: SUBJECTS & DESCRIPTIONS VIEW -->
-            <div id="tab-subjects" class="admin-tab-content hidden-screen space-y-6 max-w-5xl mx-auto w-full box-border">
-                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2 border-b border-slate-200">
-                    <div>
-                        <h1 class="text-2xl font-black text-slate-800 tracking-tight">Curriculum & Subjects</h1>
-                        <p class="text-xs sm:text-sm text-slate-500 font-medium">Manage your subjects and official grading sheet descriptions.</p>
-                    </div>
-                </div>
-
-                <!-- Modern Unified Add/Edit Bar -->
-                <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col sm:flex-row gap-3 items-center relative">
+            <!-- TAB 2: SUBJECTS & WEIGHTS -->
+            <div id="tab-subjects" class="admin-tab-content hidden-screen space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+                    <h3 class="text-base font-black text-slate-900 mb-1">Manage Subjects & Grade Weights</h3>
+                    <p class="text-xs text-slate-500 font-medium mb-6">Add new subjects, adjust descriptions, and configure component distribution percentages.</p>
+                    
                     <input type="hidden" id="editing-original-subject" value="">
-                    <div class="w-full sm:flex-1">
-                        <input type="text" id="new-subject-input" placeholder="Subject Name (e.g., Computer Applications 1)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition-all">
-                    </div>
-                    <div class="w-full sm:flex-1">
-                        <input type="text" id="new-subject-desc-input" placeholder="Grading Sheet Description (e.g., Basic Computer)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition-all">
-                    </div>
-                    <div class="flex gap-2 w-full sm:w-auto">
-                        <button id="subject-submit-btn" onclick="handleSaveSubject()" class="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap">
-                            + Add Subject
-                        </button>
-                        <button id="subject-cancel-edit-btn" onclick="resetSubjectForm()" class="hidden bg-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-sm hover:bg-slate-300 transition-all whitespace-nowrap">
-                            Cancel
-                        </button>
+                    
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Subject Name</label>
+                                <input type="text" id="new-subject-input" placeholder="e.g. Mathematics 101" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-indigo-600">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Description / Notes</label>
+                                <input type="text" id="new-subject-desc-input" placeholder="e.g. First Semester Core Subject" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-600">
+                            </div>
+                        </div>
+
+                        <!-- Component Weights Customizer -->
+                        <div class="pt-4 border-t border-slate-100">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Grade Component Weights (Must total exactly 100%)</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Quizzes (%)</label>
+                                    <input type="number" id="weight-quizzes" value="35" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Participation (%)</label>
+                                    <input type="number" id="weight-participation" value="15" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Attendance (%)</label>
+                                    <input type="number" id="weight-attendance" value="10" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Exams (%)</label>
+                                    <input type="number" id="weight-exams" value="40" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 pt-2">
+                            <button onclick="handleSaveSubject()" id="subject-submit-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all">+ Add Subject</button>
+                            <button onclick="resetSubjectForm()" id="subject-cancel-edit-btn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-sm transition-all">Cancel Edit</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Modern Clean Table Container -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-                    <div class="px-6 py-4 bg-slate-50/70 border-b border-slate-200 flex justify-between items-center">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Registered Subjects List</h3>
-                    </div>
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 font-bold text-slate-800 text-sm">Active Curriculum Subjects</div>
                     <ul id="subjects-list-ui" class="divide-y divide-slate-100">
-                        <li class="p-8 text-center text-slate-400 text-sm font-medium">Loading subjects...</li>
+                        <!-- Populated dynamically -->
                     </ul>
                 </div>
             </div>
 
-            <!-- TAB 3: GRADING SHEETS GENERATOR VIEW -->
-            <div id="tab-grading-sheet" class="admin-tab-content hidden-screen space-y-6 max-w-6xl mx-auto w-full box-border">
-                <div class="flex justify-between items-center">
+            <!-- TAB 3: GRADING SHEETS -->
+            <div id="tab-grading-sheet" class="admin-tab-content hidden-screen space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs no-print flex flex-col md:flex-row gap-4 items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-black text-slate-800 tracking-tight">Official Grading Sheet Generator</h1>
-                        <p class="text-xs sm:text-sm text-slate-500 font-medium">Filter by subject and section to generate paginated official sheets (Max 35 students per page).</p>
+                        <h3 class="text-base font-black text-slate-900 mb-1">Printable Grading Sheets</h3>
+                        <p class="text-xs text-slate-500 font-medium">Generate official college grading layout templates ready for printing.</p>
                     </div>
-                </div>
-
-                <!-- Generator Controls -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Target Subject</label>
-                        <select id="gs-subject" onchange="updateGradingSheetPreview()" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Section</label>
-                        <select id="gs-section" onchange="updateGradingSheetPreview()" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500">
+                    <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <select id="gs-subject" onchange="updateGradingSheetPreview()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-indigo-600"></select>
+                        <select id="gs-section" onchange="updateGradingSheetPreview()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-indigo-600">
                             <option value="All">All Sections</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Semester / Period</label>
-                        <select id="gs-semester" onchange="updateGradingSheetPreview()" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500">
-                            <option value="1st Sem">1st Sem</option>
-                            <option value="2nd Sem">2nd Sem</option>
+                        <select id="gs-semester" onchange="updateGradingSheetPreview()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-indigo-600">
+                            <option value="1st Semester">1st Semester</option>
+                            <option value="2nd Semester">2nd Semester</option>
                             <option value="Summer">Summer</option>
-                            <option value="Trimester 1">Trimester 1</option>
-                            <option value="Trimester 2">Trimester 2</option>
-                            <option value="Trimester 3">Trimester 3</option>
                         </select>
-                    </div>
-                </div>
-
-                <!-- Live Preview Container -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 flex flex-col items-center">
-                    <div class="w-full flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
-                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Live Preview Output</span>
-                        <button onclick="printGradingSheets()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm hover:bg-indigo-700 shadow-md transition-all flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                            Print / Export PDF
+                        <button onclick="printGradingSheets()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2">
+                            🖨️ Print Sheets
                         </button>
                     </div>
-                    <div id="gs-preview-scroll-area" class="w-full overflow-y-auto bg-slate-100 p-6 rounded-xl border border-slate-200 max-h-[70vh] flex flex-col items-center">
-                        <div id="gs-preview-container" class="space-y-6 flex flex-col items-center w-full"></div>
+                </div>
+
+                <!-- Grading Sheet Preview Wrapper -->
+                <div id="gs-preview-wrapper" class="overflow-x-auto bg-slate-200 p-6 rounded-2xl flex justify-center">
+                    <div id="gs-preview-container" class="bg-white shadow-xl w-[816px] min-h-[1056px] p-12 text-slate-900 relative">
+                        <!-- Populated dynamically via print template generator -->
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 4: ANNOUNCEMENTS & DISCUSSION VIEW -->
-            <div id="tab-announcements" class="admin-tab-content hidden-screen space-y-6 max-w-4xl mx-auto w-full box-border">
-                <div>
-                    <h1 class="text-2xl font-black text-slate-800 tracking-tight">Announcements & Discussion</h1>
-                    <p class="text-xs sm:text-sm text-slate-500 font-medium">Broadcast notices to all students and manage class discussions.</p>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
-                    <h3 class="text-base font-bold text-slate-800">Broadcast Announcement</h3>
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <input type="text" id="admin-announcement-input" placeholder="Type an announcement to broadcast..." class="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500">
-                        <button onclick="broadcastAnnouncement(this)" class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-md transition-all whitespace-nowrap">Broadcast</button>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-base font-bold text-slate-800">Discussion Thread</h3>
-                        <button onclick="clearClassComments()" class="text-rose-600 hover:text-rose-800 text-xs font-bold px-3 py-1.5 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors">Clear Discussion</button>
-                    </div>
-                    <div id="admin-comments-feed" class="space-y-3 max-h-60 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
-                        <div class="text-xs text-slate-400 italic">No comments yet.</div>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="admin-new-comment-input" placeholder="Reply as Teacher..." class="flex-1 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-medium focus:outline-none focus:border-indigo-500">
-                        <button onclick="submitAdminComment()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm transition-all">Reply</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 5: IMPORT & BACKUP VIEW -->
-            <div id="tab-import-export" class="admin-tab-content hidden-screen space-y-6 max-w-4xl mx-auto w-full box-border">
-                <div>
-                    <h1 class="text-2xl font-black text-slate-800 tracking-tight">Data Management, Import & Backup</h1>
-                    <p class="text-xs sm:text-sm text-slate-500 font-medium">Export CSV backups or bulk import records using smart paste.</p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+            <!-- TAB 4: ANNOUNCEMENTS & DISCUSSIONS -->
+            <div id="tab-announcements" class="admin-tab-content hidden-screen space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                         <div>
-                            <h3 class="text-base font-bold text-slate-800 mb-1">Export CSV Backup</h3>
-                            <p class="text-xs text-slate-500 mb-6">Download a complete spreadsheet backup of all student grades and information.</p>
+                            <h3 class="text-base font-black text-slate-900 mb-1">Broadcast Announcement</h3>
+                            <p class="text-xs text-slate-500 font-medium mb-4">Post a live notification banner that appears immediately on all student dashboards.</p>
+                            <textarea id="admin-announcement-input" rows="4" placeholder="Type announcement message here..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium outline-none focus:border-indigo-600 mb-4"></textarea>
                         </div>
-                        <button onclick="exportTableToCSV('student_grades_backup.csv')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                            Export Backup CSV
-                        </button>
+                        <button onclick="broadcastAnnouncement(this)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all">Broadcast</button>
                     </div>
 
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 mb-1">Bulk Data Import</h3>
-                            <p class="text-xs text-slate-500 mb-6">Enroll new students or update quarterly grades via CSV or Excel smart paste.</p>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col h-[400px]">
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                            <h3 class="text-base font-black text-slate-900">Class Discussion Feed</h3>
+                            <button onclick="clearClassComments()" class="text-xs text-rose-600 hover:underline font-bold">Clear Feed</button>
                         </div>
-                        <button onclick="openImportModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                            Open Import Wizard
-                        </button>
+                        <div id="admin-comments-feed" class="flex-1 overflow-y-auto space-y-3 pr-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <!-- Populated dynamically -->
+                        </div>
+                        <div class="mt-3 flex gap-2">
+                            <input type="text" id="admin-new-comment-input" placeholder="Type reply as admin..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-600">
+                            <button onclick="submitAdminComment()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold">Send</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- TAB 5: IMPORT & BACKUP -->
+            <div id="tab-import" class="admin-tab-content hidden-screen space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-base font-black text-slate-900 mb-1">Bulk Data Import Wizard</h3>
+                            <p class="text-xs text-slate-500 font-medium mb-6">Upload student lists or massive grade files instantly via CSV or Smart Paste.</p>
+                        </div>
+                        <button onclick="openImportModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2">
+                            ⚡ Open Import Wizard
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-base font-black text-slate-900 mb-1">Database CSV Backup</h3>
+                            <p class="text-xs text-slate-500 font-medium mb-6">Export all loaded database records directly into a formatted CSV spreadsheet.</p>
+                        </div>
+                        <button onclick="exportTableToCSV('student_records_backup.csv')" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                            📥 Download CSV Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
-    <!-- STUDENT DASHBOARD -->
-    <div id="student-dashboard" class="hidden-screen flex-1 flex flex-col w-full max-w-full box-border">
-        
-        <div class="print-header">
-            <h1 class="text-3xl font-black text-slate-800">Official Student Report Card</h1>
-            <p class="text-slate-500 font-medium mt-1">Generated via Academic Student Portal</p>
-        </div>
-
-        <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm no-print w-full box-border">
-            <div class="max-w-[85rem] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between box-border">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100 shadow-sm shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-6 h-6">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 00-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
-                        </svg>
-                    </div>
-                    <div class="overflow-hidden">
-                        <h2 class="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">Student Portal</h2>
-                        <p id="student-info-header" class="text-[11px] sm:text-xs text-slate-500 font-medium tracking-wide truncate"></p>
-                    </div>
+    <!-- ==================== STUDENT DASHBOARD ==================== -->
+    <div id="student-dashboard" class="hidden-screen min-h-screen flex flex-col">
+        <header class="bg-slate-900 text-white p-5 shadow-md flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-lg">🎓</div>
+                <div>
+                    <h2 id="student-info-header" class="font-bold text-sm">Student Portal</h2>
+                    <p class="text-[11px] text-indigo-300 font-medium">Academic Performance Record</p>
                 </div>
-                <button class="logout-btn flex items-center text-xs sm:text-sm font-semibold text-slate-500 hover:text-rose-600 transition-colors bg-slate-50 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-slate-200 shrink-0">
-                    Logout
-                </button>
             </div>
+            <button class="logout-btn bg-slate-800 hover:bg-rose-600/20 text-slate-300 hover:text-rose-400 px-4 py-2 rounded-xl text-xs font-bold transition-colors">Log Out</button>
         </header>
 
-        <div class="p-4 sm:p-6 lg:p-8 max-w-[85rem] mx-auto w-full box-border">
-            
-            <!-- Student Announcement Banner with Social Comment Thread -->
-            <div id="student-announcement-banner" class="hidden mb-6 bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl p-4 sm:p-6 shadow-md text-white no-print box-border">
-                <div class="flex gap-4 items-start mb-4">
-                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0 backdrop-blur-sm mt-0.5">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
-                    </div>
-                    <div class="overflow-hidden flex-1">
-                        <h4 class="text-[11px] font-black text-indigo-200 uppercase tracking-wider mb-0.5">Teacher Announcement</h4>
-                        <p id="student-announcement-text" class="text-xs sm:text-sm font-bold leading-snug break-words"></p>
-                    </div>
-                </div>
-
-                <!-- Discussion Thread Inside Announcement -->
-                <div id="announcement-comments-section" class="pt-4 border-t border-white/20">
-                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-100 mb-2">Class Discussion Thread</div>
-                    <div id="comments-feed" class="space-y-2 max-h-48 overflow-y-auto mb-3 pr-1 text-slate-800">
-                        <div class="text-xs text-white/70 italic">No comments yet. Start the conversation!</div>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="new-comment-input" placeholder="Write a comment or question..." class="flex-1 bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium text-slate-800 focus:outline-none">
-                        <button onclick="submitStudentComment()" class="bg-white text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-50 shadow-sm transition-all shrink-0">Post</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 box-border">
+        <main class="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
+            <!-- Announcement Banner -->
+            <div id="student-announcement-banner" class="hidden bg-indigo-50 border border-indigo-200 text-indigo-900 p-4 rounded-2xl flex items-start gap-3 shadow-xs">
+                <span class="text-xl">📢</span>
                 <div>
-                    <h3 class="text-lg sm:text-xl font-bold text-slate-800" id="print-student-name"></h3>
-                    <p class="text-sm font-bold text-indigo-600 mt-1 hidden print:block" id="print-subject-label"></p>
-                </div>
-                
-                <div class="flex flex-wrap gap-2 no-print w-full sm:w-auto">
-                    <button onclick="window.print()" class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-xs sm:text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center">
-                        <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                        Print
-                    </button>
-                    
-                    <select id="student-sy-selector" onchange="changeStudentSY(this.value)" class="hidden px-3 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-xs sm:text-sm font-bold text-slate-700 cursor-pointer"></select>
-                    
-                    <select id="student-subject-selector" onchange="changeStudentSubject(this.value)" class="flex-1 sm:flex-none px-3 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-xs sm:text-sm font-bold text-indigo-700 cursor-pointer">
-                    </select>
+                    <div class="font-bold text-xs uppercase tracking-wider text-indigo-600 mb-0.5">Announcement</div>
+                    <p id="student-announcement-text" class="text-sm font-medium"></p>
                 </div>
             </div>
-            
-            <div id="student-main-grades" class="w-full max-w-full box-border"></div>
-            
-            <div class="mt-8 flex items-center justify-center p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-700 text-xs sm:text-sm font-medium no-print text-center box-border">
-                Click on any quarterly grade card above to view the detailed breakdown.
+
+            <!-- Subject & Term Selector -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div>
+                    <h3 class="text-base font-black text-slate-900">Enrolled Subjects</h3>
+                    <p class="text-xs text-slate-500">Select subject view below.</p>
+                </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <select id="student-sy-selector" onchange="changeStudentSY(this.value)" class="hidden bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-indigo-600"></select>
+                    <select id="student-subject-selector" onchange="changeStudentSubject(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-indigo-600 flex-1 sm:w-64"></select>
+                </div>
             </div>
 
-            <!-- Developer Footer -->
-            <div class="print-footer">
-                System Engineered & Developed by <b>Carl Harry M. Pandes</b> &bull; Academic Student Portal
+            <!-- Grades Display Cards -->
+            <div id="student-main-grades" class="space-y-4">
+                <!-- Populated dynamically -->
             </div>
 
-        </div>
+            <!-- Student Discussion Feed -->
+            <div class="bg-indigo-900 text-white p-6 rounded-2xl shadow-md space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-indigo-800">
+                    <h3 class="text-sm font-black tracking-wide uppercase">Class Discussion & Feedback</h3>
+                    <span class="text-[10px] text-indigo-300 font-semibold">Teacher Connected</span>
+                </div>
+                <div id="comments-feed" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <input type="text" id="new-comment-input" placeholder="Type a message or question to teacher..." class="flex-1 bg-indigo-950 border border-indigo-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-indigo-400 outline-none focus:border-indigo-400">
+                    <button onclick="submitStudentComment()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md">Post</button>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <!-- BREAKDOWN SCREEN -->
-    <div id="breakdown-screen" class="hidden-screen p-4 sm:p-6 lg:p-8 max-w-[50rem] mx-auto w-full mt-4 box-border">
-        <button id="back-to-dashboard-btn" class="mb-6 flex items-center text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 px-4 py-2 rounded-xl border border-slate-200 shadow-sm no-print">
-            &larr; Back to Dashboard
-        </button>
-        
-        <div class="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6 sm:p-8 w-full max-w-full box-border">
-            <div class="flex items-center mb-8 pb-4 border-b border-slate-100 box-border">
-                <div class="w-12 h-12 bg-indigo-50 rounded-[0.85rem] flex items-center justify-center mr-4 text-indigo-600 shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-7 h-7">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
-                    </svg>
-                </div>
-                <div class="overflow-hidden">
-                    <h2 id="breakdown-title" class="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight truncate">Quarter Breakdown</h2>
-                    <p class="text-xs sm:text-sm font-medium text-slate-500 truncate" id="breakdown-subject-label">Detailed component view</p>
-                </div>
-            </div>
-            <div id="breakdown-content" class="w-full max-w-full box-border"></div>
-        </div>
-    </div>
+    <!-- ==================== BREAKDOWN SCREEN ==================== -->
+    <div id="breakdown-screen" class="hidden-screen min-h-screen flex flex-col p-4 md:p-8 max-w-4xl mx-auto w-full">
+        <header class="flex justify-between items-center mb-8 no-print">
+            <button id="back-to-dashboard-btn" class="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition-colors">&larr; Back to Dashboard</button>
+            <button onclick="window.print()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md">🖨️ Print View</button>
+        </header>
 
-    <!-- SLIDE PANEL (CRUD) -->
-    <div id="slide-panel-backdrop" class="hidden-screen fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 transition-opacity opacity-0 duration-300 no-print box-border" onclick="closeSlidePanel()"></div>
-    
-    <div id="slide-panel" class="no-print fixed inset-y-0 right-0 w-full max-w-md bg-slate-50 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-l border-slate-200 box-border">
-        <div class="px-6 py-5 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm box-border">
-            <div class="overflow-hidden pr-2">
-                <h3 id="panel-header-name" class="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">Student Name</h3>
-                <p id="panel-header-id" class="text-xs font-semibold text-slate-500 tracking-wider truncate">ID: 00-0000</p>
-            </div>
-            <button onclick="closeSlidePanel()" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors text-xl font-bold shrink-0">&times;</button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 box-border w-full">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 box-border w-full">
-                <h4 class="text-xs sm:text-sm font-bold text-slate-800 mb-4 flex items-center uppercase tracking-wide">Profile Settings</h4>
-                <div class="space-y-3 box-border w-full">
-                    <input type="hidden" id="panel-old-student-id">
-                    <input type="hidden" id="panel-old-student-subject">
-                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Student No.</label><input type="text" id="panel-student-id" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium box-border"></div>
-                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Full Name</label><input type="text" id="panel-student-name" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium box-border"></div>
+        <div class="bg-white border border-slate-200/80 rounded-3xl p-6 md:p-10 shadow-xl flex-1 flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-start mb-6 pb-6 border-b border-slate-100">
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Section</label>
-                        <select id="panel-student-section" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 box-border"></select>
+                        <h2 id="breakdown-title" class="text-2xl font-black text-slate-900">Quarter Details</h2>
+                        <p id="breakdown-subject-label" class="text-xs text-slate-500 font-semibold mt-1">Component Breakdown View</p>
+                    </div>
+                    <div class="text-right hidden sm:block">
+                        <div id="print-student-name" class="font-bold text-slate-800 text-sm"></div>
+                        <div id="print-subject-label" class="text-xs text-indigo-600 font-semibold mt-0.5"></div>
+                    </div>
+                </div>
+
+                <div id="breakdown-content" class="space-y-6">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="mt-12 pt-6 border-t border-slate-100 text-center text-xs text-slate-400 font-medium">
+                Pili Capital College, Inc. &bull; Official Academic Record
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SLIDE-OVER GRADE MANAGEMENT PANEL ==================== -->
+    <div id="slide-panel-backdrop" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 transition-opacity opacity-0"></div>
+    <div id="slide-panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl transform transition-transform duration-300 translate-x-full flex flex-col justify-between p-6 overflow-y-auto">
+        <div>
+            <div class="flex justify-between items-center pb-4 border-b border-slate-100 mb-6">
+                <div>
+                    <h3 id="panel-header-name" class="text-lg font-black text-slate-900">Student Name</h3>
+                    <div id="panel-header-id" class="text-xs text-indigo-600 font-bold">ID: 0000</div>
+                </div>
+                <button onclick="closeSlidePanel()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold flex items-center justify-center">&times;</button>
+            </div>
+
+            <!-- Edit Student Info Form -->
+            <div class="space-y-4 mb-8">
+                <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider">Profile & Subject Assignment</h4>
+                <input type="hidden" id="panel-old-student-id">
+                <input type="hidden" id="panel-old-student-subject">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 mb-1">Student Number</label>
+                        <input type="text" id="panel-student-id" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-600">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">Enrolled Subject</label>
-                        <select id="panel-student-subject" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 box-border"></select>
-                    </div>
-                    <button id="panel-save-info-btn" onclick="savePanelInfo()" class="w-full mt-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-sm transition-colors box-border">Update Profile & Subject</button>
-                </div>
-            </div>
-
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 box-border w-full">
-                <h4 class="text-xs sm:text-sm font-bold text-slate-800 mb-4 flex items-center uppercase tracking-wide truncate">Adjust Grades (<span id="panel-subject-label" class="text-indigo-600 truncate">Subject</span>)</h4>
-                <div class="grid grid-cols-2 gap-3 mb-4 box-border w-full">
-                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">1st Quarter</label><input type="number" id="panel-q1" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none text-base box-border"></div>
-                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">2nd Quarter</label><input type="number" id="panel-q2" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none text-base box-border"></div>
-                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">3rd Quarter</label><input type="number" id="panel-q3" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none text-base box-border"></div>
-                    <div><label class="block text-[11px] font-bold text-slate-500 mb-1 ml-1 uppercase">4th Quarter</label><input type="number" id="panel-q4" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-700 outline-none text-base box-border"></div>
-                </div>
-                <button id="panel-save-grades-btn" onclick="savePanelGrades()" class="w-full px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-lg font-bold text-sm transition-colors box-border">Save Grades</button>
-            </div>
-
-            <div class="bg-rose-50/50 p-5 rounded-2xl border border-rose-100 mt-8 mb-8 box-border w-full">
-                <h4 class="text-xs sm:text-sm font-bold text-rose-800 mb-2 uppercase">Danger Zone</h4>
-                <p class="text-[11px] text-rose-600 font-medium mb-4">Permanently remove this student from ALL classes in the database.</p>
-                <button onclick="deleteStudentFromPanel()" class="w-full px-4 py-2.5 bg-white border border-rose-200 text-rose-600 rounded-lg font-bold text-sm hover:bg-rose-600 hover:text-white transition-colors box-border">Delete Student</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ADD STUDENT MODAL -->
-    <div id="add-student-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4 no-print overflow-y-auto box-border">
-        <div class="bg-white rounded-[2rem] shadow-2xl p-6 sm:p-8 w-full max-w-md border border-slate-100 modal-animate relative my-8 box-border">
-            <h3 class="text-xl sm:text-2xl font-bold mb-1">Add New Student</h3>
-            <p class="text-xs sm:text-sm text-slate-500 mb-6 font-medium">Enter details to enroll a student.</p>
-            
-            <div class="space-y-4 box-border w-full">
-                <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1 ml-1">Student Number</label><input type="text" id="new-student-id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
-                <div><label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1 ml-1">Full Name</label><input type="text" id="new-student-name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium box-border"></div>
-                <div>
-                    <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1 ml-1">Section / Block</label>
-                    <select id="new-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 box-border">
-                        <option value="">Select Section...</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5 ml-1">Enrolled Subjects</label>
-                    <div class="flex gap-3 flex-wrap bg-slate-50 border border-slate-200 p-3 rounded-xl max-h-40 overflow-y-auto box-border w-full" id="add-subject-checkboxes">
-                    </div>
-                </div>
-            </div>
-            <div id="add-student-error" class="hidden text-rose-600 text-sm mt-4 font-bold bg-rose-50 p-3 rounded-lg border border-rose-100"></div>
-            <div class="mt-8 flex justify-end gap-3 box-border">
-                <button onclick="closeAddStudentModal()" class="px-4 sm:px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl font-semibold hover:bg-slate-50 transition-colors text-sm">Cancel</button>
-                <button id="save-new-student-btn" onclick="saveNewStudent()" class="px-4 sm:px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors text-sm">Save Student</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- IMPORT MODAL -->
-    <div id="import-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4 overflow-y-auto no-print box-border">
-        <div class="bg-white rounded-[2rem] shadow-2xl p-6 sm:p-8 w-full max-w-2xl border border-slate-100 modal-animate relative my-8 box-border">
-            <h3 class="text-xl sm:text-2xl font-bold mb-1 text-slate-800 flex items-center gap-2">
-                <svg class="w-6 h-6 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                Import Data
-            </h3>
-            <p class="text-xs sm:text-sm text-slate-500 mb-6 font-medium">Update database records instantly.</p>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 box-border w-full">
-                <div>
-                    <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5 ml-1">Import Action</label>
-                    <select id="import-action" onchange="toggleImportUI()" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-indigo-500 box-border">
-                        <option value="register">Enroll New Students</option>
-                        <option value="grades">Update Quarterly Grades</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5 ml-1">Target Subject</label>
-                    <select id="import-subject" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-indigo-500 box-border"></select>
-                </div>
-            </div>
-
-            <div id="import-quarter-container" class="mb-5 hidden box-border w-full">
-                <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5 ml-1">Target Quarter</label>
-                <select id="import-quarter" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-indigo-500 box-border">
-                    <option value="1st">1st Quarter</option>
-                    <option value="2nd">2nd Quarter</option>
-                    <option value="3rd">3rd Quarter</option>
-                    <option value="4th">4th Quarter</option>
-                </select>
-            </div>
-
-            <div class="mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100 box-border w-full">
-                <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-2">Option A: Upload CSV File</label>
-                <input type="file" id="csv-file-input" accept=".csv" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 cursor-pointer mb-2 box-border">
-                
-                <div class="relative flex items-center py-4">
-                    <div class="flex-grow border-t border-slate-200"></div>
-                    <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest">OR</span>
-                    <div class="flex-grow border-t border-slate-200"></div>
-                </div>
-
-                <label class="block text-xs sm:text-sm font-bold text-indigo-700 mb-2 flex items-center gap-1">
-                    Option B: Smart Paste 📋
-                </label>
-                <p class="text-[11px] font-semibold text-slate-500 mb-3 leading-snug">Highlight your data in Google Sheets (or Excel). Press <b class="text-slate-700">Ctrl+C</b>, click the box below, and press <b class="text-slate-700">Ctrl+V</b>.</p>
-                <textarea id="smart-paste-input" placeholder="Paste data here..." class="w-full px-4 py-3 bg-white border border-indigo-200 shadow-[0_0_15px_rgba(99,102,241,0.1)] rounded-xl text-sm font-medium text-slate-600 focus:outline-none focus:border-indigo-500 h-24 resize-y box-border"></textarea>
-            </div>
-
-            <div id="col-mapping-register" class="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 mb-5 box-border w-full">
-                <div><label class="block text-[10px] sm:text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide text-center">ID Col</label><input type="text" id="col-id-reg" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 box-border" placeholder="A"></div>
-                <div><label class="block text-[10px] sm:text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide text-center">Name Col</label><input type="text" id="col-name" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 box-border" placeholder="B"></div>
-                <div><label class="block text-[10px] sm:text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide text-center">Sec Col</label><input type="text" id="col-sec" class="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-slate-400 placeholder:font-normal box-border" placeholder="Optional"></div>
-            </div>
-
-            <div id="col-mapping-grades" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-100 mb-5 box-border w-full">
-                <p class="text-[11px] text-center font-bold text-rose-500 mb-3 uppercase tracking-wider">Leave the box blank if you are not updating it!</p>
-                <div class="grid grid-cols-5 gap-2 box-border w-full">
-                    <div><label class="block text-[9px] sm:text-[10px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide text-center">ID Col</label><input type="text" id="col-id-grades" class="w-full px-1.5 sm:px-2 py-2 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 shadow-sm text-xs sm:text-sm box-border" placeholder="A"></div>
-                    <div><label class="block text-[9px] sm:text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide text-center">Quiz</label><input type="text" id="col-quiz" class="w-full px-1.5 sm:px-2 py-2 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 text-xs sm:text-sm box-border" placeholder="B"></div>
-                    <div><label class="block text-[9px] sm:text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide text-center">Part.</label><input type="text" id="col-part" class="w-full px-1.5 sm:px-2 py-2 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 text-xs sm:text-sm box-border" placeholder="C"></div>
-                    <div><label class="block text-[9px] sm:text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide text-center">Att.</label><input type="text" id="col-att" class="w-full px-1.5 sm:px-2 py-2 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 text-xs sm:text-sm box-border" placeholder="D"></div>
-                    <div><label class="block text-[9px] sm:text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide text-center">Exam</label><input type="text" id="col-exam" class="w-full px-1.5 sm:px-2 py-2 bg-white border border-slate-200 rounded-lg uppercase font-bold text-center text-indigo-700 text-xs sm:text-sm box-border" placeholder="E"></div>
-                </div>
-            </div>
-
-            <div id="preview-section" class="hidden border border-slate-200 rounded-xl overflow-hidden shadow-sm w-full max-w-full box-border">
-                <div class="max-h-60 overflow-y-auto w-full">
-                    <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead id="preview-thead" class="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600 uppercase text-[10px] tracking-wider">
-                        </thead>
-                        <tbody id="preview-table-body" class="divide-y divide-slate-100 bg-white">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="progress-container" class="hidden mt-5 bg-slate-50 border border-slate-200 p-4 rounded-xl box-border w-full">
-                <div class="flex justify-between items-center text-xs font-bold text-slate-600 mb-2">
-                    <span id="progress-status-text">Processing records...</span>
-                    <span id="progress-percentage">0%</span>
-                </div>
-                <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner mb-2">
-                    <div id="progress-bar-fill" class="bg-indigo-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <div class="flex justify-between items-center text-[11px] font-semibold text-slate-400">
-                    <span id="progress-count">0 of 0 updated</span>
-                    <span id="progress-eta">Calculated ETA: --</span>
-                </div>
-            </div>
-
-            <div id="transfer-status" class="hidden mt-4 p-3 rounded-xl border font-bold text-sm text-center"></div>
-            
-            <div class="mt-8 flex flex-col-reverse sm:flex-row justify-end gap-3 box-border">
-                <button id="import-cancel-btn" onclick="closeImportModal()" class="w-full sm:w-auto px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 font-semibold transition-all text-sm">Cancel</button>
-                <button id="preview-btn" onclick="previewDataTransfer()" class="w-full sm:w-auto px-5 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 shadow-md font-semibold transition-all text-sm">
-                    Preview Data
-                </button>
-                <button id="confirm-btn" onclick="confirmDataTransfer()" class="hidden w-full sm:w-auto px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md font-semibold transition-all text-sm">
-                    Confirm & Update
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- REGISTER MODAL -->
-    <div id="register-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4 no-print overflow-y-auto box-border">
-        <div class="bg-white rounded-[2rem] shadow-2xl p-6 sm:p-8 w-full max-w-md border border-slate-100 modal-animate relative my-8 box-border">
-            <div class="absolute -top-12 -right-12 w-32 h-32 bg-blue-50 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
-            
-            <div class="flex items-center justify-between mb-4 relative z-10">
-                <div>
-                    <h3 class="text-2xl font-black text-slate-800 tracking-tight">Student Registration</h3>
-                    <p class="text-xs text-slate-500 font-medium mt-0.5">Create your student profile and enroll</p>
-                </div>
-                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm border border-indigo-100/50">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-                </div>
-            </div>
-            
-            <div class="space-y-4 mt-6 box-border w-full relative z-10">
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Student Number</label>
-                    <input type="text" id="reg-student-id" placeholder="e.g., 11-05075" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500 transition-all box-border">
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Full Name</label>
-                    <input type="text" id="reg-student-name" placeholder="e.g., Dela Cruz, Juan A." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-500 transition-all box-border">
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Section / Block</label>
-                    <div class="relative">
-                        <select id="reg-student-section" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-indigo-700 focus:outline-none focus:border-indigo-500 transition-all box-border cursor-pointer appearance-none">
-                            <option value="">Select your section...</option>
+                        <label class="block text-[11px] font-bold text-slate-500 mb-1">Section</label>
+                        <select id="panel-student-section" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-600">
+                            <!-- Populated dynamically -->
                         </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Full Name</label>
+                    <input type="text" id="panel-student-name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-600">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Active Subject Sheet</label>
+                    <select id="panel-student-subject" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-600">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <button onclick="savePanelInfo()" id="panel-save-info-btn" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold text-xs transition-all">Update Profile & Subject</button>
+            </div>
+
+            <!-- Quick Grades Editor Form -->
+            <div class="space-y-4 pb-6 border-b border-slate-100">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider">Quick Grades Editor</h4>
+                    <span id="panel-subject-label" class="text-xs font-bold text-indigo-600">Subject</span>
+                </div>
+                <div class="grid grid-cols-4 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 text-center">1st Qtr</label>
+                        <input type="number" id="panel-q1" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 text-center text-sm font-black outline-none focus:border-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 text-center">2nd Qtr</label>
+                        <input type="number" id="panel-q2" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 text-center text-sm font-black outline-none focus:border-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 text-center">3rd Qtr</label>
+                        <input type="number" id="panel-q3" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 text-center text-sm font-black outline-none focus:border-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 text-center">4th Qtr</label>
+                        <input type="number" id="panel-q4" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 text-center text-sm font-black outline-none focus:border-indigo-600">
+                    </div>
+                </div>
+                <button onclick="savePanelGrades()" id="panel-save-grades-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Save Grades</button>
+            </div>
+        </div>
+
+        <div class="pt-6">
+            <button onclick="deleteStudentFromPanel()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 py-2.5 rounded-xl font-bold text-xs transition-colors border border-rose-100">Delete Student Record</button>
+        </div>
+    </div>
+
+    <!-- ==================== ADD STUDENT MODAL ==================== -->
+    <div id="add-student-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4">
+            <h3 class="text-lg font-black text-slate-900">Add New Student</h3>
+            <div class="space-y-3">
+                <input type="text" id="new-student-id" placeholder="Student Number (e.g. 26-02448)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+                <input type="text" id="new-student-name" placeholder="Full Name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+                <select id="new-student-section" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+                    <option value="">Select section...</option>
+                </select>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Enroll in Subjects:</label>
+                    <div id="add-subject-checkboxes" class="space-y-2 max-h-36 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeAddStudentModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
+                <button onclick="saveNewStudent()" id="save-new-student-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Save Student</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== REGISTRATION MODAL ==================== -->
+    <div id="register-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4">
+            <h3 class="text-lg font-black text-slate-900">Student Self-Registration</h3>
+            <p class="text-xs text-slate-500 font-medium">Fill out your details to enroll and access your student portal immediately.</p>
+            <div class="space-y-3">
+                <input type="text" id="reg-student-id" placeholder="Student Number (e.g. 26-02448)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+                <input type="text" id="reg-student-name" placeholder="Full Name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+                <select id="reg-student-section" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+                    <option value="">Select section...</option>
+                </select>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Select Subjects to Enroll:</label>
+                    <div id="reg-subject-checkboxes" class="space-y-2 max-h-36 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+            <div id="reg-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeRegisterModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
+                <button onclick="submitRegistration()" id="submit-reg-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Register Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== BULK IMPORT WIZARD MODAL ==================== -->
+    <div id="import-modal" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 md:p-8 w-full max-w-2xl max-h-[90vh] flex flex-col justify-between">
+            <div class="overflow-y-auto pr-1 space-y-6">
+                <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900">Bulk Import Wizard</h3>
+                        <p class="text-xs text-slate-500 font-medium">Upload via CSV or Smart Paste with dynamic column mapping.</p>
+                    </div>
+                    <button onclick="closeImportModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold flex items-center justify-center">&times;</button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Target Action</label>
+                        <select id="import-action" onchange="toggleImportUI()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
+                            <option value="register">Register Students</option>
+                            <option value="grades">Upload Grades</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Target Subject</label>
+                        <select id="import-subject" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600"></select>
+                    </div>
+                    <div id="import-quarter-container" class="hidden">
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Target Quarter</label>
+                        <select id="import-quarter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
+                            <option value="1st">1st Quarter</option>
+                            <option value="2nd">2nd Quarter</option>
+                            <option value="3rd">3rd Quarter</option>
+                            <option value="4th">4th Quarter</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Option A: CSV File -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Option A: Upload CSV File</label>
+                    <input type="file" id="csv-file-input" accept=".csv" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
+                </div>
+
+                <div class="text-center font-bold text-slate-300 text-xs">OR</div>
+
+                <!-- Option B: Smart Paste -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Option B: Smart Paste 📋</label>
+                    <textarea id="smart-paste-input" rows="4" placeholder="Highlight your data in Google Sheets or Excel, press Ctrl+C, click here, and press Ctrl+V." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono outline-none focus:border-indigo-600"></textarea>
+                </div>
+
+                <!-- Column Mapping Guides -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="text-[11px] font-black uppercase text-slate-400">Column Mapping (Enter Excel Column Letters like A, B, C...)</div>
+                    
+                    <!-- Register Mappings -->
+                    <div id="col-mapping-register" class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">ID Col</label>
+                            <input type="text" id="col-id-reg" placeholder="A" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Name Col</label>
+                            <input type="text" id="col-name" placeholder="B" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Section Col (Opt.)</label>
+                            <input type="text" id="col-sec" placeholder="C" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+                        </div>
+                    </div>
+
+                    <!-- Grades Mappings -->
+                    <div id="col-mapping-grades" class="hidden grid grid-cols-5 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">ID Col</label>
+                            <input type="text" id="col-id-grades" placeholder="A" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Quiz Col</label>
+                            <input type="text" id="col-quiz" placeholder="B" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Part. Col</label>
+                            <input type="text" id="col-part" placeholder="C" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Att. Col</label>
+                            <input type="text" id="col-att" placeholder="D" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Exam Col</label>
+                            <input type="text" id="col-exam" placeholder="E" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
                         </div>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Enrolled Subjects</label>
-                    <div class="flex gap-3 flex-wrap bg-slate-50 border border-slate-200 p-3.5 rounded-xl max-h-40 overflow-y-auto box-border w-full shadow-inner" id="reg-subject-checkboxes">
+
+                <!-- Preview Table Box -->
+                <div id="preview-section" class="hidden space-y-2">
+                    <div class="text-xs font-bold text-slate-700">Preview Parsed Data:</div>
+                    <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead id="preview-thead" class="bg-slate-100 text-slate-600"></thead>
+                            <tbody id="preview-table-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
                     </div>
                 </div>
+
+                <!-- Progress Bar Container -->
+                <div id="progress-container" class="hidden space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+                        <span id="progress-count">Processing records...</span>
+                        <span id="progress-percentage">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                        <div id="progress-bar-fill" class="bg-indigo-600 h-full w-0 transition-all duration-200"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                        <span id="progress-eta">Calculating ETA...</span>
+                        <span>Please do not close this window</span>
+                    </div>
+                </div>
+
+                <div id="transfer-status" class="hidden text-center text-xs font-bold p-3 rounded-xl"></div>
             </div>
-            
-            <div id="reg-error" class="hidden text-rose-600 text-xs font-bold bg-rose-50 p-3 rounded-xl border border-rose-100 mt-4"></div>
-            
-            <div class="mt-8 flex justify-end gap-3 relative z-10">
-                <button onclick="closeRegisterModal()" class="px-5 py-2.5 text-slate-600 bg-white border border-slate-200 rounded-xl font-semibold hover:bg-slate-50 transition-colors text-sm shadow-sm">Cancel</button>
-                <button id="submit-reg-btn" onclick="submitRegistration()" class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all text-sm">Register Profile</button>
+
+            <!-- Modal Actions -->
+            <div class="pt-6 border-t border-slate-100 flex gap-3">
+                <button onclick="closeImportModal()" id="import-cancel-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
+                <button onclick="previewDataTransfer()" id="preview-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Preview Data</button>
+                <button onclick="confirmDataTransfer()" id="confirm-btn" class="hidden flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-emerald-600/20 transition-all">Confirm & Update</button>
             </div>
         </div>
     </div>
