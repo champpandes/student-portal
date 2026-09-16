@@ -16,12 +16,33 @@ let subjectWeights = JSON.parse(localStorage.getItem('subjectWeights') || '{}');
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
 function toggleSidebar() {
+    const sidebar = document.getElementById('admin-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
     if (window.innerWidth < 768) {
-        const topMenu = document.getElementById('mobile-top-nav-menu');
-        if (topMenu) topMenu.classList.toggle('hidden');
+        const isOpen = sidebar.classList.toggle('mobile-open');
+        if (backdrop) {
+            if (isOpen) {
+                backdrop.classList.remove('hidden', 'pointer-events-none');
+                setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+            } else {
+                backdrop.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => backdrop.classList.add('hidden'), 300);
+            }
+        }
     } else {
+        sidebar.classList.toggle('collapsed');
+    }
+}
+
+function closeMobileSidebar() {
+    if (window.innerWidth < 768) {
         const sidebar = document.getElementById('admin-sidebar');
-        if (sidebar) sidebar.classList.toggle('collapsed');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (sidebar) sidebar.classList.remove('mobile-open');
+        if (backdrop) {
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => backdrop.classList.add('hidden'), 300);
+        }
     }
 }
 
@@ -56,10 +77,7 @@ function switchAdminTab(tabName, btnElement) {
         btnElement.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/20";
     }
 
-    if (window.innerWidth < 768) {
-        const topMenu = document.getElementById('mobile-top-nav-menu');
-        if (topMenu) topMenu.classList.add('hidden');
-    }
+    closeMobileSidebar();
 
     if (tabName === 'grading-sheet') {
         const sections = [...new Set(currentAdminData.map(s => s.section))].filter(Boolean).sort();
@@ -203,6 +221,9 @@ window.onload = async () => {
     await fetchSubjects(); 
     loadComments(); 
     await fetchAllSectionsForDropdowns();
+    
+    const sidebar = document.getElementById('admin-sidebar');
+    if (sidebar) sidebar.classList.remove('collapsed');
 };
 
 async function fetchAllSectionsForDropdowns() {
