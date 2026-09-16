@@ -1325,6 +1325,10 @@ async function confirmDataTransfer() {
 
                 await apiCall({ action: "saveBreakdown", pin: adminPin, studentNumber: item.studentNumber, subject: subj, quarter: qtr, breakdown: bd });
             }
+            
+            // Added 150ms delay to prevent Google Apps Script rate-limiting / concurrency errors
+            await new Promise(resolve => setTimeout(resolve, 150));
+
             successCount++;
             
             const percent = Math.round((successCount / totalItems) * 100);
