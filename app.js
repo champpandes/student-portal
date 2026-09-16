@@ -14,7 +14,6 @@ let subjectDescriptions = JSON.parse(localStorage.getItem('subjectDescriptions')
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
-// --- TOP NAVBAR TOGGLE FUNCTION FOR MOBILE ---
 function toggleSidebar() {
     if (window.innerWidth < 768) {
         const topMenu = document.getElementById('mobile-top-nav-menu');
@@ -25,7 +24,6 @@ function toggleSidebar() {
     }
 }
 
-// --- TOAST NOTIFICATION SYSTEM ---
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
@@ -44,7 +42,6 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// --- ADMIN SIDEBAR TAB ROUTING ---
 function switchAdminTab(tabName, btnElement) {
     document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('hidden-screen'));
     document.querySelectorAll('.admin-tab-btn').forEach(btn => {
@@ -70,7 +67,6 @@ function switchAdminTab(tabName, btnElement) {
     }
 }
 
-// --- ACTIVITY TIMESTAMP & AUDIT LOG HELPER ---
 function updateLastSavedTimestamp() {
     const badge = document.getElementById('last-saved-badge');
     const text = document.getElementById('last-saved-text');
@@ -82,7 +78,6 @@ function updateLastSavedTimestamp() {
     badge.classList.remove('hidden');
 }
 
-// --- ANNOUNCEMENT & COMMENT THREAD LOGIC ---
 async function loadAnnouncement() {
     try {
         const res = await apiCall({ action: "getAnnouncement" });
@@ -724,10 +719,6 @@ function sortByName() {
     document.getElementById('student-no-sort-icon').innerHTML = '&#8597;'; applyAdminFilters();
 }
 
-// ==========================================
-// STUDENT DASHBOARD
-// ==========================================
-
 function initializeStudentDropdowns(subjectsArr) {
     const sySelect = document.getElementById('student-sy-selector');
     const subjSelect = document.getElementById('student-subject-selector');
@@ -862,9 +853,6 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
 
 document.getElementById('back-to-dashboard-btn').addEventListener('click', () => adminPin !== "" ? showScreen('admin') : showScreen('student'));
 
-// ==========================================
-// EXPORT CSV BACKUP
-// ==========================================
 function exportTableToCSV(filename) {
     if (!currentAdminData || currentAdminData.length === 0) {
         showToast("No data available to export.", "error");
@@ -903,9 +891,6 @@ function exportTableToCSV(filename) {
     showToast("Backup exported successfully!");
 }
 
-// ==========================================
-// OFFICIAL GRADING SHEET GENERATOR & PREVIEW
-// ==========================================
 function buildGradingSheetHTML(subject, section, semester) {
     let students = currentAdminData.filter(s => s.subject === subject && (section === 'All' || s.section === section));
     
@@ -1032,9 +1017,6 @@ function printGradingSheets() {
     window.print();
 }
 
-// ==========================================
-// SLIDE PANEL (CRUD)
-// ==========================================
 function openSlidePanel(studentNo, subject) {
     const student = currentAdminData.find(s => String(s.studentNumber) === String(studentNo) && s.subject === subject);
     if (!student) return;
@@ -1122,9 +1104,6 @@ async function saveNewStudent() {
     document.getElementById('save-new-student-btn').innerText = "Save Student";
 }
 
-// ==========================================
-// SMART PASTE / CSV LOGIC
-// ==========================================
 function toggleImportUI() {
     const action = document.getElementById('import-action').value;
     if (action === 'grades') {
@@ -1305,11 +1284,17 @@ async function confirmDataTransfer() {
     const totalItems = pendingImportData.length; let successCount = 0; const startTime = Date.now();
     
     try {
-        for (let i = 0; i < totalItems; i++) {
-            const item = pendingImportData[i];
-            if (action === 'register') {
-                await apiCall({ action: "registerStudent", studentData: item });
-            } else {
+        if (action === 'register') {
+            document.getElementById('progress-bar-fill').style.width = `50%`;
+            document.getElementById('progress-percentage').innerText = `50%`;
+            document.getElementById('progress-count').innerText = `Executing bulk registration...`;
+
+            const res = await apiCall({ action: "bulkAddStudents", studentsArray: pendingImportData });
+            if (!res.success) throw new Error("Bulk registration failed.");
+            successCount = totalItems;
+        } else {
+            for (let i = 0; i < totalItems; i++) {
+                const item = pendingImportData[i];
                 const studentRes = await apiCall({ action: "getStudent", studentNumber: item.studentNumber });
                 let bd = { quizzes: 0, participation: 0, attendance: 0, exams: 0 };
                 
@@ -1324,24 +1309,24 @@ async function confirmDataTransfer() {
                 if (item.exams !== null) bd.exams = item.exams;
 
                 await apiCall({ action: "saveBreakdown", pin: adminPin, studentNumber: item.studentNumber, subject: subj, quarter: qtr, breakdown: bd });
-            }
-            
-            // Added 150ms delay to prevent Google Apps Script rate-limiting / concurrency errors
-            await new Promise(resolve => setTimeout(resolve, 150));
+                await new Promise(resolve => setTimeout(resolve, 100));
 
-            successCount++;
-            
-            const percent = Math.round((successCount / totalItems) * 100);
-            const elapsedTime = (Date.now() - startTime) / 1000;
-            const estimatedSecondsLeft = Math.round((elapsedTime / successCount) * (totalItems - successCount));
-            
-            document.getElementById('progress-bar-fill').style.width = `${percent}%`;
-            document.getElementById('progress-percentage').innerText = `${percent}%`;
-            document.getElementById('progress-count').innerText = `${successCount} of ${totalItems} processed`;
-            document.getElementById('progress-eta').innerText = estimatedSecondsLeft > 60 ? `~${Math.floor(estimatedSecondsLeft/60)}m ${estimatedSecondsLeft%60}s remaining` : (estimatedSecondsLeft > 1 ? `~${estimatedSecondsLeft}s remaining` : "Almost done...");
+                successCount++;
+                const percent = Math.round((successCount / totalItems) * 100);
+                const elapsedTime = (Date.now() - startTime) / 1000;
+                const estimatedSecondsLeft = Math.round((elapsedTime / successCount) * (totalItems - successCount));
+                
+                document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+                document.getElementById('progress-percentage').innerText = `${percent}%`;
+                document.getElementById('progress-count').innerText = `${successCount} of ${totalItems} processed`;
+                document.getElementById('progress-eta').innerText = estimatedSecondsLeft > 60 ? `~${Math.floor(estimatedSecondsLeft/60)}m ${estimatedSecondsLeft%60}s remaining` : (estimatedSecondsLeft > 1 ? `~${estimatedSecondsLeft}s remaining` : "Almost done...");
+            }
         }
 
-        status.innerText = `Success! Updated ${successCount} records.`;
+        document.getElementById('progress-bar-fill').style.width = `100%`;
+        document.getElementById('progress-percentage').innerText = `100%`;
+
+        status.innerText = `Success! Processed ${successCount} records.`;
         status.className = "bg-emerald-50 border border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
         status.classList.remove('hidden'); cancelBtn.innerText = "Close"; cancelBtn.disabled = false;
         
@@ -1350,14 +1335,14 @@ async function confirmDataTransfer() {
         await loadAdminDashboard(); 
 
     } catch (error) {
-        showToast("Error during transfer", "error");
+        showToast("Error during transfer: " + error.message, "error");
+        status.innerText = "Error during transfer. Check console.";
+        status.className = "bg-rose-50 border border-rose-200 text-rose-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
+        status.classList.add('hidden');
         btn.classList.remove('hidden'); cancelBtn.disabled = false;
     }
 }
 
-// ==========================================
-// PUBLIC REGISTRATION
-// ==========================================
 function openRegisterModal() { 
     document.getElementById('reg-error').classList.add('hidden');
     document.getElementById('register-modal').classList.remove('hidden-screen'); 
@@ -1406,4 +1391,19 @@ async function submitRegistration() {
     btn.disabled = false;
 }
 
-async function apiCall(payload) { return await (await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) })).json(); }
+// Fixed apiCall with text/plain headers to completely bypass CORS preflight failures
+async function apiCall(payload) {
+    try {
+        const response = await fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            }
+        });
+        return await response.json();
+    } catch (error) {
+        console.error("API Error:", error);
+        return { success: false, message: error.toString() };
+    }
+}
