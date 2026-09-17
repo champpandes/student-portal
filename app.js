@@ -180,8 +180,12 @@ async function submitStudentComment() {
     const text = input.value.trim();
     if (!text) return;
 
+    const sendBtn = event ? event.target.closest('button') : null;
+    if (sendBtn) { sendBtn.innerText = "Sending..."; sendBtn.disabled = true; }
+
     const studentNo = currentStudentData ? currentStudentData.studentNumber : "UNKNOWN";
     const res = await apiCall({ action: "postComment", studentNumber: studentNo, commentText: text });
+    
     if (res.success) {
         input.value = "";
         showToast("Comment posted!");
@@ -189,6 +193,8 @@ async function submitStudentComment() {
     } else {
         showToast("Failed to post comment.", "error");
     }
+
+    if (sendBtn) { sendBtn.innerText = "Send"; sendBtn.disabled = false; }
 }
 
 async function submitAdminComment() {
@@ -197,7 +203,11 @@ async function submitAdminComment() {
     const text = input.value.trim();
     if (!text) return;
 
+    const sendBtn = event ? event.target.closest('button') : null;
+    if (sendBtn) { sendBtn.innerText = "Sending..."; sendBtn.disabled = true; }
+
     const res = await apiCall({ action: "postComment", studentNumber: "TEACHER_ADMIN", commentText: text });
+    
     if (res.success) {
         input.value = "";
         showToast("Reply posted!");
@@ -205,6 +215,8 @@ async function submitAdminComment() {
     } else {
         showToast("Failed to post reply.", "error");
     }
+
+    if (sendBtn) { sendBtn.innerText = "Send"; sendBtn.disabled = false; }
 }
 
 async function clearClassComments() {
