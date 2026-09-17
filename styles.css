@@ -1,67 +1,116 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 .hidden-screen {
     display: none !important;
 }
 
-/* Sidebar layout & transitions */
-#admin-sidebar {
-    width: 16rem;
-    transition: width 0.3s ease, transform 0.3s ease;
+.badge-passed {
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
-/* Desktop collapsed state */
+.badge-failed {
+    background-color: #fff1f2;
+    color: #be123c;
+    border: 1px solid #fecdd3;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Sidebar desktop collapse helper */
 #admin-sidebar.collapsed {
-    width: 4.5rem !important;
+    width: 80px;
 }
-
 #admin-sidebar.collapsed .sidebar-text,
 #admin-sidebar.collapsed .sidebar-logo-text {
-    display: none !important;
+    display: none;
 }
 
-/* Mobile responsive drawer behavior (Slide out from left below top header) */
+/* Mobile sidebar sliding drawer */
 @media (max-width: 767px) {
     #admin-sidebar {
         position: fixed;
-        z-index: 60;
-        top: 65px; /* Sits below the mobile top header */
-        height: calc(100vh - 65px);
-        left: 0;
-        transform: translateX(-100%);
-        width: 16rem !important;
+        top: 0;
+        bottom: 0;
+        left: -280px;
+        width: 280px;
+        transition: left 0.3s ease-in-out;
     }
     #admin-sidebar.mobile-open {
-        transform: translateX(0) !important;
+        left: 0;
     }
 }
 
-/* Print Specific Rules */
-@media print {
-    body {
-        background: white !important;
-        color: black !important;
-    }
-    .no-print {
-        display: none !important;
-    }
-    .gs-preview-page {
-        page-break-after: always;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
+/* Grading Sheet Preview Styles */
+.gs-preview-page {
+    background: white;
+    width: 816px;
+    min-height: 1056px;
+    padding: 36px 48px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+    box-sizing: border-box;
+}
+
+.gs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
 }
 
 .gs-table th, .gs-table td {
     border: 1px solid #000;
+    padding: 3px 5px;
     text-align: center;
-    padding: 3px;
-    font-size: 10px;
 }
-.gs-table {
-    border-collapse: collapse;
-    width: 100%;
+
+.gs-table th {
+    background-color: #f8fafc;
+    font-weight: bold;
+}
+
+/* Print Media Rules - Ensures single page containment per sheet */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    #grading-sheet-print-area, #grading-sheet-print-area * {
+        visibility: visible;
+    }
+
+    #grading-sheet-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        display: block !important;
+    }
+
+    body {
+        background: white !important;
+        margin: 0;
+        padding: 0;
+    }
+
+    .gs-preview-page {
+        page-break-after: always;
+        break-after: page;
+        margin: 0 !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        padding: 15px 25px !important;
+        box-sizing: border-box;
+    }
+
+    /* Prevent trailing extra blank page on the final page */
+    .gs-preview-page:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+    }
 }

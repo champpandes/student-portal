@@ -10,8 +10,8 @@ let activeAdminSubject = "All";
 let activeManageSubject = "";
 let activeStudentSubject = "";
 let activeQuarterFilter = "All";
-let subjectDescriptions = JSON.parse(localStorage.getItem('subjectDescriptions') || '{}');
-let subjectWeights = JSON.parse(localStorage.getItem('subjectWeights') || '{}');
+let subjectDescriptions = {};
+let subjectWeights = {};
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
@@ -256,6 +256,8 @@ async function fetchSubjects() {
         const res = await apiCall({ action: "getSubjects" });
         if (res.success) {
             availableSubjects = res.subjects || [];
+            if (res.descriptions) subjectDescriptions = res.descriptions;
+            if (res.weights) subjectWeights = res.weights;
             populateSubjectUIs();
             renderSubjectsListUI();
         }
@@ -455,62 +457,53 @@ async function handleSaveSubject() {
         return;
     }
 
-    if (oldName) {
-        if (newName !== oldName) {
-            const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "update", oldName: oldName, newName: newName });
-            if (!res.success) {
-                showToast(res.message || "Failed to update subject name.", "error");
-                return;
-            }
-            if (subjectDescriptions[oldName]) {
-                delete subjectDescriptions[oldName];
-            }
-            if (subjectWeights[oldName]) {
-                delete subjectWeights[oldName];
-            }
-        }
-        subjectDescriptions[newName] = descVal;
-        subjectWeights[newName] = { quizzes: qW, participation: pW, attendance: aW, exams: eW };
-        
-        localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
-        localStorage.setItem('subjectWeights', JSON.stringify(subjectWeights));
-        
-        showToast(`Subject '${newName}' updated successfully!`);
-        resetSubjectForm();
-        await fetchSubjects();
-        renderSubjectsListUI();
-        await loadAdminDashboard();
-    } else {
-        const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "add", subjectName: newName });
-        if (res.success) { 
-            subjectDescriptions[newName] = descVal;
-            subjectWeights[newName] = { quizzes: qW, participation: pW, attendance: aW, exams: eW };
-            
-            localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
-            localStorage.setItem('subjectWeights', JSON.stringify(subjectWeights));
-            
-            resetSubjectForm();
-            showToast(`Subject '${newName}' added successfully!`);
-            await fetchSubjects(); 
-            renderSubjectsListUI(); 
-            await loadAdminDashboard(); 
-        } else {
-            showToast(res.message || "Failed to add subject", 'error');
-        }
+    const payloadWeights = { quizzes: qW, participation: pW, attendance: aW, exams: eW };
+    const subAction = oldName ? "update" : "add";
+
+    const res = await apiCall({ 
+        action: "manageSubject", 
+        pin: adminPin, 
+        subAction: subAction, 
+        oldName: oldName, 
+        newName: newName,
+        subjectName: newName,
+        description: descVal,
+        weights: payloadWeights
+    });
+
+    if (!res.success) {
+        showToast(res.message || "Failed to save subject.", "error");
+        return;
     }
+
+    // Instantly update local state and UI in real time without refreshing
+    if (res.subjects) availableSubjects = res.subjects;
+    if (res.descriptions) subjectDescriptions = res.descriptions;
+    if (res.weights) subjectWeights = res.weights;
+
+    populateSubjectUIs();
+    renderSubjectsListUI();
+    await loadAdminDashboard();
+
+    showToast(oldName ? `Subject '${newName}' updated successfully!` : `Subject '${newName}' added successfully!`);
+    resetSubjectForm();
 }
 
 async function handleDeleteSubject(name) {
     if(!confirm(`WARNING: Deleting '${name}' will also delete ALL grades for this subject across the entire database. This cannot be undone.\n\nProceed?`)) return;
     const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "delete", subjectName: name });
     if (res.success) { 
-        delete subjectDescriptions[name];
-        delete subjectWeights[name];
-        localStorage.setItem('subjectDescriptions', JSON.stringify(subjectDescriptions));
-        localStorage.setItem('subjectWeights', JSON.stringify(subjectWeights));
         if(activeAdminSubject === name) activeAdminSubject = "All"; 
+        
+        // Instantly update state from response if available, otherwise fetch
+        if (res.subjects) availableSubjects = res.subjects;
+        if (res.descriptions) subjectDescriptions = res.descriptions;
+        if (res.weights) subjectWeights = res.weights;
+
         showToast(`Subject '${name}' deleted forever.`, 'success');
-        await fetchSubjects(); renderSubjectsListUI(); await loadAdminDashboard(); 
+        populateSubjectUIs();
+        renderSubjectsListUI();
+        await loadAdminDashboard(); 
     } else { 
         showToast("Failed to delete subject.", "error"); 
     }
@@ -854,14 +847,43 @@ function renderStudentDashboard(subject) {
             ? '<span class="badge-failed px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-sm"><svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> FAILED</span>' 
             : '<span class="text-slate-400 font-semibold">-</span>');
 
+    const q1Eqv = getEquivalentGrade(g.q1);
+    const q2Eqv = getEquivalentGrade(g.q2);
+    const q3Eqv = getEquivalentGrade(g.q3);
+    const q4Eqv = getEquivalentGrade(g.q4);
+    const finalEqv = getEquivalentGrade(g.final);
+
     document.getElementById('student-main-grades').innerHTML = `
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-6">
-            <div onclick="openBreakdown('1st', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">1st Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q1 || '-'}</span></div>
-            <div onclick="openBreakdown('2nd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">2nd Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q2 || '-'}</span></div>
-            <div onclick="openBreakdown('3rd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">3rd Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q3 || '-'}</span></div>
-            <div onclick="openBreakdown('4th', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 sm:mb-2">4th Quarter</span><span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q4 || '-'}</span></div>
-            <div class="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col items-center justify-center text-white"><span class="text-[10px] sm:text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1 sm:mb-2">Final Grade</span><span class="text-3xl sm:text-4xl font-black">${g.final || '-'}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center"><span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 sm:mb-3">Status</span>${getRemarksUI(g.remarks)}</div>
+            <div onclick="openBreakdown('1st', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors">
+                <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">1st Quarter</span>
+                <span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q1 || '-'}</span>
+                <span class="text-[11px] font-bold text-indigo-600 mt-1">Eqv: ${q1Eqv}</span>
+            </div>
+            <div onclick="openBreakdown('2nd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors">
+                <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">2nd Quarter</span>
+                <span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q2 || '-'}</span>
+                <span class="text-[11px] font-bold text-indigo-600 mt-1">Eqv: ${q2Eqv}</span>
+            </div>
+            <div onclick="openBreakdown('3rd', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors">
+                <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">3rd Quarter</span>
+                <span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q3 || '-'}</span>
+                <span class="text-[11px] font-bold text-indigo-600 mt-1">Eqv: ${q3Eqv}</span>
+            </div>
+            <div onclick="openBreakdown('4th', '${subject}')" class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center cursor-pointer transition-colors">
+                <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">4th Quarter</span>
+                <span class="text-2xl sm:text-3xl font-black text-slate-800">${g.q4 || '-'}</span>
+                <span class="text-[11px] font-bold text-indigo-600 mt-1">Eqv: ${q4Eqv}</span>
+            </div>
+            <div class="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col items-center justify-center text-white">
+                <span class="text-[10px] sm:text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">Final Grade</span>
+                <span class="text-3xl sm:text-4xl font-black">${g.final || '-'}</span>
+                <span class="text-[11px] font-bold text-indigo-200 mt-1">Eqv: ${finalEqv}</span>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center">
+                <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status</span>
+                ${getRemarksUI(g.remarks)}
+            </div>
         </div>
     `;
 }
@@ -972,6 +994,35 @@ function exportTableToCSV(filename) {
     showToast("Backup exported successfully!");
 }
 
+function getEquivalentGrade(gwaVal) {
+    if (!gwaVal || isNaN(gwaVal)) return '-';
+    let g = Math.round(Number(gwaVal));
+    if (g >= 100) return '1.0';
+    if (g === 99) return '1.0';
+    if (g === 98) return '1.1';
+    if (g === 97) return '1.2';
+    if (g === 96 || g === 95) return '1.3';
+    if (g === 94) return '1.4';
+    if (g === 93) return '1.5';
+    if (g === 92) return '1.6';
+    if (g === 91) return '1.7';
+    if (g === 90 || g === 89) return '1.8';
+    if (g === 88) return '1.9';
+    if (g === 87) return '2.0';
+    if (g === 86) return '2.1';
+    if (g === 85) return '2.2';
+    if (g === 84 || g === 83) return '2.3';
+    if (g === 82) return '2.4';
+    if (g === 81) return '2.5';
+    if (g === 80) return '2.6';
+    if (g === 79) return '2.7';
+    if (g === 78 || g === 77) return '2.8';
+    if (g === 76) return '2.9';
+    if (g === 75) return '3.0';
+    if (g === 74) return '4.0';
+    return '5.0'; 
+}
+
 function buildGradingSheetHTML(subject, section, semester) {
     let students = currentAdminData.filter(s => s.subject === subject && (section === 'All' || s.section === section));
     
@@ -988,7 +1039,7 @@ function buildGradingSheetHTML(subject, section, semester) {
     const cleanSubject = subject.replace(/\s*\(SY.*?\)/i, "").trim();
     const description = subjectDescriptions[subject] || '----------------';
 
-    const pageSize = 35;
+    const pageSize = 30; 
     let pagesHTML = '';
     
     for (let i = 0; i < students.length; i += pageSize) {
@@ -1000,6 +1051,7 @@ function buildGradingSheetHTML(subject, section, semester) {
             const num = i + idx + 1;
             
             if (student) {
+                const eqvVal = getEquivalentGrade(student.final);
                 rowsHTML += `
                     <tr>
                         <td>${num}</td>
@@ -1009,7 +1061,7 @@ function buildGradingSheetHTML(subject, section, semester) {
                         <td>${student.q3 || ''}</td>
                         <td>${student.q4 || ''}</td>
                         <td>${student.final || ''}</td>
-                        <td>${student.final || ''}</td>
+                        <td>${eqvVal}</td>
                         <td>${student.remarks || ''}</td>
                     </tr>
                 `;
@@ -1027,9 +1079,9 @@ function buildGradingSheetHTML(subject, section, semester) {
             <div class="gs-preview-page">
                 <div style="text-align: center; font-weight: bold; font-size: 15px;">Pili Capital College, Inc.</div>
                 <div style="text-align: center; font-size: 11px; margin-bottom: 2px;">San Isidro, Pili, Camarines Sur</div>
-                <div style="text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 15px; text-decoration: underline;">COLLEGE GRADING SHEET</div>
+                <div style="text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 12px; text-decoration: underline;">COLLEGE GRADING SHEET</div>
                 
-                <table style="width: 100%; font-size: 11px; margin-bottom: 10px;">
+                <table style="width: 100%; font-size: 11px; margin-bottom: 8px;">
                     <tr>
                         <td style="text-align: left; border: none;"><b>Subject:</b> ${cleanSubject}</td>
                         <td style="text-align: right; border: none;"><b>Semester:</b> ${semester}</td>
@@ -1045,16 +1097,16 @@ function buildGradingSheetHTML(subject, section, semester) {
                         <tr>
                             <th rowspan="2" style="width: 30px;">#</th>
                             <th rowspan="2">Name of Student</th>
-                            <th rowspan="2" style="width: 50px;">Prelims</th>
-                            <th rowspan="2" style="width: 50px;">Midterm</th>
-                            <th rowspan="2" style="width: 50px;">Semi Final</th>
-                            <th rowspan="2" style="width: 50px;">Finals</th>
-                            <th colspan="2" style="width: 90px;">Gen. Ave.</th>
-                            <th rowspan="2" style="width: 70px;">Remarks</th>
+                            <th rowspan="2" style="width: 48px;">Prelims</th>
+                            <th rowspan="2" style="width: 48px;">Midterm</th>
+                            <th rowspan="2" style="width: 48px;">Semi Final</th>
+                            <th rowspan="2" style="width: 48px;">Finals</th>
+                            <th colspan="2" style="width: 84px;">Gen. Ave.</th>
+                            <th rowspan="2" style="width: 65px;">Remarks</th>
                         </tr>
                         <tr>
-                            <th style="width: 45px;">GWA</th>
-                            <th style="width: 45px;">EQV.</th>
+                            <th style="width: 42px;">GWA</th>
+                            <th style="width: 42px;">EQV.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1062,7 +1114,7 @@ function buildGradingSheetHTML(subject, section, semester) {
                     </tbody>
                 </table>
 
-                <table style="width: 100%; margin-top: 45px; font-size: 11px; border: none;">
+                <table style="width: 100%; margin-top: 25px; font-size: 11px; border: none;">
                     <tr>
                         <td style="text-align: left; border: none;">Submitted by: <b>Carl Harry M. Pandes</b></td>
                         <td style="text-align: left; border: none;">Received by: _______________________</td>
@@ -1094,7 +1146,10 @@ function printGradingSheets() {
     const section = document.getElementById('gs-section').value;
     const semester = document.getElementById('gs-semester').value;
     
-    document.getElementById('grading-sheet-print-area').innerHTML = buildGradingSheetHTML(subject, section, semester);
+    const printArea = document.getElementById('grading-sheet-print-area');
+    if (printArea) {
+        printArea.innerHTML = buildGradingSheetHTML(subject, section, semester);
+    }
     window.print();
 }
 
