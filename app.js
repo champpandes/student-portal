@@ -139,11 +139,11 @@ async function loadComments() {
         
         if (res.success && res.comments) {
             const studentCommentsHTML = res.comments.length === 0 
-                ? `<div class="text-xs text-white/70 italic">No comments yet. Start the conversation!</div>` 
+                ? `<div class="text-xs text-slate-400 italic">No comments yet. Start the conversation!</div>` 
                 : res.comments.map(c => {
                     const displayName = c.studentNumber === "TEACHER_ADMIN" ? "Teacher Admin" : `Student ID: ${c.studentNumber}`;
                     return `
-                        <div class="bg-white/95 backdrop-blur-sm p-2.5 rounded-xl text-xs shadow-xs">
+                        <div class="bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs shadow-xs">
                             <div class="flex justify-between items-center mb-1">
                                 <span class="font-bold text-indigo-900">${displayName}</span>
                                 <span class="text-[10px] text-slate-400">${c.timestamp}</span>
@@ -175,7 +175,8 @@ async function loadComments() {
 }
 
 async function submitStudentComment() {
-    const input = document.getElementById('new-comment-input');
+    const input = document.getElementById('new-comment-input') || document.getElementById('student-comment-input');
+    if (!input) return;
     const text = input.value.trim();
     if (!text) return;
 
@@ -191,7 +192,8 @@ async function submitStudentComment() {
 }
 
 async function submitAdminComment() {
-    const input = document.getElementById('admin-new-comment-input');
+    const input = document.getElementById('admin-new-comment-input') || document.getElementById('admin-comment-input');
+    if (!input) return;
     const text = input.value.trim();
     if (!text) return;
 
@@ -476,7 +478,6 @@ async function handleSaveSubject() {
         return;
     }
 
-    // Instantly update local state and UI in real time without refreshing
     if (res.subjects) availableSubjects = res.subjects;
     if (res.descriptions) subjectDescriptions = res.descriptions;
     if (res.weights) subjectWeights = res.weights;
@@ -495,7 +496,6 @@ async function handleDeleteSubject(name) {
     if (res.success) { 
         if(activeAdminSubject === name) activeAdminSubject = "All"; 
         
-        // Instantly update state from response if available, otherwise fetch
         if (res.subjects) availableSubjects = res.subjects;
         if (res.descriptions) subjectDescriptions = res.descriptions;
         if (res.weights) subjectWeights = res.weights;
