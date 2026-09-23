@@ -15,6 +15,12 @@ let subjectWeights = {};
 
 const screens = { login: document.getElementById('login-screen'), admin: document.getElementById('admin-dashboard'), student: document.getElementById('student-dashboard'), breakdown: document.getElementById('breakdown-screen') };
 
+function clearAdminCache() {
+    Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('adminData_')) localStorage.removeItem(k);
+    });
+}
+
 function toggleSidebar() {
     const sidebar = document.getElementById('admin-sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
@@ -474,6 +480,7 @@ async function handleSaveSubject() {
     const payloadWeights = { quizzes: qW, participation: pW, attendance: aW, exams: eW };
     const subAction = oldName ? "update" : "add";
 
+    clearAdminCache();
     const res = await apiCall({ 
         action: "manageSubject", 
         pin: adminPin, 
@@ -504,6 +511,7 @@ async function handleSaveSubject() {
 
 async function handleDeleteSubject(name) {
     if(!confirm(`WARNING: Deleting '${name}' will also delete ALL grades for this subject across the entire database. This cannot be undone.\n\nProceed?`)) return;
+    clearAdminCache();
     const res = await apiCall({ action: "manageSubject", pin: adminPin, subAction: "delete", subjectName: name });
     if (res.success) { 
         if(activeAdminSubject === name) activeAdminSubject = "All"; 
@@ -910,21 +918,25 @@ async function openAdminBreakdown(cell, studentNumber, subject, quarter) {
 }
 
 function openBreakdown(quarter, subject) {
-    const breakdown = currentStudentData.subjects[subject].breakdowns.find(b => b.quarter.toString().includes(quarter.replace(/\D/g, '')));
+    const qNum = quarter.replace(/\D/g, '');
+    const breakdown = currentStudentData.subjects[subject].breakdowns.find(b => String(b.quarter).includes(qNum));
     document.getElementById('breakdown-title').innerText = `${quarter} Quarter Details`;
     document.getElementById('breakdown-subject-label').innerText = `${subject.replace(/\(SY.*?\)/i, '').trim()} Component View`;
 
-    if (!breakdown) { document.getElementById('breakdown-content').innerHTML = `<div class="p-8 text-slate-400 text-center font-medium">Breakdown not available yet.</div>`; showScreen('breakdown'); return; }
-
     const w = subjectWeights[subject] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
+    const qzVal = breakdown && breakdown.quizzes !== "" && breakdown.quizzes !== null && breakdown.quizzes !== undefined ? breakdown.quizzes : '-';
+    const paVal = breakdown && breakdown.participation !== "" && breakdown.participation !== null && breakdown.participation !== undefined ? breakdown.participation : '-';
+    const atVal = breakdown && breakdown.attendance !== "" && breakdown.attendance !== null && breakdown.attendance !== undefined ? breakdown.attendance : '-';
+    const exVal = breakdown && breakdown.exams !== "" && breakdown.exams !== null && breakdown.exams !== undefined ? breakdown.exams : '-';
+    const totVal = breakdown && breakdown.total !== "" && breakdown.total !== null && breakdown.total !== undefined ? breakdown.total : '-';
 
     let html = `
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4" id="breakdown-grid-row">
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Quizzes (${w.quizzes}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.quizzes}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Participation (${w.participation}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.participation}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Attendance (${w.attendance}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.attendance}</span></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Exams (${w.exams}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${breakdown.exams}</span></div>
-            <div class="col-span-2 sm:col-span-1 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center"><span class="text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 sm:mb-2">Total</span><span class="text-2xl sm:text-3xl font-black text-indigo-700" id="bd-total">${breakdown.total}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="quizzes"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Quizzes (${w.quizzes}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${qzVal}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="participation"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Participation (${w.participation}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${paVal}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="attendance"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Attendance (${w.attendance}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${atVal}</span></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="exams"><span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Exams (${w.exams}%)</span><span class="text-xl sm:text-2xl font-black text-slate-800 value-text">${exVal}</span></div>
+            <div class="col-span-2 sm:col-span-1 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center"><span class="text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 sm:mb-2">Total</span><span class="text-2xl sm:text-3xl font-black text-indigo-700" id="bd-total">${totVal}</span></div>
         </div>
     `;
     if (adminPin !== "") html += `<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end no-print"><button onclick="toggleBreakdownEdit(this, '${quarter}', '${subject}')" class="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm">Edit Breakdown</button></div>`;
@@ -936,7 +948,8 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
     if (!btn.innerText.includes("Save")) {
         ['quizzes', 'participation', 'attendance', 'exams'].forEach(f => {
             const t = gridRow.querySelector(`div[data-field="${f}"] .value-text`);
-            t.innerHTML = `<input type="number" class="w-16 sm:w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none text-base" value="${t.innerText === '-' ? '' : t.innerText}">`;
+            const currentVal = t.innerText === '-' ? '' : t.innerText;
+            t.innerHTML = `<input type="number" class="w-16 sm:w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none text-base" value="${currentVal}">`;
         });
         btn.innerText = "Save Changes"; btn.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-semibold transition-colors text-sm";
     } else {
@@ -945,6 +958,7 @@ async function toggleBreakdownEdit(btn, quarter, subject) {
         
         const weights = subjectWeights[subject] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
 
+        clearAdminCache();
         const res = await apiCall({ 
             action: "saveBreakdown", 
             pin: adminPin, 
@@ -1196,6 +1210,8 @@ async function savePanelInfo() {
     const oldSubject = document.getElementById('panel-old-student-subject').value;
 
     const newData = { studentNumber: newId, name: document.getElementById('panel-student-name').value.trim(), section: document.getElementById('panel-student-section').value, subject: newSubject };
+    
+    clearAdminCache();
     const res = await apiCall({ action: "updateStudentInfo", pin: adminPin, oldStudentNumber: oldId, oldSubject: oldSubject, newData: newData });
     
     if (res.success) { 
@@ -1211,6 +1227,8 @@ async function savePanelInfo() {
 async function savePanelGrades() {
     const btn = document.getElementById('panel-save-grades-btn'); btn.innerText = "Saving..."; btn.disabled = true;
     const grades = { q1: document.getElementById('panel-q1').value, q2: document.getElementById('panel-q2').value, q3: document.getElementById('panel-q3').value, q4: document.getElementById('panel-q4').value };
+    
+    clearAdminCache();
     const res = await apiCall({ action: "saveGrades", pin: adminPin, studentNumber: activeManageStudentId, subject: activeManageSubject, grades: grades });
     if (res.success) { 
         await loadAdminDashboard(); btn.innerText = "Saved"; 
@@ -1222,6 +1240,7 @@ async function savePanelGrades() {
 
 async function deleteStudentFromPanel() { 
     if(confirm("Erase student profile completely? This cannot be undone.")) { 
+        clearAdminCache();
         const res = await apiCall({ action: "deleteStudent", pin: adminPin, studentNumber: activeManageStudentId }); 
         if (res.success) { 
             showToast("Student deleted permanently.");
@@ -1239,6 +1258,8 @@ async function saveNewStudent() {
     const subjects = Array.from(document.querySelectorAll('#add-subject-checkboxes input:checked')).map(cb => cb.value);
     if (!id || !name || !sec || subjects.length === 0) { showToast("Fill all fields and select a section/subject.", "error"); return; }
     document.getElementById('save-new-student-btn').innerText = "Saving...";
+    
+    clearAdminCache();
     const res = await apiCall({ action: "addStudent", pin: adminPin, studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
     if(res.success) { 
         showToast(`Student ${name} successfully enrolled.`);
@@ -1431,6 +1452,7 @@ async function confirmDataTransfer() {
     const qtr = document.getElementById('import-quarter').value;
     const totalItems = pendingImportData.length; let successCount = 0; const startTime = Date.now();
     
+    clearAdminCache();
     try {
         if (action === 'register') {
             document.getElementById('progress-bar-fill').style.width = `50%`;
@@ -1446,10 +1468,10 @@ async function confirmDataTransfer() {
             for (let i = 0; i < totalItems; i++) {
                 const item = pendingImportData[i];
                 const studentRes = await apiCall({ action: "getStudent", studentNumber: item.studentNumber });
-                let bd = { quizzes: 0, participation: 0, attendance: 0, exams: 0 };
+                let bd = { quizzes: "", participation: "", attendance: "", exams: "" };
                 
                 if (studentRes && studentRes.subjects && studentRes.subjects[subj]) {
-                    const existing = studentRes.subjects[subj].breakdowns.find(b => b.quarter.toString().includes(qtr.replace(/\D/g, '')));
+                    const existing = studentRes.subjects[subj].breakdowns.find(b => String(b.quarter).includes(qtr.replace(/\D/g, '')));
                     if (existing) bd = existing;
                 }
 
@@ -1527,6 +1549,7 @@ async function submitRegistration() {
     btn.innerText = "Checking ID...";
     btn.disabled = true;
     
+    clearAdminCache();
     try {
         const res = await apiCall({ action: "registerStudent", studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects } });
         
