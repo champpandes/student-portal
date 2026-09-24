@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="description" content="Grade management and student record system">
   <title>Teacher Portal & Student Record System</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+
   <link rel="stylesheet" href="tailwind.css">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -110,6 +117,9 @@
             </button>
             <button data-tab="grading-sheet" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>🖨️</span> <span class="sidebar-text">Grading Sheets</span>
+            </button>
+            <button data-tab="analytics" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+              <span>📈</span> <span class="sidebar-text">Analytics</span>
             </button>
             <button data-tab="announcements" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📢</span> <span class="sidebar-text">Announcements</span>
@@ -325,31 +335,120 @@
         </div>
       </div>
 
+      <!-- ===== TAB: Analytics ===== -->
+      <div id="tab-analytics" class="admin-tab-content hidden-screen space-y-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center">
+          <div class="flex-1 min-w-[200px]">
+            <h3 class="text-base font-black text-slate-900 mb-1">Class Analytics</h3>
+            <p class="text-xs text-slate-500 font-medium">Computed live from currently loaded records.</p>
+          </div>
+          <label for="analytics-subject-filter" class="sr-only">Subject</label>
+          <select id="analytics-subject-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600">
+            <option value="All">All Subjects</option>
+          </select>
+          <label for="analytics-section-filter" class="sr-only">Section</label>
+          <select id="analytics-section-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600">
+            <option value="All">All Sections</option>
+          </select>
+        </div>
+
+        <!-- KPI row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Students</div>
+            <div id="analytics-total" class="text-2xl font-black text-slate-900 mt-1">0</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Class Average</div>
+            <div id="analytics-avg" class="text-2xl font-black text-blue-600 mt-1">-</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Passing Rate</div>
+            <div id="analytics-pass" class="text-2xl font-black text-emerald-600 mt-1">0%</div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">At Risk (&lt;78)</div>
+            <div id="analytics-risk" class="text-2xl font-black text-rose-600 mt-1">0</div>
+          </div>
+        </div>
+
+        <!-- Grade distribution -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h4 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Grade Distribution</h4>
+          <div id="analytics-distribution" class="space-y-2"></div>
+        </div>
+
+        <!-- Section breakdown -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h4 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">Per-Section Performance</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider">
+                  <th class="p-3">Section</th>
+                  <th class="p-3 text-center">Students</th>
+                  <th class="p-3 text-center">Average</th>
+                  <th class="p-3 text-center">Pass Rate</th>
+                  <th class="p-3 text-center">At Risk</th>
+                </tr>
+              </thead>
+              <tbody id="analytics-sections-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Students at risk -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider">Students at Risk (Final &lt; 78)</h4>
+            <span id="analytics-risk-count" class="text-xs font-bold text-rose-600"></span>
+          </div>
+          <div id="analytics-risk-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
+        </div>
+      </div>
+
       <!-- ===== TAB: Announcements ===== -->
       <div id="tab-announcements" class="admin-tab-content hidden-screen space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-            <div>
-              <h3 class="text-base font-black text-slate-900 mb-1">Broadcast Announcement</h3>
-              <p class="text-xs text-slate-500 font-medium mb-4">Post a live notification banner for all student dashboards.</p>
-              <label for="admin-announcement-input" class="sr-only">Announcement</label>
-              <textarea id="admin-announcement-input" rows="4" placeholder="Type announcement message here..."
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium outline-none focus:border-indigo-600 mb-4"></textarea>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Left: Broadcast -->
+          <div class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 class="text-base font-black text-slate-900 mb-1">Broadcast New Announcement</h3>
+                <p class="text-xs text-slate-500 font-medium mb-4">The most recent message shows on every student dashboard. Previous announcements are kept in history below.</p>
+                <label for="admin-announcement-input" class="sr-only">Announcement</label>
+                <textarea id="admin-announcement-input" rows="4" placeholder="Type announcement message here..."
+                          class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium outline-none focus:border-indigo-600 mb-4"></textarea>
+              </div>
+              <button id="broadcast-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all">Broadcast</button>
             </div>
-            <button id="broadcast-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all">Broadcast</button>
+
+            <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-[420px]">
+              <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                <h3 class="text-base font-black text-slate-900">Class Discussion Feed</h3>
+                <button id="clear-comments-btn" class="text-xs text-rose-600 hover:underline font-bold">Clear Feed</button>
+              </div>
+              <div id="admin-comments-feed" class="flex-1 overflow-y-auto space-y-3 pr-2 bg-slate-50 p-3 rounded-xl border border-slate-100"></div>
+              <div class="mt-3 flex gap-2">
+                <label for="admin-new-comment-input" class="sr-only">Reply</label>
+                <input type="text" id="admin-new-comment-input" placeholder="Type reply as admin..."
+                       class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-600">
+                <button id="admin-send-comment-btn" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold">Send</button>
+              </div>
+            </div>
           </div>
 
-          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-[420px]">
-            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-              <h3 class="text-base font-black text-slate-900">Class Discussion Feed</h3>
-              <button id="clear-comments-btn" class="text-xs text-rose-600 hover:underline font-bold">Clear Feed</button>
+          <!-- Right: History -->
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-full">
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+              <div>
+                <h3 class="text-base font-black text-slate-900">Announcement History</h3>
+                <p class="text-xs text-slate-500 font-medium">All past broadcasts, newest first.</p>
+              </div>
+              <button id="refresh-announcements-btn" class="text-xs text-indigo-600 hover:underline font-bold">Refresh</button>
             </div>
-            <div id="admin-comments-feed" class="flex-1 overflow-y-auto space-y-3 pr-2 bg-slate-50 p-3 rounded-xl border border-slate-100"></div>
-            <div class="mt-3 flex gap-2">
-              <label for="admin-new-comment-input" class="sr-only">Reply</label>
-              <input type="text" id="admin-new-comment-input" placeholder="Type reply as admin..."
-                     class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-600">
-              <button id="admin-send-comment-btn" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold">Send</button>
+            <div id="announcement-history" class="space-y-3 overflow-y-auto flex-1 max-h-[700px] pr-1">
+              <div class="text-xs text-slate-400 italic text-center py-8">Loading history…</div>
             </div>
           </div>
         </div>
@@ -357,11 +456,11 @@
 
       <!-- ===== TAB: Import & Backup ===== -->
       <div id="tab-import" class="admin-tab-content hidden-screen space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
             <div>
-              <h3 class="text-base font-black text-slate-900 mb-1">Bulk Data Import Wizard</h3>
-              <p class="text-xs text-slate-500 font-medium mb-6">Upload student lists or massive grade files instantly via CSV or Smart Paste.</p>
+              <h3 class="text-base font-black text-slate-900 mb-1">Bulk Data Import</h3>
+              <p class="text-xs text-slate-500 font-medium mb-6">Upload student lists or massive grade files via CSV or Smart Paste.</p>
             </div>
             <button id="open-import-btn"
                     class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2">
@@ -371,14 +470,46 @@
 
           <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
             <div>
-              <h3 class="text-base font-black text-slate-900 mb-1">Database CSV Backup</h3>
-              <p class="text-xs text-slate-500 font-medium mb-6">Export loaded records to a CSV spreadsheet (Excel-compatible).</p>
+              <h3 class="text-base font-black text-slate-900 mb-1">CSV Backup</h3>
+              <p class="text-xs text-slate-500 font-medium mb-6">Export the currently loaded records as a spreadsheet. Good for Excel users.</p>
             </div>
-            <button id="csv-export-btn"
-                    class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-              📥 Download CSV Backup
-            </button>
+            <div class="space-y-2">
+              <button id="csv-export-btn"
+                      class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                📥 Download CSV
+              </button>
+              <button id="xlsx-export-btn"
+                      class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                📊 Download Excel (.xlsx)
+              </button>
+            </div>
           </div>
+
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 class="text-base font-black text-slate-900 mb-1">Full Backup / Restore</h3>
+              <p class="text-xs text-slate-500 font-medium mb-6">Save every subject, grade, comment, and announcement into a single file — or restore from one.</p>
+            </div>
+            <div class="space-y-2">
+              <button id="backup-download-btn"
+                      class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2">
+                💾 Download Full Backup
+              </button>
+              <button id="backup-restore-btn"
+                      class="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                ♻️ Restore from Backup
+              </button>
+              <input type="file" id="backup-file-input" accept=".json,application/json" class="hidden">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h3 class="text-base font-black text-slate-900 mb-1">Restore Warning</h3>
+          <p class="text-xs text-slate-500 font-medium">
+            Restoring from a backup will <b class="text-rose-600">completely wipe</b> all current subject sheets and replace them with the backup's contents.
+            Comments, announcements, and subjects are also replaced. Download a fresh backup first if you're not sure.
+          </p>
         </div>
       </div>
     </main>
@@ -400,13 +531,13 @@
     <main class="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
       <div id="student-announcement-banner" class="hidden bg-indigo-50 border border-indigo-200 text-indigo-900 p-4 rounded-2xl items-start gap-3 shadow-sm">
         <span class="text-xl">📢</span>
-        <div>
+        <div class="flex-1">
           <div class="font-bold text-xs uppercase tracking-wider text-indigo-600 mb-0.5">Announcement</div>
           <p id="student-announcement-text" class="text-sm font-medium"></p>
+          <p id="student-announcement-meta" class="text-[10px] text-indigo-400 font-semibold mt-1"></p>
         </div>
       </div>
 
-      <!-- ===== Enrolled Subjects + Print button ===== -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h3 class="text-base font-black text-slate-900">Enrolled Subjects</h3>
@@ -744,6 +875,8 @@
   <script src="js/student.js"></script>
   <script src="js/grading-sheet.js"></script>
   <script src="js/import.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/backup.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

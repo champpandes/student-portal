@@ -69,6 +69,14 @@
       }
       App.updateGradingSheetPreview();
     }
+
+    if (tabName === 'analytics') {
+      if (App.refreshAnalytics) App.refreshAnalytics();
+    }
+
+    if (tabName === 'announcements') {
+      if (App.loadAnnouncementHistory) App.loadAnnouncementHistory();
+    }
   };
 
   // ---------- Timestamp ----------
@@ -146,6 +154,7 @@
           if (s.section && !seen[s.section]) { seen[s.section] = true; sections.push(s.section); }
         });
         sections.sort();
+        state.sectionsCache = sections;
         App.populateSectionDropdownsUI(sections);
 
         const gsSec = document.getElementById('gs-section');
@@ -154,6 +163,11 @@
           gsSec.innerHTML = '<option value="All">All Sections</option>' +
             sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
           if (current) gsSec.value = current;
+        }
+
+        // Refresh analytics dropdowns with newest subject/section list.
+        if (App.populateAnalyticsFilters) {
+          App.populateAnalyticsFilters(state.availableSubjects, sections);
         }
       } else if (!cached) {
         const msg = App.esc(res && res.message || 'Could not load data.');

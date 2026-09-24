@@ -56,6 +56,11 @@
     }
     if (addCheckboxes) addCheckboxes.innerHTML = checkboxesHTML;
     if (regCheckboxes) regCheckboxes.innerHTML = checkboxesHTML;
+
+    // Keep the Analytics tab's Subject dropdown in sync.
+    if (App.populateAnalyticsFilters) {
+      App.populateAnalyticsFilters(state.availableSubjects, state.sectionsCache || []);
+    }
   };
 
   App.populateSectionDropdownsUI = function (sections) {
@@ -71,6 +76,14 @@
     if (regSec) regSec.innerHTML = '<option value="">Select section...</option>' + optionsHTML;
     if (addSec) addSec.innerHTML = '<option value="">Select section...</option>' + optionsHTML;
     if (panelSec) panelSec.innerHTML = optionsHTML;
+
+    // Track the latest known section list for other dropdowns.
+    if (sections && sections.length > 0) {
+      state.sectionsCache = sections;
+      if (App.populateAnalyticsFilters) {
+        App.populateAnalyticsFilters(state.availableSubjects, sections);
+      }
+    }
   };
 
   App.fetchAllSectionsForDropdowns = async function () {

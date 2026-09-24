@@ -3,6 +3,43 @@
 
   const state = App.state;
 
+  // ============================================================
+  // SERVICE WORKER REGISTRATION (PWA)
+  // ============================================================
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => {
+          console.log('[PWA] Service worker registered:', reg.scope);
+          // Auto-update: when a new SW is waiting, ask it to skip waiting.
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                nw.postMessage('SKIP_WAITING');
+              }
+            });
+          });
+        })
+        .catch(err => console.warn('[PWA] SW registration failed:', err));
+    });
+
+    // Reload once when a new SW takes control.
+    let refreshed = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshed) return;
+      refreshed = true;
+      window.location.reload();
+    });
+  }
+
+  // ============================================================
+  // LOGIN EVENTS
+  // ============================================================
   function wireLoginEvents() {
     document.getElementById('role-tab-student').addEventListener('click', () => App.setLoginRole('student'));
     document.getElementById('role-tab-teacher').addEventListener('click', () => App.setLoginRole('teacher'));
@@ -17,6 +54,9 @@
     App.setLoginRole('student');
   }
 
+  // ============================================================
+  // ADMIN EVENTS
+  // ============================================================
   function wireAdminEvents() {
     document.querySelectorAll('.logout-btn').forEach(btn =>
       btn.addEventListener('click', App.handleLogout));
@@ -94,28 +134,61 @@
     document.getElementById('subject-submit-btn').addEventListener('click', App.handleSaveSubject);
     document.getElementById('subject-cancel-edit-btn').addEventListener('click', App.resetSubjectForm);
 
+    // Announcements
     document.getElementById('broadcast-btn').addEventListener('click', App.broadcastAnnouncement);
+    document.getElementById('refresh-announcements-btn').addEventListener('click', () => {
+      App.loadAnnouncementHistory();
+      App.showToast("History refreshed.");
+    });
+    document.getElementById('announcement-history').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-action="delete-ann"]');
+      if (!btn) return;
+      App.deleteAnnouncement(Number(btn.dataset.row));
+    });
+
+    // Comments
     document.getElementById('admin-send-comment-btn').addEventListener('click', App.submitAdminComment);
     document.getElementById('admin-new-comment-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') App.submitAdminComment();
     });
     document.getElementById('clear-comments-btn').addEventListener('click', App.clearClassComments);
 
+    // Analytics
+    document.getElementById('analytics-subject-filter').addEventListener('change', App.refreshAnalytics);
+    document.getElementById('analytics-section-filter').addEventListener('change', App.refreshAnalytics);
+
+    // Import
     document.getElementById('open-import-btn').addEventListener('click', App.openImportModal);
-    document.getElementById('csv-export-btn').addEventListener('click',
-      () => App.exportTableToCSV('student_records_backup.csv'));
     document.getElementById('import-action').addEventListener('change', App.toggleImportUI);
     document.getElementById('preview-btn').addEventListener('click', App.previewDataTransfer);
     document.getElementById('confirm-btn').addEventListener('click', App.confirmDataTransfer);
     document.getElementById('import-cancel-btn').addEventListener('click', App.closeImportModal);
     document.getElementById('import-close-x').addEventListener('click', App.closeImportModal);
 
+    // Exports
+    document.getElementById('csv-export-btn').addEventListener('click',
+      () => App.exportTableToCSV('student_records_backup.csv'));
+    document.getElementById('xlsx-export-btn').addEventListener('click',
+      () => App.exportTableToXLSX('student_records_backup.xlsx'));
+
+    // Full backup / restore
+    document.getElementById('backup-download-btn').addEventListener('click', App.downloadFullBackup);
+    document.getElementById('backup-restore-btn').addEventListener('click', App.openBackupRestore);
+    document.getElementById('backup-file-input').addEventListener('change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (file) App.handleBackupRestoreFile(file);
+    });
+
+    // Grading sheet
     document.getElementById('gs-subject').addEventListener('change', App.updateGradingSheetPreview);
     document.getElementById('gs-section').addEventListener('change', App.updateGradingSheetPreview);
     document.getElementById('gs-semester').addEventListener('change', App.updateGradingSheetPreview);
     document.getElementById('gs-print-btn').addEventListener('click', App.printGradingSheets);
   }
 
+  // ============================================================
+  // STUDENT EVENTS
+  // ============================================================
   function wireStudentEvents() {
     document.getElementById('student-subject-selector').addEventListener('change',
       e => App.changeStudentSubject(e.target.value));
@@ -126,7 +199,6 @@
       if (e.key === 'Enter') App.submitStudentComment();
     });
 
-    // Print grades button (student dashboard)
     document.getElementById('student-print-btn').addEventListener('click', App.printStudentGrades);
 
     document.getElementById('student-main-grades').addEventListener('click', e => {
@@ -146,9 +218,14 @@
     });
   }
 
+  // ============================================================
+  // BOOTSTRAP
+  // ============================================================
   async function boot() {
     App.initScreens();
     state.sessionToken = App.newSessionToken();
+
+    registerServiceWorker();
 
     wireLoginEvents();
     wireAdminEvents();
@@ -170,4 +247,4 @@
     boot();
   }
 
-})(window.App);
+})(window.App); 

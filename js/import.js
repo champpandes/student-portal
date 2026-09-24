@@ -291,7 +291,7 @@
     }
   };
 
-  // ---------- Export ----------
+  // ---------- CSV Export ----------
   App.exportTableToCSV = function (filename) {
     if (!state.currentAdminData || state.currentAdminData.length === 0) {
       App.showToast("No data to export.", "error");
@@ -316,7 +316,6 @@
       ].join(","));
     });
 
-    // BOM + CRLF so Excel handles accents correctly.
     const blob = new Blob(["\uFEFF" + csv.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -328,6 +327,84 @@
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     App.showToast("Backup exported!");
+  };
+
+  // ---------- XLSX Export (lazy-loads SheetJS) ----------
+  const SHEETJS_URL = 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js';
+
+  function loadSheetJS() {
+    return new Promise((resolve, reject) => {
+      if (window.XLSX) return resolve(window.XLSX);
+      const existing = document.querySelector('script[data-sheetjs]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.XLSX));
+        existing.addEventListener('error', () => reject(new Error("SheetJS failed to load.")));
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = SHEETJS_URL;
+      script.async = true;
+      script.setAttribute('data-sheetjs', '1');
+      script.onload = () => resolve(window.XLSX);
+      script.onerror = () => reject(new Error("Could not load SheetJS from CDN."));
+      document.head.appendChild(script);
+    });
+  }
+
+  App.exportTableToXLSX = async function (filename) {
+    if (!state.currentAdminData || state.currentAdminData.length === 0) {
+      App.showToast("No data to export.", "error");
+      return;
+    }
+
+    const btn = document.getElementById('xlsx-export-btn');
+    const original = btn.innerHTML;
+    btn.innerHTML = '⏳ Building…';
+    btn.disabled = true;
+
+    try {
+      const XLSX = await loadSheetJS();
+
+      const headers = [
+        "Student Number","Full Name","Section","Subject",
+        "1st Quarter","2nd Quarter","3rd Quarter","4th Quarter",
+        "Final Grade","Remarks"
+      ];
+
+      const rows = [headers];
+      state.currentAdminData.forEach(s => {
+        rows.push([
+          s.studentNumber || '',
+          s.name || '',
+          s.section || '',
+          s.subject || '',
+          s.q1 || '', s.q2 || '', s.q3 || '', s.q4 || '',
+          s.final || '',
+          s.remarks || ''
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      // Column widths
+      ws['!cols'] = [
+        { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 24 },
+        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+        { wch: 10 }, { wch: 10 }
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Records');
+
+      XLSX.writeFile(wb, filename);
+      App.showToast("Excel file downloaded!");
+    } catch (e) {
+      console.error(e);
+      App.showToast(e.message || 'XLSX export failed.', 'error');
+    }
+
+    btn.innerHTML = original;
+    btn.disabled = false;
   };
 
 })(window.App);
