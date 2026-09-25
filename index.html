@@ -44,7 +44,7 @@
         <label for="login-input" class="sr-only">Credentials</label>
         <div class="relative">
           <input id="login-input" type="text" inputmode="numeric" autocomplete="username"
-                 placeholder="e.g. 26-02448"
+                 placeholder="e.g. 11-05075"
                  class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-center text-lg font-bold tracking-widest outline-none focus:border-indigo-600 focus:bg-white transition-all pr-12">
           <button id="login-show-toggle" type="button" aria-label="Show or hide password"
                   class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-slate-500 hover:bg-slate-100 flex items-center justify-center">👁</button>
@@ -121,12 +121,12 @@
             <button data-tab="analytics" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📈</span> <span class="sidebar-text">Analytics</span>
             </button>
-            <button data-tab="announcements" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-              <span>📢</span> <span class="sidebar-text">Announcements</span>
-            </button>
             <button data-tab="registrations" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📝</span> <span class="sidebar-text">Registrations</span>
               <span id="pending-badge" class="hidden ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md"></span>
+            </button>
+            <button data-tab="announcements" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+              <span>📢</span> <span class="sidebar-text">Announcements</span>
             </button>
             <button data-tab="import" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>⚡</span> <span class="sidebar-text">Import & Backup</span>
@@ -413,6 +413,36 @@
         </div>
       </div>
 
+      <!-- ===== TAB: Registrations ===== -->
+      <div id="tab-registrations" class="admin-tab-content hidden-screen space-y-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+          <div>
+            <h3 class="text-base font-black text-slate-900 mb-1">Pending Registrations</h3>
+            <p class="text-xs text-slate-500 font-medium">Students who registered and are waiting for your approval.</p>
+          </div>
+          <button id="refresh-registrations-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition-all">
+            🔄 Refresh
+          </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider">Pending</h4>
+            <span id="pending-count" class="text-xs font-bold text-amber-600"></span>
+          </div>
+          <div id="pending-list" class="space-y-3">
+            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">History</h4>
+          <div id="registration-history" class="space-y-2 max-h-96 overflow-y-auto">
+            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== TAB: Announcements ===== -->
       <div id="tab-announcements" class="admin-tab-content hidden-screen space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -454,35 +484,6 @@
             <div id="announcement-history" class="space-y-3 overflow-y-auto flex-1 max-h-[700px] pr-1">
               <div class="text-xs text-slate-400 italic text-center py-8">Loading history…</div>
             </div>
-          </div>
-        </div>
-      </div>
-      <!-- ===== TAB: Registrations ===== -->
-      <div id="tab-registrations" class="admin-tab-content hidden-screen space-y-6">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center justify-between">
-          <div>
-            <h3 class="text-base font-black text-slate-900 mb-1">Pending Registrations</h3>
-            <p class="text-xs text-slate-500 font-medium">Students who registered and are waiting for your approval.</p>
-          </div>
-          <button id="refresh-registrations-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition-all">
-            🔄 Refresh
-          </button>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-          <div class="flex items-center justify-between mb-4">
-            <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider">Pending</h4>
-            <span id="pending-count" class="text-xs font-bold text-amber-600"></span>
-          </div>
-          <div id="pending-list" class="space-y-3">
-            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-          <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">History</h4>
-          <div id="registration-history" class="space-y-2 max-h-96 overflow-y-auto">
-            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
           </div>
         </div>
       </div>
@@ -729,12 +730,19 @@
     <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4">
       <h3 id="add-student-title" class="text-lg font-black text-slate-900">Add New Student</h3>
       <div class="space-y-3">
-        <label for="new-student-id" class="sr-only">Student Number</label>
-        <input type="text" id="new-student-id" placeholder="Student Number (e.g. 26-02448)"
-               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
-        <label for="new-student-name" class="sr-only">Full Name</label>
-        <input type="text" id="new-student-name" placeholder="Full Name"
-               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        <div>
+          <label for="new-student-id" class="sr-only">Student Number</label>
+          <input type="text" id="new-student-id" placeholder="Student Number (e.g. 11-05075)"
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        </div>
+        <div>
+          <label for="new-student-name" class="sr-only">Full Name</label>
+          <input type="text" id="new-student-name" placeholder="e.g. Dela Cruz, Juan P."
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+          <p class="text-[11px] text-slate-500 font-medium mt-1.5">
+            Suggested format: <b>Last Name, First Name M.I.</b>
+          </p>
+        </div>
         <label for="new-student-section" class="sr-only">Section</label>
         <select id="new-student-section"
                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
@@ -759,12 +767,19 @@
       <h3 id="register-title" class="text-lg font-black text-slate-900">Student Self-Registration</h3>
       <p class="text-xs text-slate-500 font-medium">Enter your details. Your teacher will review your registration and assign your section and subjects.</p>
       <div class="space-y-3">
-        <label for="reg-student-id" class="sr-only">Student Number</label>
-        <input type="text" id="reg-student-id" placeholder="Student Number (e.g. 26-02448)"
-               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
-        <label for="reg-student-name" class="sr-only">Full Name</label>
-        <input type="text" id="reg-student-name" placeholder="Full Name"
-               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        <div>
+          <label for="reg-student-id" class="sr-only">Student Number</label>
+          <input type="text" id="reg-student-id" placeholder="Student Number (e.g. 11-05075)"
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        </div>
+        <div>
+          <label for="reg-student-name" class="sr-only">Full Name</label>
+          <input type="text" id="reg-student-name" placeholder="e.g. Dela Cruz, Juan P."
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+          <p class="text-[11px] text-slate-500 font-medium mt-1.5">
+            Suggested format: <b>Last Name, First Name M.I.</b>
+          </p>
+        </div>
       </div>
       <div id="reg-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
       <div class="flex gap-2 pt-2">
@@ -773,6 +788,7 @@
       </div>
     </div>
   </div>
+
   <!-- ==================== APPROVE REGISTRATION MODAL (admin) ==================== -->
   <div id="approve-modal" role="dialog" aria-modal="true" aria-labelledby="approve-modal-title"
        class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -780,7 +796,6 @@
       <h3 id="approve-modal-title" class="text-lg font-black text-slate-900">Approve Registration</h3>
       <p class="text-xs text-slate-500 font-medium">Assign a section and choose the subjects this student will be enrolled in.</p>
 
-      <!-- Student info (read-only) -->
       <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
         <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Student</div>
         <div id="approve-student-name" class="font-bold text-sm text-slate-800">—</div>
@@ -788,7 +803,6 @@
         <input type="hidden" id="approve-pending-student-number">
       </div>
 
-      <!-- Section -->
       <div>
         <label for="approve-student-section" class="block text-xs font-bold text-slate-600 mb-1">Section</label>
         <input type="text" id="approve-student-section" list="approve-section-list"
@@ -798,7 +812,6 @@
         <p class="text-[10px] text-slate-400 mt-1">Existing sections appear as suggestions. You can also type a new one.</p>
       </div>
 
-      <!-- Subjects -->
       <div>
         <label class="block text-xs font-bold text-slate-600 mb-2">Subjects to Enroll</label>
         <div id="approve-subject-checkboxes"
@@ -977,8 +990,8 @@
   <script src="js/grading-sheet.js"></script>
   <script src="js/import.js"></script>
   <script src="js/analytics.js"></script>
-  <script src="js/registrations.js"></script>
   <script src="js/backup.js"></script>
+  <script src="js/registrations.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

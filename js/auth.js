@@ -28,7 +28,7 @@
       tTab.setAttribute('aria-selected', 'true');
     } else {
       input.type = 'text';
-      input.placeholder = 'e.g. 26-02448';
+      input.placeholder = 'e.g. 11-05075';
       input.value = '';
       hint.textContent = 'Enter your Student Number';
       toggle.classList.add('hidden');
@@ -77,14 +77,12 @@
         await App.fetchAllSectionsForDropdowns();
         await App.loadAdminDashboard();
         App.showScreen('admin');
-        // Silently check for pending registrations
         if (App.loadPendingRegistrations) App.loadPendingRegistrations();
       } else {
         const res = await App.apiCall({
           action: "getStudent", studentNumber: inputVal
         }, { retries: 1 });
 
-        // Pending student
         if (res && res.pending) {
           if (App.showPendingModal) {
             App.showPendingModal({
@@ -98,7 +96,6 @@
           return;
         }
 
-        // Rejected student
         if (res && res.rejected) {
           throw new Error(res.message || "Your registration was not approved.");
         }
@@ -178,7 +175,6 @@
       }, { retries: 1 });
 
       if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
-        // Might be pending or rejected now — clear the session so they see login
         App.clearSession();
         return false;
       }
@@ -259,6 +255,7 @@
     btn.innerText = original;
     btn.disabled = false;
   };
+
   // ---------- Pending modal buttons ----------
   App.checkPendingStatus = async function () {
     if (!lastLoginInput) {
@@ -283,7 +280,6 @@
         App.closePendingModal();
         App.showToast(res.message || "Your registration was not approved.", "error");
       } else if (res && res.subjects && Object.keys(res.subjects).length > 0) {
-        // Approved — log them in
         App.closePendingModal();
         App.showToast("You've been approved! Logging in...");
         document.getElementById('login-input').value = lastLoginInput;

@@ -8,6 +8,14 @@
     ));
   };
 
+  // ---------- Name validation (unused, kept for later) ----------
+  // Enforces the format: Last Name, First Name M.I.
+  App.NAME_REGEX = /^[^,]+,\s+[^,]+ [A-Za-z]\.$/;
+
+  App.isValidName = function (name) {
+    return App.NAME_REGEX.test(String(name || '').trim());
+  };
+
   // ---------- Debounce ----------
   App.debounce = function (fn, wait) {
     let t;
