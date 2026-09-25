@@ -42,7 +42,7 @@ App.state = {
   // UI
   pendingImportData: [],
   activeManageStudentId: null,
-  activeAdminSubject: "All",
+  activeAdminSubject: "",
   activeManageSubject: "",
   activeStudentSubject: "",
   activeQuarterFilter: "All",

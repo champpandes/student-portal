@@ -90,7 +90,19 @@
 
     if (adminFilter) {
       adminFilter.innerHTML = '<option value="All">All Subjects</option>' + optionsHTML;
-      adminFilter.value = state.activeAdminSubject;
+
+      // If no subject chosen yet, default to the first one.
+      // Scanning "All" subjects is the slowest API call by far.
+      if (!state.activeAdminSubject && state.availableSubjects.length > 0) {
+        state.activeAdminSubject = state.availableSubjects[0];
+      }
+
+      // If the saved subject is gone (deleted), fall back to first.
+      if (state.activeAdminSubject && state.availableSubjects.indexOf(state.activeAdminSubject) === -1) {
+        state.activeAdminSubject = state.availableSubjects[0] || "All";
+      }
+
+      adminFilter.value = state.activeAdminSubject || "All";
     }
     if (importSubject) importSubject.innerHTML = optionsHTML;
     if (gsSubject) {
