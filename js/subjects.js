@@ -4,12 +4,40 @@
   const state = App.state;
 
   App.fetchSubjects = async function () {
+    const CACHE_KEY = 'sp_subjects_cache';
+    const TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+    // Try cache first
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached && (Date.now() - cached.cachedAt) < TTL_MS) {
+          state.availableSubjects = cached.subjects || [];
+          state.subjectDescriptions = cached.descriptions || {};
+          state.subjectWeights = cached.weights || {};
+          App.populateSubjectUIs();
+          App.renderSubjectsListUI();
+          // Refresh in background
+          App._refreshSubjectsInBackground(CACHE_KEY);
+          return;
+        }
+      }
+    } catch (e) { /* ignore, fetch fresh */ }
+
+    // No cache or expired — fetch normally
     try {
       const res = await App.apiCall({ action: "getSubjects" });
       if (res.success) {
         state.availableSubjects = res.subjects || [];
         if (res.descriptions) state.subjectDescriptions = res.descriptions;
         if (res.weights) state.subjectWeights = res.weights;
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+          subjects: state.availableSubjects,
+          descriptions: state.subjectDescriptions,
+          weights: state.subjectWeights,
+          cachedAt: Date.now()
+        }));
         App.populateSubjectUIs();
         App.renderSubjectsListUI();
       }
@@ -19,6 +47,21 @@
       const adminFilter = document.getElementById('admin-subject-filter');
       if (adminFilter) adminFilter.innerHTML = '<option>Error Connecting</option>';
     }
+  };
+
+  // Silently refresh in background — used after cache hit
+  App._refreshSubjectsInBackground = async function (cacheKey) {
+    try {
+      const res = await App.apiCall({ action: "getSubjects" });
+      if (res && res.success) {
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          subjects: res.subjects || [],
+          descriptions: res.descriptions || {},
+          weights: res.weights || {},
+          cachedAt: Date.now()
+        }));
+      }
+    } catch (e) { /* silent */ }
   };
 
   App.populateSubjectUIs = function () {
@@ -87,9 +130,29 @@
   };
 
   App.fetchAllSectionsForDropdowns = async function () {
+    const CACHE_KEY = 'sp_sections_cache';
+    const TTL_MS = 5 * 60 * 1000;
+
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached && (Date.now() - cached.cachedAt) < TTL_MS) {
+          state.sectionsCache = cached.sections || [];
+          App.populateSectionDropdownsUI(state.sectionsCache);
+          return;
+        }
+      }
+    } catch (e) { /* fall through */ }
+
     try {
       const res = await App.apiCall({ action: "getSections" });
       const sections = Array.isArray(res) ? res : (res && res.sections ? res.sections : []);
+      state.sectionsCache = sections;
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+        sections: sections,
+        cachedAt: Date.now()
+      }));
       App.populateSectionDropdownsUI(sections);
     } catch (e) {
       console.warn("Could not load sections; using fallback.", e);
@@ -190,6 +253,7 @@
     App.populateSubjectUIs();
     App.renderSubjectsListUI();
     App.invalidateAllCache();
+        sessionStorage.removeItem('sp_subjects_cache');
     await App.loadAdminDashboard();
 
     App.showToast(oldName ? "Subject '" + newName + "' updated!" : "Subject '" + newName + "' added!");
@@ -212,6 +276,7 @@
       App.populateSubjectUIs();
       App.renderSubjectsListUI();
       App.invalidateAllCache();
+          sessionStorage.removeItem('sp_subjects_cache');
       await App.loadAdminDashboard();
     } else {
       App.showToast(res.message || "Failed to delete subject.", "error");

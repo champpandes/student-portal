@@ -75,6 +75,7 @@
     }
 
     if (tabName === 'announcements') {
+      if (App.loadAnnouncement) App.loadAnnouncement();
       if (App.loadAnnouncementHistory) App.loadAnnouncementHistory();
     }
 

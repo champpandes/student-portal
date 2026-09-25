@@ -73,11 +73,15 @@
         App.saveSession({ role: 'teacher', pin: inputVal });
 
         App.showToast("Welcome back!");
-        await App.loadAnnouncement();
-        await App.fetchAllSectionsForDropdowns();
-        await App.loadAdminDashboard();
         App.showScreen('admin');
-        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+
+        // Fire all fetches at once. Fastest single response wins.
+        await Promise.all([
+          App.fetchAllSectionsForDropdowns(),
+          App.loadAdminDashboard(),
+          App.loadPendingRegistrations ? App.loadPendingRegistrations() : Promise.resolve(),
+          App.loadComments ? App.loadComments() : Promise.resolve()
+        ]);
       } else {
         const res = await App.apiCall({
           action: "getStudent", studentNumber: inputVal
@@ -112,8 +116,8 @@
 
         App.initializeStudentDropdowns(Object.keys(res.subjects));
         App.showToast("Logged in as " + res.name);
-        await App.loadAnnouncement();
         App.showScreen('student');
+        App.loadAnnouncement(); // fire-and-forget — student sees dashboard instantly
       }
     } catch (error) {
       App.showToast(error.message || 'Login failed.', 'error');
