@@ -79,6 +79,29 @@
     }
   };
 
+  // ---------- Refresh ----------
+  App.refreshDashboard = async function () {
+    const btn = document.getElementById('refresh-dashboard-btn');
+    if (!btn || btn.disabled) return;
+
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-wait');
+
+    App.invalidateAllCache();
+    state.allAdminGradesCache = {};
+
+    try {
+      await App.loadAdminDashboard();
+      App.showToast("Dashboard refreshed.");
+    } catch (e) {
+      console.error(e);
+      App.showToast("Refresh failed. Try again.", "error");
+    } finally {
+      btn.classList.remove('opacity-50', 'cursor-wait');
+      btn.disabled = false;
+    }
+  };
+
   // ---------- Timestamp ----------
   App.updateLastSavedTimestamp = function () {
     const badge = document.getElementById('last-saved-badge');
@@ -165,7 +188,6 @@
           if (current) gsSec.value = current;
         }
 
-        // Refresh analytics dropdowns with newest subject/section list.
         if (App.populateAnalyticsFilters) {
           App.populateAnalyticsFilters(state.availableSubjects, sections);
         }

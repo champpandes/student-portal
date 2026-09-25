@@ -99,8 +99,6 @@
 
         App.showToast("Restore complete. Reloading…");
         App.invalidateAllCache();
-
-        // Reload everything by simulating a fresh page state.
         setTimeout(() => window.location.reload(), 1500);
       } catch (err) {
         console.error(err);
@@ -111,6 +109,58 @@
     };
     reader.onerror = () => App.showToast("Could not read the file.", "error");
     reader.readAsText(file);
+  };
+
+  // ============================================================
+  // RECOMPUTE ALL GRADES
+  // ============================================================
+  App.recomputeAllGrades = async function () {
+    const msg =
+      "Recompute all grades?\n\n" +
+      "The server will walk every subject sheet and:\n" +
+      "  • Clamp any quarter grade below 60 up to 60\n" +
+      "  • Recompute the Final column from quarter grades\n" +
+      "  • Recompute the Remarks column\n" +
+      "  • Fix stale totals inside breakdown data\n\n" +
+      "Valid grades (60 and above, and empty cells) are never changed.\n" +
+      "Safe to run anytime.\n\n" +
+      "Continue?";
+
+    if (!confirm(msg)) return;
+
+    const btn = document.getElementById('recompute-btn');
+    const original = btn.innerHTML;
+    btn.innerHTML = '⏳ Recomputing…';
+    btn.disabled = true;
+
+    try {
+      const res = await App.apiCall({
+        action: "recomputeAllGrades",
+        pin: state.adminPin
+      }, { retries: 0, timeout: 180000 });
+
+      if (!res.success) throw new Error(res.message || "Recompute failed.");
+
+      App.invalidateAllCache();
+      state.allAdminGradesCache = {};
+      await App.loadAdminDashboard();
+
+      if (!res.totalFixed || res.totalFixed === 0) {
+        App.showToast("Recompute complete. No anomalies found.");
+      } else {
+        const summary = (res.report || [])
+          .map(r => r.subject + ": " + r.fixed)
+          .join("\n");
+        console.log("Recompute report:\n" + summary);
+        App.showToast("Fixed " + res.totalFixed + " row(s). Details in console.");
+      }
+    } catch (e) {
+      console.error(e);
+      App.showToast(e.message || "Recompute failed.", "error");
+    }
+
+    btn.innerHTML = original;
+    btn.disabled = false;
   };
 
 })(window.App);
