@@ -70,18 +70,15 @@
 
         state.adminPin = inputVal;
         state.sessionToken = App.newSessionToken();
+        state.allAdminGradesCache = {};   // wipe any stale/empty cache from before login
         App.saveSession({ role: 'teacher', pin: inputVal });
 
         App.showToast("Welcome back!");
+        await App.loadAnnouncement();
+        await App.fetchAllSectionsForDropdowns();
+        await App.loadAdminDashboard();
         App.showScreen('admin');
-
-        // Fire all fetches at once. Fastest single response wins.
-        await Promise.all([
-          App.fetchAllSectionsForDropdowns(),
-          App.loadAdminDashboard(),
-          App.loadPendingRegistrations ? App.loadPendingRegistrations() : Promise.resolve(),
-          App.loadComments ? App.loadComments() : Promise.resolve()
-        ]);
+        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
       } else {
         const res = await App.apiCall({
           action: "getStudent", studentNumber: inputVal
@@ -116,8 +113,8 @@
 
         App.initializeStudentDropdowns(Object.keys(res.subjects));
         App.showToast("Logged in as " + res.name);
+        await App.loadAnnouncement();
         App.showScreen('student');
-        App.loadAnnouncement(); // fire-and-forget — student sees dashboard instantly
       }
     } catch (error) {
       App.showToast(error.message || 'Login failed.', 'error');
@@ -158,6 +155,7 @@
 
       state.adminPin = session.pin;
       state.sessionToken = App.newSessionToken();
+      state.allAdminGradesCache = {};   // wipe any stale/empty cache from before login
 
       try {
         await App.loadAnnouncement();

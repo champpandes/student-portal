@@ -5,13 +5,31 @@
   const ROWS_PER_PREVIEW_PAGE = 30;
 
   async function getGradesFor(subject) {
-    if (state.allAdminGradesCache[subject]) return state.allAdminGradesCache[subject];
+    // Never fetch if not logged in as admin. This prevents a wasted
+    // request at page load that returns Unauthorized and gets cached.
+    if (!state.adminPin) return [];
+
+    // Serve from cache if we have a valid (successful) previous result.
+    if (state.allAdminGradesCache[subject]) {
+      return state.allAdminGradesCache[subject];
+    }
+
     const res = await App.apiCall({
-      action: "getAllGrades", pin: state.adminPin, subject: subject
-    }, { retries: 1, timeout: 30000 });
-    const data = Array.isArray(res) ? res : [];
-    state.allAdminGradesCache[subject] = data;
-    return data;
+      action: "getAllGrades",
+      pin: state.adminPin,
+      subject: subject
+    }, { retries: 1, timeout: 45000 });
+
+    // Only cache actual arrays. If the response was an error object
+    // (Unauthorized, Server busy, etc.), do NOT cache it — otherwise
+    // a single failure would permanently empty this subject's preview.
+    if (!Array.isArray(res)) {
+      console.warn("getGradesFor: non-array response for", subject, res);
+      return [];
+    }
+
+    state.allAdminGradesCache[subject] = res;
+    return res;
   }
 
   function docHeader(cleanSubject, description, semester, schoolYear) {
@@ -124,6 +142,13 @@
 
     const subject = subjEl.value;
     if (!subject) return;
+
+    // Skip entirely when not logged in. Prevents a wasted request on
+    // page load that would return Unauthorized.
+    if (!state.adminPin) {
+      container.innerHTML = '<div class="text-center text-slate-400 py-12">Log in as teacher to preview.</div>';
+      return;
+    }
 
     container.innerHTML = '<div class="text-center text-slate-400 py-12">Loading preview…</div>';
     try {
