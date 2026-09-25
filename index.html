@@ -124,6 +124,10 @@
             <button data-tab="announcements" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📢</span> <span class="sidebar-text">Announcements</span>
             </button>
+            <button data-tab="registrations" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+              <span>📝</span> <span class="sidebar-text">Registrations</span>
+              <span id="pending-badge" class="hidden ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md"></span>
+            </button>
             <button data-tab="import" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>⚡</span> <span class="sidebar-text">Import & Backup</span>
             </button>
@@ -453,6 +457,35 @@
           </div>
         </div>
       </div>
+      <!-- ===== TAB: Registrations ===== -->
+      <div id="tab-registrations" class="admin-tab-content hidden-screen space-y-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+          <div>
+            <h3 class="text-base font-black text-slate-900 mb-1">Pending Registrations</h3>
+            <p class="text-xs text-slate-500 font-medium">Students who registered and are waiting for your approval.</p>
+          </div>
+          <button id="refresh-registrations-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition-all">
+            🔄 Refresh
+          </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider">Pending</h4>
+            <span id="pending-count" class="text-xs font-bold text-amber-600"></span>
+          </div>
+          <div id="pending-list" class="space-y-3">
+            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">History</h4>
+          <div id="registration-history" class="space-y-2 max-h-96 overflow-y-auto">
+            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
+          </div>
+        </div>
+      </div>
 
       <!-- ===== TAB: Import & Backup ===== -->
       <div id="tab-import" class="admin-tab-content hidden-screen space-y-6">
@@ -746,6 +779,23 @@
       <div class="flex gap-2 pt-2">
         <button id="register-cancel-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
         <button id="submit-reg-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Register Profile</button>
+      </div>
+    </div>
+  </div>
+  <!-- ==================== PENDING REGISTRATION MODAL ==================== -->
+  <div id="pending-modal" role="dialog" aria-modal="true" aria-labelledby="pending-modal-title"
+       class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-8 w-full max-w-md text-center space-y-4">
+      <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold">⏳</div>
+      <h3 id="pending-modal-title" class="text-xl font-black text-slate-900">Registration Pending</h3>
+      <p id="pending-modal-message" class="text-sm text-slate-600">Your registration is awaiting teacher approval.</p>
+      <div id="pending-modal-details" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-left">
+        <div class="font-bold text-slate-700 mb-1">Your submitted details:</div>
+        <div id="pending-modal-details-content" class="text-slate-600 space-y-0.5"></div>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button id="pending-check-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm transition-all">Check Status</button>
+        <button id="pending-close-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-sm transition-all">Close</button>
       </div>
     </div>
   </div>

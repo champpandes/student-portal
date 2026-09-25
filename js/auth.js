@@ -4,6 +4,7 @@
   const state = App.state;
 
   let loginRole = 'student';
+  let lastLoginInput = '';
 
   App.setLoginRole = function (role) {
     loginRole = role;
@@ -45,7 +46,6 @@
     else { input.type = 'password'; btn.textContent = '👁'; }
   };
 
-  /** Safely set textContent on an element if it exists. */
   function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
@@ -56,6 +56,7 @@
     const inputVal = document.getElementById('login-input').value.trim();
     if (!inputVal) return;
 
+    lastLoginInput = inputVal;
     btn.innerText = "Authenticating...";
     btn.disabled = true;
     document.getElementById('login-error').classList.add('hidden-screen');
@@ -76,14 +77,37 @@
         await App.fetchAllSectionsForDropdowns();
         await App.loadAdminDashboard();
         App.showScreen('admin');
+        // Silently check for pending registrations
+        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
       } else {
         const res = await App.apiCall({
           action: "getStudent", studentNumber: inputVal
         }, { retries: 1 });
 
+        // Pending student
+        if (res && res.pending) {
+          if (App.showPendingModal) {
+            App.showPendingModal({
+              message: res.message,
+              submittedName: res.submittedName,
+              submittedSection: res.submittedSection,
+              studentNumber: inputVal
+            });
+          }
+          btn.innerText = "Log In";
+          btn.disabled = false;
+          return;
+        }
+
+        // Rejected student
+        if (res && res.rejected) {
+          throw new Error(res.message || "Your registration was not approved.");
+        }
+
         if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
           throw new Error((res && res.message) || "Student not found or has no enrolled subjects.");
         }
+
         state.currentStudentData = res;
         state.sessionToken = App.newSessionToken();
         App.saveSession({ role: 'student', studentNumber: res.studentNumber });
@@ -104,7 +128,6 @@
 
   App.handleLogout = function () {
     App.clearSession();
-
     state.adminPin = "";
     state.currentStudentData = null;
     state.currentAdminData = [];
@@ -141,6 +164,7 @@
         await App.fetchAllSectionsForDropdowns();
         await App.loadAdminDashboard();
         App.showScreen('admin');
+        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
         return true;
       } catch (e) {
         console.warn("Session restore failed", e);
@@ -155,6 +179,7 @@
       }, { retries: 1 });
 
       if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
+        // Might be pending or rejected now — clear the session so they see login
         App.clearSession();
         return false;
       }
@@ -208,7 +233,7 @@
 
     const btn = document.getElementById('submit-reg-btn');
     const original = btn.innerText;
-    btn.innerText = "Registering...";
+    btn.innerText = "Submitting...";
     btn.disabled = true;
 
     try {
@@ -217,12 +242,18 @@
         studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects }
       }, { retries: 1 });
 
-      if (res.success) {
+      if (res.success && res.pending) {
         App.closeRegisterModal();
-        App.showToast("Registration successful! Logging you in...");
-        App.setLoginRole('student');
-        document.getElementById('login-input').value = id;
-        await App.handleLogin();
+        App.showToast("Registration submitted for approval.");
+        // Show the pending modal so the student sees the full message
+        if (App.showPendingModal) {
+          App.showPendingModal({
+            message: "Your registration has been submitted. Your teacher will review it before you can log in.",
+            submittedName: name,
+            submittedSection: sec,
+            studentNumber: id
+          });
+        }
       } else {
         errorBox.textContent = res.message || "Registration failed.";
         errorBox.classList.remove('hidden');
@@ -232,6 +263,46 @@
       errorBox.textContent = "Network error. Please try again.";
       errorBox.classList.remove('hidden');
     }
+    btn.innerText = original;
+    btn.disabled = false;
+  };
+
+  // ---------- Pending modal buttons ----------
+  App.checkPendingStatus = async function () {
+    if (!lastLoginInput) {
+      App.closePendingModal();
+      return;
+    }
+
+    const btn = document.getElementById('pending-check-btn');
+    const original = btn.innerText;
+    btn.innerText = "Checking...";
+    btn.disabled = true;
+
+    try {
+      const res = await App.apiCall({
+        action: "getStudent",
+        studentNumber: lastLoginInput
+      }, { retries: 1 });
+
+      if (res && res.pending) {
+        App.showToast("Still pending. Please wait for your teacher's approval.", "error");
+      } else if (res && res.rejected) {
+        App.closePendingModal();
+        App.showToast(res.message || "Your registration was not approved.", "error");
+      } else if (res && res.subjects && Object.keys(res.subjects).length > 0) {
+        // Approved — log them in
+        App.closePendingModal();
+        App.showToast("You've been approved! Logging in...");
+        document.getElementById('login-input').value = lastLoginInput;
+        await App.handleLogin();
+      } else {
+        App.showToast("Still not found. Please contact your teacher.", "error");
+      }
+    } catch (e) {
+      App.showToast("Check failed. Try again later.", "error");
+    }
+
     btn.innerText = original;
     btn.disabled = false;
   };

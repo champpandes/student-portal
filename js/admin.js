@@ -77,6 +77,10 @@
     if (tabName === 'announcements') {
       if (App.loadAnnouncementHistory) App.loadAnnouncementHistory();
     }
+
+    if (tabName === 'registrations') {
+      if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+    }
   };
 
   // ---------- Refresh ----------
@@ -92,6 +96,7 @@
 
     try {
       await App.loadAdminDashboard();
+      if (App.loadPendingRegistrations) App.loadPendingRegistrations();
       App.showToast("Dashboard refreshed.");
     } catch (e) {
       console.error(e);

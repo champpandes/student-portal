@@ -49,6 +49,8 @@
     document.getElementById('open-register-btn').addEventListener('click', App.openRegisterModal);
     document.getElementById('register-cancel-btn').addEventListener('click', App.closeRegisterModal);
     document.getElementById('submit-reg-btn').addEventListener('click', App.submitRegistration);
+    document.getElementById('pending-close-btn').addEventListener('click', App.closePendingModal);
+    document.getElementById('pending-check-btn').addEventListener('click', App.checkPendingStatus);
     App.setLoginRole('student');
   }
 
@@ -118,6 +120,18 @@
     document.getElementById('open-add-student-btn').addEventListener('click', App.openAddStudentModal);
     document.getElementById('add-student-cancel-btn').addEventListener('click', App.closeAddStudentModal);
     document.getElementById('save-new-student-btn').addEventListener('click', App.saveNewStudent);
+
+    // Registrations
+    document.getElementById('refresh-registrations-btn').addEventListener('click', () => {
+      App.loadPendingRegistrations();
+      App.showToast("Refreshed.");
+    });
+    document.getElementById('pending-list').addEventListener('click', e => {
+      const approveBtn = e.target.closest('button[data-action="approve"]');
+      const rejectBtn = e.target.closest('button[data-action="reject"]');
+      if (approveBtn) App.approveRegistration(approveBtn.dataset.student);
+      else if (rejectBtn) App.rejectRegistration(rejectBtn.dataset.student);
+    });
 
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
     document.getElementById('slide-panel-backdrop').addEventListener('click', App.closeSlidePanel);
