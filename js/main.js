@@ -133,6 +133,14 @@
       else if (rejectBtn) App.rejectRegistration(rejectBtn.dataset.student);
     });
 
+    // Approve modal
+    document.getElementById('approve-cancel-btn').addEventListener('click', () => {
+      App.closeModal(document.getElementById('approve-modal'));
+    });
+    document.getElementById('confirm-approve-btn').addEventListener('click', App.confirmApproval);
+    document.getElementById('approve-select-all-btn').addEventListener('click', App.approveSelectAll);
+    document.getElementById('approve-clear-all-btn').addEventListener('click', App.approveClearAll);
+
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
     document.getElementById('slide-panel-backdrop').addEventListener('click', App.closeSlidePanel);
     document.getElementById('panel-save-info-btn').addEventListener('click', App.savePanelInfo);

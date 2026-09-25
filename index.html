@@ -757,7 +757,7 @@
        class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4">
       <h3 id="register-title" class="text-lg font-black text-slate-900">Student Self-Registration</h3>
-      <p class="text-xs text-slate-500 font-medium">Fill out your details to enroll and access your student portal immediately.</p>
+      <p class="text-xs text-slate-500 font-medium">Enter your details. Your teacher will review your registration and assign your section and subjects.</p>
       <div class="space-y-3">
         <label for="reg-student-id" class="sr-only">Student Number</label>
         <input type="text" id="reg-student-id" placeholder="Student Number (e.g. 26-02448)"
@@ -765,23 +765,59 @@
         <label for="reg-student-name" class="sr-only">Full Name</label>
         <input type="text" id="reg-student-name" placeholder="Full Name"
                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
-        <label for="reg-student-section" class="sr-only">Section</label>
-        <select id="reg-student-section"
-                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
-          <option value="">Select section...</option>
-        </select>
-        <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Select Subjects to Enroll:</label>
-          <div id="reg-subject-checkboxes" class="space-y-2 max-h-36 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200"></div>
-        </div>
       </div>
       <div id="reg-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
       <div class="flex gap-2 pt-2">
         <button id="register-cancel-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
-        <button id="submit-reg-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Register Profile</button>
+        <button id="submit-reg-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Submit Registration</button>
       </div>
     </div>
   </div>
+  <!-- ==================== APPROVE REGISTRATION MODAL (admin) ==================== -->
+  <div id="approve-modal" role="dialog" aria-modal="true" aria-labelledby="approve-modal-title"
+       class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
+      <h3 id="approve-modal-title" class="text-lg font-black text-slate-900">Approve Registration</h3>
+      <p class="text-xs text-slate-500 font-medium">Assign a section and choose the subjects this student will be enrolled in.</p>
+
+      <!-- Student info (read-only) -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Student</div>
+        <div id="approve-student-name" class="font-bold text-sm text-slate-800">—</div>
+        <div id="approve-student-number" class="text-xs text-slate-500 font-semibold">—</div>
+        <input type="hidden" id="approve-pending-student-number">
+      </div>
+
+      <!-- Section -->
+      <div>
+        <label for="approve-student-section" class="block text-xs font-bold text-slate-600 mb-1">Section</label>
+        <input type="text" id="approve-student-section" list="approve-section-list"
+               placeholder="Type or pick a section..."
+               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        <datalist id="approve-section-list"></datalist>
+        <p class="text-[10px] text-slate-400 mt-1">Existing sections appear as suggestions. You can also type a new one.</p>
+      </div>
+
+      <!-- Subjects -->
+      <div>
+        <label class="block text-xs font-bold text-slate-600 mb-2">Subjects to Enroll</label>
+        <div id="approve-subject-checkboxes"
+             class="space-y-2 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200"></div>
+        <div class="flex items-center justify-between mt-2">
+          <button type="button" id="approve-select-all-btn" class="text-[11px] text-indigo-600 hover:underline font-bold">Select all</button>
+          <button type="button" id="approve-clear-all-btn" class="text-[11px] text-slate-500 hover:underline font-bold">Clear all</button>
+        </div>
+      </div>
+
+      <div id="approve-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
+
+      <div class="flex gap-2 pt-2">
+        <button id="approve-cancel-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
+        <button id="confirm-approve-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-emerald-600/20 transition-all">Approve & Enroll</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== PENDING REGISTRATION MODAL ==================== -->
   <div id="pending-modal" role="dialog" aria-modal="true" aria-labelledby="pending-modal-title"
        class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -941,6 +977,7 @@
   <script src="js/grading-sheet.js"></script>
   <script src="js/import.js"></script>
   <script src="js/analytics.js"></script>
+  <script src="js/registrations.js"></script>
   <script src="js/backup.js"></script>
   <script src="js/main.js"></script>
 </body>

@@ -90,7 +90,6 @@
             App.showPendingModal({
               message: res.message,
               submittedName: res.submittedName,
-              submittedSection: res.submittedSection,
               studentNumber: inputVal
             });
           }
@@ -216,17 +215,13 @@
   App.submitRegistration = async function () {
     const id = document.getElementById('reg-student-id').value.trim();
     const name = document.getElementById('reg-student-name').value.trim();
-    const sec = document.getElementById('reg-student-section').value;
-    const subjects = Array.prototype.slice.call(
-      document.querySelectorAll('#reg-subject-checkboxes input:checked')
-    ).map(cb => cb.value);
 
     const errorBox = document.getElementById('reg-error');
     errorBox.classList.add('hidden');
     errorBox.textContent = "";
 
-    if (!id || !name || !sec || subjects.length === 0) {
-      errorBox.textContent = "Please fill in all fields and select a section and at least one subject.";
+    if (!id || !name) {
+      errorBox.textContent = "Please enter your name and student number.";
       errorBox.classList.remove('hidden');
       return;
     }
@@ -239,18 +234,16 @@
     try {
       const res = await App.apiCall({
         action: "registerStudent",
-        studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects }
+        studentData: { studentNumber: id, name: name }
       }, { retries: 1 });
 
       if (res.success && res.pending) {
         App.closeRegisterModal();
         App.showToast("Registration submitted for approval.");
-        // Show the pending modal so the student sees the full message
         if (App.showPendingModal) {
           App.showPendingModal({
-            message: "Your registration has been submitted. Your teacher will review it before you can log in.",
+            message: "Your registration has been submitted. Your teacher will review it and assign your section and subjects before you can log in.",
             submittedName: name,
-            submittedSection: sec,
             studentNumber: id
           });
         }
@@ -266,7 +259,6 @@
     btn.innerText = original;
     btn.disabled = false;
   };
-
   // ---------- Pending modal buttons ----------
   App.checkPendingStatus = async function () {
     if (!lastLoginInput) {
