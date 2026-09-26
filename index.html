@@ -195,24 +195,29 @@
           </div>
         </div>
 
-        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center">
-          <div class="flex flex-col sm:flex-row gap-3 flex-1 min-w-[280px]">
-            <label for="admin-search" class="sr-only">Search students</label>
-            <input type="text" id="admin-search" placeholder="Search by student name or number..."
-                   class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium flex-1 min-w-[180px] outline-none focus:border-indigo-600">
+        <!-- ===== FILTER BAR ===== -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+          <!-- Row 1: Search -->
+          <label for="admin-search" class="sr-only">Search students</label>
+          <input type="text" id="admin-search" placeholder="Search by student name or number..."
+                 class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium w-full outline-none focus:border-indigo-600">
+
+          <!-- Row 2: Subject + Section -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label for="admin-subject-filter" class="sr-only">Filter by subject</label>
-            <select id="admin-subject-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600">
+            <select id="admin-subject-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600 w-full">
               <option value="All">All Subjects</option>
             </select>
             <label for="section-filter" class="sr-only">Filter by section</label>
-            <select id="section-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600">
+            <select id="section-filter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600 w-full">
               <option value="All">All Sections</option>
             </select>
           </div>
 
-          <div class="flex items-center gap-3 shrink-0">
+          <!-- Row 3: Quarter pills -->
+          <div class="flex items-center gap-3">
             <span class="text-[11px] font-black text-slate-400 uppercase tracking-wider shrink-0">Quarter</span>
-            <div class="grid grid-cols-5 gap-1.5">
+            <div class="grid grid-cols-5 gap-1.5 flex-1">
               <button data-quarter="All" id="q-pill-All" class="quarter-pill px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all">All</button>
               <button data-quarter="1st" id="q-pill-1st" class="quarter-pill px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm transition-all hover:bg-slate-50">1st</button>
               <button data-quarter="2nd" id="q-pill-2nd" class="quarter-pill px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 shadow-sm transition-all hover:bg-slate-50">2nd</button>
@@ -541,9 +546,7 @@
             <div>
               <h3 class="text-base font-black text-slate-900 mb-1">Recompute All Grades</h3>
               <p class="text-xs text-slate-500 font-medium mb-4">
-                Scans every subject sheet and repairs anomalies:
-                clamps quarters below 60, recomputes finals and remarks,
-                and fixes stale breakdown totals. Safe to run anytime.
+                Scans every subject sheet and re-transmutes each grade using the current table. Safe to run anytime.
               </p>
             </div>
             <button id="recompute-btn"
