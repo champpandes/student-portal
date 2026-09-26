@@ -65,13 +65,14 @@
       if (loginRole === 'teacher') {
         const res = await App.apiCall({
           action: "adminLogin", pin: inputVal, deviceId: App.getDeviceId()
-        });
+        }, { timeout: 45000 });
         if (!res.success) throw new Error(res.message || "Invalid Teacher PIN.");
 
         state.adminPin = inputVal;
         state.sessionToken = App.newSessionToken();
-        state.allAdminGradesCache = {};   // wipe any stale/empty cache from before login
+        state.allAdminGradesCache = {};
         App.saveSession({ role: 'teacher', pin: inputVal });
+        console.log('[Session] Saved teacher session');
 
         App.showToast("Welcome back!");
         await App.loadAnnouncement();
@@ -82,7 +83,7 @@
       } else {
         const res = await App.apiCall({
           action: "getStudent", studentNumber: inputVal
-        }, { retries: 1 });
+        }, { retries: 1, timeout: 45000 });
 
         if (res && res.pending) {
           if (App.showPendingModal) {
@@ -108,6 +109,7 @@
         state.currentStudentData = res;
         state.sessionToken = App.newSessionToken();
         App.saveSession({ role: 'student', studentNumber: res.studentNumber });
+        console.log('[Session] Saved student session');
 
         setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
 
@@ -125,6 +127,7 @@
 
   App.handleLogout = function () {
     App.clearSession();
+    console.log('[Session] Cleared by logout');
     state.adminPin = "";
     state.currentStudentData = null;
     state.currentAdminData = [];
@@ -140,22 +143,44 @@
 
   App.restoreSession = async function () {
     const session = App.loadSession();
-    if (!session) return false;
+    if (!session) {
+      console.log('[Session] No saved session');
+      return false;
+    }
+
+    console.log('[Session] Found saved session:', session.role);
 
     if (session.role === 'teacher' && session.pin) {
+      // Verify the PIN is still valid. Use a long timeout because
+      // Apps Script can be cold on the first request of the day.
       const res = await App.apiCall({
         action: "adminLogin",
         pin: session.pin,
         deviceId: App.getDeviceId()
-      });
+      }, { timeout: 45000 });
+
       if (!res.success) {
-        App.clearSession();
+        // Only clear the session if the server EXPLICITLY rejected
+        // the PIN. Network errors and timeouts keep the session
+        // alive so the next reload can retry.
+        const msg = String(res.message || '').toLowerCase();
+        const isDefiniteReject = msg.indexOf('invalid') !== -1 ||
+                                 msg.indexOf('unauthorized') !== -1 ||
+                                 msg.indexOf('too many') !== -1;
+        if (isDefiniteReject) {
+          console.log('[Session] PIN rejected by server, clearing session');
+          App.clearSession();
+        } else {
+          console.log('[Session] Restore failed (transient), keeping session:', res.message);
+        }
         return false;
       }
 
       state.adminPin = session.pin;
       state.sessionToken = App.newSessionToken();
-      state.allAdminGradesCache = {};   // wipe any stale/empty cache from before login
+      state.allAdminGradesCache = {};
+
+      console.log('[Session] Restored teacher session');
 
       try {
         await App.loadAnnouncement();
@@ -165,7 +190,7 @@
         if (App.loadPendingRegistrations) App.loadPendingRegistrations();
         return true;
       } catch (e) {
-        console.warn("Session restore failed", e);
+        console.warn('[Session] Post-restore load failed', e);
         return false;
       }
     }
@@ -174,9 +199,10 @@
       const res = await App.apiCall({
         action: "getStudent",
         studentNumber: session.studentNumber
-      }, { retries: 1 });
+      }, { retries: 1, timeout: 45000 });
 
       if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
+        console.log('[Session] Student no longer enrolled, clearing');
         App.clearSession();
         return false;
       }
@@ -188,12 +214,14 @@
 
       App.initializeStudentDropdowns(Object.keys(res.subjects));
 
+      console.log('[Session] Restored student session');
+
       try {
         await App.loadAnnouncement();
         App.showScreen('student');
         return true;
       } catch (e) {
-        console.warn("Session restore failed", e);
+        console.warn('[Session] Post-restore load failed', e);
         return false;
       }
     }
@@ -258,7 +286,6 @@
     btn.disabled = false;
   };
 
-  // ---------- Pending modal buttons ----------
   App.checkPendingStatus = async function () {
     if (!lastLoginInput) {
       App.closePendingModal();
