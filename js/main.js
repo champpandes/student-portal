@@ -3,9 +3,6 @@
 
   const state = App.state;
 
-  // ============================================================
-  // SERVICE WORKER REGISTRATION (PWA)
-  // ============================================================
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
@@ -35,9 +32,6 @@
     });
   }
 
-  // ============================================================
-  // LOGIN EVENTS
-  // ============================================================
   function wireLoginEvents() {
     document.getElementById('role-tab-student').addEventListener('click', () => App.setLoginRole('student'));
     document.getElementById('role-tab-teacher').addEventListener('click', () => App.setLoginRole('teacher'));
@@ -51,12 +45,8 @@
     document.getElementById('submit-reg-btn').addEventListener('click', App.submitRegistration);
     document.getElementById('pending-close-btn').addEventListener('click', App.closePendingModal);
     document.getElementById('pending-check-btn').addEventListener('click', App.checkPendingStatus);
-    App.setLoginRole('student');
   }
 
-  // ============================================================
-  // ADMIN EVENTS
-  // ============================================================
   function wireAdminEvents() {
     document.querySelectorAll('.logout-btn').forEach(btn =>
       btn.addEventListener('click', App.handleLogout));
@@ -121,7 +111,6 @@
     document.getElementById('add-student-cancel-btn').addEventListener('click', App.closeAddStudentModal);
     document.getElementById('save-new-student-btn').addEventListener('click', App.saveNewStudent);
 
-    // Registrations
     document.getElementById('refresh-registrations-btn').addEventListener('click', () => {
       App.loadPendingRegistrations();
       App.showToast("Refreshed.");
@@ -133,7 +122,6 @@
       else if (rejectBtn) App.rejectRegistration(rejectBtn.dataset.student);
     });
 
-    // Approve modal
     document.getElementById('approve-cancel-btn').addEventListener('click', () => {
       App.closeModal(document.getElementById('approve-modal'));
     });
@@ -201,9 +189,6 @@
     document.getElementById('gs-print-btn').addEventListener('click', App.printGradingSheets);
   }
 
-  // ============================================================
-  // STUDENT EVENTS
-  // ============================================================
   function wireStudentEvents() {
     document.getElementById('student-subject-selector').addEventListener('change',
       e => App.changeStudentSubject(e.target.value));
@@ -233,27 +218,48 @@
     });
   }
 
-  // ============================================================
-  // BOOTSTRAP
-  // ============================================================
+  function hideBootScreen() {
+    const boot = document.getElementById('boot-screen');
+    if (boot) boot.classList.add('hidden-screen');
+  }
+
   async function boot() {
     App.initScreens();
     state.sessionToken = App.newSessionToken();
 
     registerServiceWorker();
-
     wireLoginEvents();
     wireAdminEvents();
     wireStudentEvents();
 
-    await App.fetchSubjects();
-    await App.fetchAllSectionsForDropdowns();
-    App.loadComments();
+    // 1. Try to restore session FIRST. The boot screen is still covering
+    //    the page during this call, so the user sees a spinner not login.
+    let restored = false;
+    try {
+      restored = await App.restoreSession();
+    } catch (e) {
+      console.warn("Restore session error:", e);
+    }
+
+    if (restored) {
+      // Session restored — hide boot overlay, dashboard is already shown.
+      hideBootScreen();
+      // Kick off background loads that don't block the UI.
+      App.fetchSubjects();
+      App.loadComments();
+    } else {
+      // 2. No session. Now load what the login screen needs.
+      App.setLoginRole('student');
+      hideBootScreen();
+      App.showScreen('login');
+      // Fire these in the background — login screen doesn't need them.
+      App.fetchSubjects();
+      App.fetchAllSectionsForDropdowns();
+      App.loadComments();
+    }
 
     const sidebar = document.getElementById('admin-sidebar');
     if (sidebar) sidebar.classList.remove('collapsed');
-
-    await App.restoreSession();
   }
 
   if (document.readyState === 'loading') {

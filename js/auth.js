@@ -75,10 +75,12 @@
         console.log('[Session] Saved teacher session');
 
         App.showToast("Welcome back!");
-        await App.loadAnnouncement();
-        await App.fetchAllSectionsForDropdowns();
-        await App.loadAdminDashboard();
+
+        // Show dashboard immediately, load data in background
         App.showScreen('admin');
+        App.loadAnnouncement();
+        App.fetchAllSectionsForDropdowns();
+        App.loadAdminDashboard();
         if (App.loadPendingRegistrations) App.loadPendingRegistrations();
       } else {
         const res = await App.apiCall({
@@ -112,11 +114,11 @@
         console.log('[Session] Saved student session');
 
         setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
-
         App.initializeStudentDropdowns(Object.keys(res.subjects));
         App.showToast("Logged in as " + res.name);
-        await App.loadAnnouncement();
+
         App.showScreen('student');
+        App.loadAnnouncement();
       }
     } catch (error) {
       App.showToast(error.message || 'Login failed.', 'error');
@@ -151,8 +153,6 @@
     console.log('[Session] Found saved session:', session.role);
 
     if (session.role === 'teacher' && session.pin) {
-      // Verify the PIN is still valid. Use a long timeout because
-      // Apps Script can be cold on the first request of the day.
       const res = await App.apiCall({
         action: "adminLogin",
         pin: session.pin,
@@ -160,9 +160,6 @@
       }, { timeout: 45000 });
 
       if (!res.success) {
-        // Only clear the session if the server EXPLICITLY rejected
-        // the PIN. Network errors and timeouts keep the session
-        // alive so the next reload can retry.
         const msg = String(res.message || '').toLowerCase();
         const isDefiniteReject = msg.indexOf('invalid') !== -1 ||
                                  msg.indexOf('unauthorized') !== -1 ||
@@ -182,17 +179,14 @@
 
       console.log('[Session] Restored teacher session');
 
-      try {
-        await App.loadAnnouncement();
-        await App.fetchAllSectionsForDropdowns();
-        await App.loadAdminDashboard();
-        App.showScreen('admin');
-        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
-        return true;
-      } catch (e) {
-        console.warn('[Session] Post-restore load failed', e);
-        return false;
-      }
+      // Show dashboard immediately. Data loads in the background.
+      App.showScreen('admin');
+      App.loadAnnouncement();
+      App.fetchAllSectionsForDropdowns();
+      App.loadAdminDashboard();
+      if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+
+      return true;
     }
 
     if (session.role === 'student' && session.studentNumber) {
@@ -211,19 +205,13 @@
       state.sessionToken = App.newSessionToken();
 
       setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
-
       App.initializeStudentDropdowns(Object.keys(res.subjects));
 
       console.log('[Session] Restored student session');
 
-      try {
-        await App.loadAnnouncement();
-        App.showScreen('student');
-        return true;
-      } catch (e) {
-        console.warn('[Session] Post-restore load failed', e);
-        return false;
-      }
+      App.showScreen('student');
+      App.loadAnnouncement();
+      return true;
     }
 
     return false;
