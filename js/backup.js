@@ -78,12 +78,12 @@
         return;
       }
 
-      // Accept EITHER the old format (subjectData) OR the new format (tables)
+      // Accept old format (subjectData) OR new flat format (subjects/students/etc.)
       var isOldFormat = parsed.subjectData && typeof parsed.subjectData === 'object';
-      var isNewFormat = parsed.tables && typeof parsed.tables === 'object';
+      var isNewFormat = parsed.subjects || parsed.students || parsed.grades;
 
       if (!isOldFormat && !isNewFormat) {
-        App.showToast("Invalid backup file: missing data.", "error");
+        App.showToast("Invalid backup file: no recognizable data.", "error");
         return;
       }
 

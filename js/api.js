@@ -452,41 +452,51 @@
     },
     restoreAll: async (p) => {
       const backup = p.backup;
-      if (!backup || !backup.tables) {
-        return { success: false, message: 'Invalid backup file: missing tables.' };
+      if (!backup) {
+        return { success: false, message: 'Invalid backup file.' };
       }
 
-      const t = backup.tables;
+      // Support BOTH formats:
+      //   - Old: { subjectData: {...}, comments: [], announcements: [] }
+      //   - New: { subjects: [...], students: [...], grades: [...], ... }
+      //   - Nested: { tables: { subjects: [...], ... } }
+      const t = backup.tables
+        || (backup.subjectData ? {
+             subjects: backup.subjects || [],
+             students: extractStudentsFromSubjectData(backup.subjectData),
+             enrollments: extractEnrollmentsFromSubjectData(backup.subjectData),
+             grades: extractGradesFromSubjectData(backup.subjectData),
+             comments: backup.comments || [],
+             announcements: backup.announcements || [],
+             pending_registrations: backup.pendingRegistrations || []
+           } : {
+             subjects: backup.subjects || [],
+             students: backup.students || [],
+             enrollments: backup.enrollments || [],
+             grades: backup.grades || [],
+             comments: backup.comments || [],
+             announcements: backup.announcements || [],
+             pending_registrations: backup.pending_registrations || [],
+             settings: backup.settings || []
+           });
 
-      // ---- 1. Wipe everything ----
-      // Order matters less here because there are no FK constraints,
-      // but we still wipe in reverse-dependency order for cleanliness.
-      const tablesToWipe = [
-        'grades', 'enrollments', 'students', 'subjects',
-        'comments', 'announcements', 'pending_registrations', 'settings'
-      ];
-      for (const table of tablesToWipe) {
-        try {
-          await sbDelete(table, 'id=gt.0');
-        } catch (e) {
-          console.warn('Wipe ' + table + ' (id):', e);
-        }
-        // Some tables use a non-id primary key
-        try {
-          await sbDelete(table, 'student_number=not.is.null');
-        } catch (e) { /* only students uses this */ }
-        try {
-          await sbDelete(table, 'subject_name=not.is.null');
-        } catch (e) { /* only subjects uses this */ }
-        try {
-          await sbDelete(table, 'key=not.is.null');
-        } catch (e) { /* only settings uses this */ }
-      }
+      // ---- 1. Wipe existing data ----
+      const wipe = async (table, filter) => {
+        try { await sbDelete(table, filter); } catch (e) { /* ignore */ }
+      };
+      await wipe('grades', 'id=gt.0');
+      await wipe('enrollments', 'id=gt.0');
+      await wipe('students', 'student_number=not.is.null');
+      await wipe('subjects', 'id=gt.0');
+      await wipe('comments', 'id=gt.0');
+      await wipe('announcements', 'id=gt.0');
+      await wipe('pending_registrations', 'id=gt.0');
+      // Do NOT wipe settings — keep the admin PIN hash
 
       // ---- 2. Restore in dependency order ----
       const restoreOrder = [
         'subjects', 'students', 'enrollments', 'grades',
-        'comments', 'announcements', 'pending_registrations', 'settings'
+        'comments', 'announcements', 'pending_registrations'
       ];
 
       let restoredRows = 0;
@@ -495,17 +505,15 @@
         const rows = t[table];
         if (!Array.isArray(rows) || rows.length === 0) continue;
 
-        // Insert in chunks of 100 to avoid hitting request size limits
         for (let i = 0; i < rows.length; i += 100) {
           const chunk = rows.slice(i, i + 100);
           try {
             await sbInsert(table, chunk);
             restoredRows += chunk.length;
           } catch (e) {
-            console.error('Restore chunk failed for ' + table + ':', e);
             return {
               success: false,
-              message: 'Failed to restore ' + table + ' at row ' + i + ': ' + e.message
+              message: 'Restore failed on ' + table + ' at row ' + i + ': ' + e.message
             };
           }
         }
@@ -513,8 +521,7 @@
 
       return {
         success: true,
-        message: 'Restored ' + restoredRows + ' rows across ' +
-                 restoreOrder.filter(x => (t[x] && t[x].length)).length + ' tables.'
+        message: 'Restored ' + restoredRows + ' rows.'
       };
     },
 
@@ -667,5 +674,60 @@
       return { success: false, message: err.message || String(err) };
     }
   };
+
+  // ---- Helpers for old-format backup conversion ----
+  function extractStudentsFromSubjectData(sd) {
+    const map = {};
+    Object.keys(sd).forEach(function (subject) {
+      const rows = sd[subject];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row[0]) continue;
+        const sNo = String(row[0]);
+        if (!map[sNo]) map[sNo] = { student_number: sNo, name: String(row[1] || ''), section: String(row[2] || 'Section A') };
+      }
+    });
+    return Object.keys(map).map(k => map[k]);
+  }
+
+  function extractEnrollmentsFromSubjectData(sd) {
+    const seen = {};
+    const list = [];
+    Object.keys(sd).forEach(function (subject) {
+      const rows = sd[subject];
+      for (let i = 1; i < rows.length; i++) {
+        const sNo = String(rows[i][0] || '');
+        if (!sNo) continue;
+        const key = sNo + '|' + subject;
+        if (!seen[key]) { seen[key] = true; list.push({ student_number: sNo, subject_name: subject }); }
+      }
+    });
+    return list;
+  }
+
+  function extractGradesFromSubjectData(sd) {
+    const list = [];
+    Object.keys(sd).forEach(function (subject) {
+      const rows = sd[subject];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row[0]) continue;
+        let bd = [];
+        try { if (row[9]) bd = JSON.parse(String(row[9])); } catch (e) {}
+        list.push({
+          student_number: String(row[0]),
+          subject_name: subject,
+          q1: row[3] === '' ? '' : String(row[3]),
+          q2: row[4] === '' ? '' : String(row[4]),
+          q3: row[5] === '' ? '' : String(row[5]),
+          q4: row[6] === '' ? '' : String(row[6]),
+          final: row[7] === '' ? '' : String(row[7]),
+          remarks: String(row[8] || ''),
+          breakdowns: bd
+        });
+      }
+    });
+    return list;
+  }
 
 })(window.App);
