@@ -4,7 +4,7 @@ window.App = window.App || {};
 // Backend
 // ============================================================
 // ⚠️ Update this URL whenever you redeploy the Apps Script Web App.
-App.WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwjoi5ItKz5p17T2G-aiA1df52_Vsucl9HuLONQoyXvxOVEUQ2iQYWxzNDrKpl4WwVh/exec";
+App.WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz1k4WmuwEUpTwE_A1UfZ8t4jeJb6J6mXqsKH45TrNojkuHB4F-nc_NwGa9q1UMGdPT/exec";
 
 // ============================================================
 // Credits
