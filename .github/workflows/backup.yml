@@ -1,0 +1,72 @@
+name: Daily Supabase Backup
+
+on:
+  schedule:
+    # Runs every day at 20:00 UTC = 4:00 AM Philippine time
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch all Supabase tables
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          mkdir -p backups
+          STAMP=$(date -u +"%Y-%m-%d_%H-%M")
+          FILE="backups/backup-${STAMP}.json"
+
+          echo '{' > "$FILE"
+          echo '  "version": "2.0",' >> "$FILE"
+          echo "  \"exportedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> "$FILE"
+          echo '  "source": "supabase",' >> "$FILE"
+
+          TABLES="subjects students enrollments grades comments announcements pending_registrations"
+          FIRST=true
+          for TABLE in $TABLES; do
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              echo ',' >> "$FILE"
+            fi
+            echo "  \"$TABLE\": " >> "$FILE"
+            curl -sS -f \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/rest/v1/$TABLE?select=*" >> "$FILE"
+          done
+          echo '}' >> "$FILE"
+
+          echo "Backup written to $FILE"
+          ls -lh "$FILE"
+
+      - name: Delete backups older than 8 days
+        run: |
+          find backups -name 'backup-*.json' -mtime +8 -delete
+          echo "Remaining backups:"
+          ls -lh backups/ || echo "No backups folder yet"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "chore: automated backup $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Report failure
+        if: failure()
+        run: echo "⚠️ Backup failed. Check the logs above."
