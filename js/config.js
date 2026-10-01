@@ -9,7 +9,7 @@ App.WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz1k4WmuwEUpTwE_A1UfZ
 // Supabase direct connection (fast path — no Apps Script)
 // ============================================================
 App.SUPABASE_URL = 'https://stxupxwelxuvlqbvnfq.supabase.co';
-App.SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY_HERE';
+App.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0eHV4cHdlbHh1dnNscXZibmZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4MjkzMjcsImV4cCI6MjEwNjQwNTMyN30.UC28Udo_3Sut8kuqI9cJ3BGod_Agtpmj4XMOiqm0t6c';
 // ============================================================
 // Credits
 // ============================================================
