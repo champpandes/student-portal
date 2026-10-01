@@ -78,8 +78,12 @@
         return;
       }
 
-      if (!parsed.subjectData || typeof parsed.subjectData !== 'object') {
-        App.showToast("Invalid backup file: missing subjectData.", "error");
+      // Accept EITHER the old format (subjectData) OR the new format (tables)
+      var isOldFormat = parsed.subjectData && typeof parsed.subjectData === 'object';
+      var isNewFormat = parsed.tables && typeof parsed.tables === 'object';
+
+      if (!isOldFormat && !isNewFormat) {
+        App.showToast("Invalid backup file: missing data.", "error");
         return;
       }
 
