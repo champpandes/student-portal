@@ -245,7 +245,9 @@
       // Session restored — hide boot overlay, dashboard is already shown.
       hideBootScreen();
       // Kick off background loads that don't block the UI.
-      App.fetchSubjects();
+      App.fetchSubjects().then(function () {
+        if (App.state.adminPin) App.loadAdminDashboard();
+      });
       App.loadComments();
     } else {
       // 2. No session. Now load what the login screen needs.
