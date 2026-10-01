@@ -126,6 +126,19 @@
     const mobileList = document.getElementById('admin-mobile-card-list');
     const sync = document.getElementById('sync-indicator');
 
+    // ═══════════════════════════════════════════════════════════
+    // FIX: If subjects haven't loaded yet, wait for them first.
+    // This prevents the "Please add a subject" race condition
+    // on first page load after a session restore.
+    // ═══════════════════════════════════════════════════════════
+    if (state.availableSubjects.length === 0) {
+      try {
+        await App.fetchSubjects();
+      } catch (e) {
+        console.warn('fetchSubjects failed inside loadAdminDashboard', e);
+      }
+    }
+
     if (state.availableSubjects.length === 0) {
       tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="9">Please add a subject to start managing students.</td></tr>';
       mobileList.innerHTML = '<div class="p-8 text-center text-slate-400 font-bold bg-white rounded-2xl border border-slate-100">Please add a subject to start managing students.</div>';
