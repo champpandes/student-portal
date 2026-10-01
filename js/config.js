@@ -5,7 +5,7 @@ window.App = window.App || {};
 // ============================================================
 // Supabase direct connection (fast path — no Apps Script)
 // ============================================================
-App.SUPABASE_URL = 'https://frxxbthgjawmptjgfco.supabase.co';
+App.SUPABASE_URL = 'https://frrxbthgjawmptlgfjco.supabase.co';
 App.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZycnhidGhnamF3bXB0bGdmamNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4MzcwMTMsImV4cCI6MjEwNjQxMzAxM30.rJHKn8bzx7EUkEwiICV8VWRdZud4q9cZOnU6Oi1MTKw';
 // ============================================================
 // Credits
