@@ -4,7 +4,7 @@
 // Bump CACHE_VERSION whenever you deploy significant updates.
 // ============================================================
 
-const CACHE_VERSION = 'v2.0.4';
+const CACHE_VERSION = 'v2.0.6';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
