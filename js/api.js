@@ -450,6 +450,73 @@
         }
       };
     },
+    restoreAll: async (p) => {
+      const backup = p.backup;
+      if (!backup || !backup.tables) {
+        return { success: false, message: 'Invalid backup file: missing tables.' };
+      }
+
+      const t = backup.tables;
+
+      // ---- 1. Wipe everything ----
+      // Order matters less here because there are no FK constraints,
+      // but we still wipe in reverse-dependency order for cleanliness.
+      const tablesToWipe = [
+        'grades', 'enrollments', 'students', 'subjects',
+        'comments', 'announcements', 'pending_registrations', 'settings'
+      ];
+      for (const table of tablesToWipe) {
+        try {
+          await sbDelete(table, 'id=gt.0');
+        } catch (e) {
+          console.warn('Wipe ' + table + ' (id):', e);
+        }
+        // Some tables use a non-id primary key
+        try {
+          await sbDelete(table, 'student_number=not.is.null');
+        } catch (e) { /* only students uses this */ }
+        try {
+          await sbDelete(table, 'subject_name=not.is.null');
+        } catch (e) { /* only subjects uses this */ }
+        try {
+          await sbDelete(table, 'key=not.is.null');
+        } catch (e) { /* only settings uses this */ }
+      }
+
+      // ---- 2. Restore in dependency order ----
+      const restoreOrder = [
+        'subjects', 'students', 'enrollments', 'grades',
+        'comments', 'announcements', 'pending_registrations', 'settings'
+      ];
+
+      let restoredRows = 0;
+
+      for (const table of restoreOrder) {
+        const rows = t[table];
+        if (!Array.isArray(rows) || rows.length === 0) continue;
+
+        // Insert in chunks of 100 to avoid hitting request size limits
+        for (let i = 0; i < rows.length; i += 100) {
+          const chunk = rows.slice(i, i + 100);
+          try {
+            await sbInsert(table, chunk);
+            restoredRows += chunk.length;
+          } catch (e) {
+            console.error('Restore chunk failed for ' + table + ':', e);
+            return {
+              success: false,
+              message: 'Failed to restore ' + table + ' at row ' + i + ': ' + e.message
+            };
+          }
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Restored ' + restoredRows + ' rows across ' +
+                 restoreOrder.filter(x => (t[x] && t[x].length)).length + ' tables.'
+      };
+    },
 
     recomputeAllGrades: async () => {
       const allGrades = await sbGet('grades', 'select=*');
