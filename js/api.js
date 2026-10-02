@@ -40,6 +40,31 @@
   function enc(v) { return encodeURIComponent(String(v == null ? '' : v)); }
   function stripTags(s) { return String(s == null ? '' : s).replace(/[<>]/g, ''); }
 
+
+  // ------------------------------------------------------------
+  // Admin Edge Function caller
+  // All privileged writes go through this function, which
+  // verifies the PIN server-side using the service_role key.
+  // ------------------------------------------------------------
+  const ADMIN_FN_URL = SB_URL + '/functions/v1/admin';
+
+  async function callAdmin(payload) {
+    const res = await fetch(ADMIN_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SB_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      console.error('[callAdmin]', res.status, text);
+      throw new Error('Admin function ' + res.status + ': ' + text);
+    }
+    try { return JSON.parse(text); } catch (e) { return { success: false, message: 'Bad response from admin function.' }; }
+  }
+
   const TRANSMUTATION = [
     [98.40, 99], [96.80, 98], [95.20, 97], [93.60, 96], [92.00, 95],
     [90.40, 94], [88.80, 93], [87.20, 92], [85.60, 91], [84.00, 90],
@@ -117,35 +142,16 @@
       return { success: true, subjects, descriptions, weights };
     },
 
-    manageSubject: async (p) => {
-      const v = validateWeights(p.weights || defaultWeights());
-      if (!v.ok) return { success: false, message: v.message };
-      const w = v.weights;
-
-      if (p.subAction === 'delete') {
-        const t = String(p.subjectName);
-        await sbDelete('subjects', 'subject_name=eq.' + enc(t));
-        await sbDelete('grades', 'subject_name=eq.' + enc(t));
-        await sbDelete('enrollments', 'subject_name=eq.' + enc(t));
-      } else if (p.subAction === 'update' && p.oldName) {
-        await sbUpdate('subjects', 'subject_name=eq.' + enc(p.oldName), {
-          subject_name: p.newName, description: stripTags(p.description || ''),
-          weight_quizzes: w.quizzes, weight_participation: w.participation,
-          weight_attendance: w.attendance, weight_exams: w.exams
-        });
-        if (p.oldName !== p.newName) {
-          await sbUpdate('grades', 'subject_name=eq.' + enc(p.oldName), { subject_name: p.newName });
-          await sbUpdate('enrollments', 'subject_name=eq.' + enc(p.oldName), { subject_name: p.newName });
-        }
-      } else {
-        await sbUpsert('subjects', {
-          subject_name: p.subjectName, description: stripTags(p.description || ''),
-          weight_quizzes: w.quizzes, weight_participation: w.participation,
-          weight_attendance: w.attendance, weight_exams: w.exams
-        }, 'subject_name');
-      }
-      return handlers.getSubjects();
-    },
+    manageSubject: async (p) => callAdmin({
+      action: 'manageSubject',
+      pin: p.pin,
+      subAction: p.subAction,
+      oldName: p.oldName,
+      newName: p.newName,
+      subjectName: p.subjectName,
+      description: p.description,
+      weights: p.weights
+    }),
 
     getSections: async () => {
       const rows = await sbGet('students', 'select=section');
@@ -214,73 +220,61 @@
     },
 
     saveGrades: async (p) => {
-      const sNo = String(p.studentNumber || '');
-      const subj = String(p.subject || '');
-      const grades = p.grades || {};
-      const existing = await sbGet('grades',
-        'select=*&student_number=eq.' + enc(sNo) + '&subject_name=eq.' + enc(subj));
-      const row = Array.isArray(existing) && existing.length ? existing[0] : null;
-      function pick(inp, old) {
-        if (inp !== '' && inp !== undefined && inp !== null) return Number(inp);
-        if (old !== '' && old !== undefined && old !== null && !isNaN(old)) return Number(old);
-        return '';
-      }
-      const q1 = pick(grades.q1, row ? row.q1 : '');
-      const q2 = pick(grades.q2, row ? row.q2 : '');
-      const q3 = pick(grades.q3, row ? row.q3 : '');
-      const q4 = pick(grades.q4, row ? row.q4 : '');
-      const final = calculateFinal([q1, q2, q3, q4]);
-      await sbUpsert('grades', {
-        student_number: sNo, subject_name: subj,
-        q1: String(q1 === '' ? '' : q1), q2: String(q2 === '' ? '' : q2),
-        q3: String(q3 === '' ? '' : q3), q4: String(q4 === '' ? '' : q4),
-        final: String(final === '' ? '' : final),
-        remarks: determineRemarks(final),
-        breakdowns: row ? (row.breakdowns || []) : generateDefaultBreakdowns(q1, q2, q3, q4)
-      }, 'student_number,subject_name');
-      return { success: true };
-    },
-
-    saveBreakdown: async (p) => saveBreakdownImpl(p, false),
-    bulkSaveBreakdown: async (p) => saveBreakdownImpl(p, true),
-
-    addStudent: async (p) => addStudentImpl(p, false),
-    bulkAddStudents: async (p) => addStudentImpl(p, true),
-
-    updateStudentInfo: async (p) => {
-      const oldId = String(p.oldStudentNumber || '');
-      const oldSubj = String(p.oldSubject || '');
-      const nData = p.newData || {};
-      const newId = String(nData.studentNumber || oldId);
-      const newName = stripTags(nData.name || '');
-      const newSection = stripTags(nData.section || '');
-      const newSubj = String(nData.subject || oldSubj);
-      await sbUpdate('students', 'student_number=eq.' + enc(oldId), {
-        student_number: newId, name: newName, section: newSection
+      return callAdmin({
+        action: 'saveGrades',
+        pin: p.pin,
+        studentNumber: p.studentNumber,
+        subject: p.subject,
+        grades: p.grades
       });
-      if (oldId !== newId) {
-        await sbUpdate('grades', 'student_number=eq.' + enc(oldId), { student_number: newId });
-        await sbUpdate('enrollments', 'student_number=eq.' + enc(oldId), { student_number: newId });
-      }
-      if (oldSubj !== newSubj) {
-        await sbUpdate('grades',
-          'student_number=eq.' + enc(newId) + '&subject_name=eq.' + enc(oldSubj),
-          { subject_name: newSubj });
-        await sbUpdate('enrollments',
-          'student_number=eq.' + enc(newId) + '&subject_name=eq.' + enc(oldSubj),
-          { subject_name: newSubj });
-      }
-      return { success: true };
     },
+
+    saveBreakdown: async (p) => callAdmin({
+      action: 'saveBreakdown',
+      pin: p.pin,
+      studentNumber: p.studentNumber,
+      subject: p.subject,
+      quarter: p.quarter,
+      breakdown: p.breakdown,
+      weights: p.weights
+    }),
+
+    bulkSaveBreakdown: async (p) => callAdmin({
+      action: 'bulkSaveBreakdown',
+      pin: p.pin,
+      subject: p.subject,
+      quarter: p.quarter,
+      weights: p.weights,
+      items: p.items
+    }),
+
+    addStudent: async (p) => callAdmin({
+      action: 'addStudent',
+      pin: p.pin,
+      studentData: p.studentData
+    }),
+
+    bulkAddStudents: async (p) => callAdmin({
+      action: 'bulkAddStudents',
+      pin: p.pin,
+      studentsArray: p.studentsArray
+    }),
+
+    updateStudentInfo: async (p) => callAdmin({
+      action: 'updateStudentInfo',
+      pin: p.pin,
+      oldStudentNumber: p.oldStudentNumber,
+      oldSubject: p.oldSubject,
+      newData: p.newData
+    }),
 
     deleteStudent: async (p) => {
-      const sNo = String(p.studentNumber || '');
-      await sbDelete('grades', 'student_number=eq.' + enc(sNo));
-      await sbDelete('enrollments', 'student_number=eq.' + enc(sNo));
-      await sbDelete('students', 'student_number=eq.' + enc(sNo));
-      return { success: true };
+      return callAdmin({
+        action: 'deleteStudent',
+        pin: p.pin,
+        studentNumber: p.studentNumber
+      });
     },
-
     getComments: async () => {
       const rows = await sbGet('comments', 'select=*&order=id.asc');
       return {
@@ -293,25 +287,19 @@
     },
 
     postComment: async (p) => {
-      const sNo = String(p.studentNumber || 'UNKNOWN');
-      const text = stripTags(String(p.commentText || '').trim());
-      if (!text) return { success: true };
-      let name = 'Teacher Admin';
-      if (sNo !== 'TEACHER_ADMIN') {
-        name = 'Student';
-        const rows = await sbGet('students', 'select=name&student_number=eq.' + enc(sNo));
-        if (Array.isArray(rows) && rows.length && rows[0].name) name = rows[0].name;
-      }
-      await sbInsert('comments', {
-        timestamp: new Date().toLocaleString(), student_number: sNo,
-        student_name: stripTags(name), comment_text: text
+      return callAdmin({
+        action: 'postComment',
+        pin: p.pin,
+        studentNumber: p.studentNumber,
+        commentText: p.commentText
       });
-      return { success: true };
     },
 
-    clearComments: async () => {
-      await sbDelete('comments', 'id=gt.0');
-      return { success: true };
+    clearComments: async (p) => {
+      return callAdmin({
+        action: 'clearComments',
+        pin: p.pin
+      });
     },
 
     getAnnouncement: async () => {
@@ -326,14 +314,11 @@
       return { success: true, message: '' };
     },
 
-    saveAnnouncement: async (p) => {
-      const msg = stripTags(String(p.message || '').trim());
-      if (!msg) return { success: false, message: 'Announcement cannot be empty.' };
-      await sbUpdate('announcements', 'is_active=eq.true', { is_active: false });
-      const ts = new Date().toLocaleString();
-      await sbInsert('announcements', { timestamp: ts, message: msg, posted_by: 'TEACHER_ADMIN', is_active: true });
-      return { success: true, timestamp: ts, message: msg };
-    },
+    saveAnnouncement: async (p) => callAdmin({
+      action: 'saveAnnouncement',
+      pin: p.pin,
+      message: p.message
+    }),
 
     getAnnouncementHistory: async () => {
       const rows = await sbGet('announcements', 'select=*&order=id.desc');
@@ -346,12 +331,11 @@
       };
     },
 
-    deleteAnnouncement: async (p) => {
-      const id = Number(p.rowIndex);
-      if (!id) return { success: false, message: 'Invalid id.' };
-      await sbDelete('announcements', 'id=eq.' + id);
-      return { success: true };
-    },
+    deleteAnnouncement: async (p) => callAdmin({
+      action: 'deleteAnnouncement',
+      pin: p.pin,
+      rowIndex: p.rowIndex
+    }),
 
     registerStudent: async (p) => {
       const sData = p.studentData || {};
@@ -389,50 +373,19 @@
       return { success: true, pending, history };
     },
 
-    approveRegistration: async (p) => {
-      const sNo = String(p.studentNumber || '');
-      const section = stripTags(String(p.section || '').trim());
-      const subjects = p.subjects || [];
-      if (!section) return { success: false, message: 'Section is required.' };
-      if (!subjects || subjects.length === 0) return { success: false, message: 'Select at least one subject.' };
-      const pRows = await sbGet('pending_registrations',
-        'select=*&student_number=eq.' + enc(sNo) + '&status=eq.pending');
-      if (!Array.isArray(pRows) || pRows.length === 0) {
-        return { success: false, message: 'Pending registration not found.' };
-      }
-      const pr = pRows[0];
-      await sbUpsert('students', { student_number: sNo, name: pr.name, section }, 'student_number');
-      for (const sub of subjects) {
-        const subName = String(sub);
-        const ex = await sbGet('enrollments',
-          'select=id&student_number=eq.' + enc(sNo) + '&subject_name=eq.' + enc(subName));
-        if (!Array.isArray(ex) || ex.length === 0) {
-          await sbInsert('enrollments', { student_number: sNo, subject_name: subName });
-        }
-        await sbUpsert('grades', {
-          student_number: sNo, subject_name: subName,
-          q1: '', q2: '', q3: '', q4: '', final: '', remarks: '', breakdowns: []
-        }, 'student_number,subject_name');
-      }
-      await sbUpdate('pending_registrations', 'id=eq.' + pr.id, {
-        section, enrolled_subjects: subjects,
-        status: 'approved', reviewed_at: new Date().toLocaleString()
-      });
-      return { success: true, studentNumber: sNo, message: pr.name + ' approved and enrolled.' };
-    },
+    approveRegistration: async (p) => callAdmin({
+      action: 'approveRegistration',
+      pin: p.pin,
+      studentNumber: p.studentNumber,
+      section: p.section,
+      subjects: p.subjects
+    }),
 
-    rejectRegistration: async (p) => {
-      const sNo = String(p.studentNumber || '');
-      const rows = await sbGet('pending_registrations',
-        'select=id&student_number=eq.' + enc(sNo) + '&status=eq.pending');
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return { success: false, message: 'Pending registration not found.' };
-      }
-      await sbUpdate('pending_registrations', 'id=eq.' + rows[0].id, {
-        status: 'rejected', reviewed_at: new Date().toLocaleString()
-      });
-      return { success: true };
-    },
+    rejectRegistration: async (p) => callAdmin({
+      action: 'rejectRegistration',
+      pin: p.pin,
+      studentNumber: p.studentNumber
+    }),
 
     backupAll: async () => {
       const [subjects, students, enrollments, grades, comments, announcements, pending] = await Promise.all([
@@ -525,138 +478,15 @@
       };
     },
 
-    recomputeAllGrades: async () => {
-      const allGrades = await sbGet('grades', 'select=*');
-      if (!Array.isArray(allGrades)) return { success: true, totalFixed: 0, report: [] };
-      let totalFixed = 0;
-      const report = [];
-      const bySubject = {};
-      allGrades.forEach(g => {
-        if (!bySubject[g.subject_name]) bySubject[g.subject_name] = [];
-        bySubject[g.subject_name].push(g);
-      });
-      for (const subjName of Object.keys(bySubject)) {
-        let fixed = 0;
-        for (const row of bySubject[subjName]) {
-          const newFinal = calculateFinal([row.q1, row.q2, row.q3, row.q4]);
-          const newRemarks = determineRemarks(newFinal);
-          if (String(row.final) !== String(newFinal) || row.remarks !== newRemarks) {
-            await sbUpdate('grades', 'id=eq.' + row.id, {
-              final: String(newFinal === '' ? '' : newFinal), remarks: newRemarks
-            });
-            fixed++;
-          }
-        }
-        if (fixed > 0) { report.push({ subject: subjName, fixed }); totalFixed += fixed; }
-      }
-      return { success: true, totalFixed, report };
-    }
+    recomputeAllGrades: async (p) => callAdmin({
+      action: 'recomputeAllGrades',
+      pin: p.pin
+    })
   };
 
   // ------------------------------------------------------------
   // Shared implementation helpers
   // ------------------------------------------------------------
-  async function saveBreakdownImpl(p, isBulk) {
-    const v = validateWeights(p.weights || defaultWeights());
-    if (!v.ok) return { success: false, message: v.message };
-    const w = v.weights;
-    const subj = String(p.subject || '');
-    const qNum = String(p.quarter || '').replace(/\D/g, '');
-    const qKey = 'q' + qNum;
-
-    const items = isBulk ? (p.items || []) : [{ studentNumber: p.studentNumber, breakdown: p.breakdown }];
-    if (items.length === 0) return { success: true, newTotal: '', processed: 0 };
-
-    const rows = await sbGet('grades', 'select=*&subject_name=eq.' + enc(subj));
-    const byStudent = {};
-    (Array.isArray(rows) ? rows : []).forEach(r => { byStudent[r.student_number] = r; });
-
-    let processed = 0, lastNewTotal = '';
-    for (const item of items) {
-      const sNo = String(item.studentNumber);
-      const row = byStudent[sNo];
-      if (!row) continue;
-      const bd = item.breakdown || {};
-      const has = (bd.quizzes !== '' && bd.quizzes != null && !isNaN(bd.quizzes)) ||
-                  (bd.participation !== '' && bd.participation != null && !isNaN(bd.participation)) ||
-                  (bd.attendance !== '' && bd.attendance != null && !isNaN(bd.attendance)) ||
-                  (bd.exams !== '' && bd.exams != null && !isNaN(bd.exams));
-      let qScore;
-      if (has) {
-        const raw = Number(bd.quizzes || 0) * (w.quizzes / 100) +
-                    Number(bd.participation || 0) * (w.participation / 100) +
-                    Number(bd.attendance || 0) * (w.attendance / 100) +
-                    Number(bd.exams || 0) * (w.exams / 100);
-        qScore = transmuteGrade(raw);
-      } else {
-        const cur = row[qKey];
-        qScore = (cur !== '' && !isNaN(cur)) ? Number(cur) : 0;
-      }
-      lastNewTotal = qScore;
-      let bds = Array.isArray(row.breakdowns) ? row.breakdowns.slice() : [];
-      if (bds.length === 0) bds = generateDefaultBreakdowns(row.q1, row.q2, row.q3, row.q4);
-      let matched = false;
-      for (let j = 0; j < bds.length; j++) {
-        if (String(bds[j].quarter || '').indexOf(qNum) !== -1) {
-          bds[j].quizzes = bd.quizzes; bds[j].participation = bd.participation;
-          bds[j].attendance = bd.attendance; bds[j].exams = bd.exams;
-          bds[j].total = qScore; matched = true; break;
-        }
-      }
-      if (!matched) {
-        bds.push({ quarter: qNum + 'st', quizzes: bd.quizzes,
-          participation: bd.participation, attendance: bd.attendance,
-          exams: bd.exams, total: qScore });
-      }
-      const updated = { q1: row.q1, q2: row.q2, q3: row.q3, q4: row.q4 };
-      updated[qKey] = qScore;
-      const final = calculateFinal([
-        updated.q1 === '' ? null : Number(updated.q1),
-        updated.q2 === '' ? null : Number(updated.q2),
-        updated.q3 === '' ? null : Number(updated.q3),
-        updated.q4 === '' ? null : Number(updated.q4)
-      ]);
-      await sbUpdate('grades', 'student_number=eq.' + enc(sNo) + '&subject_name=eq.' + enc(subj), {
-        q1: String(updated.q1 === '' ? '' : updated.q1),
-        q2: String(updated.q2 === '' ? '' : updated.q2),
-        q3: String(updated.q3 === '' ? '' : updated.q3),
-        q4: String(updated.q4 === '' ? '' : updated.q4),
-        final: String(final === '' ? '' : final),
-        remarks: determineRemarks(final), breakdowns: bds
-      });
-      processed++;
-    }
-    return { success: true, newTotal: lastNewTotal, processed };
-  }
-
-  async function addStudentImpl(p, isBulk) {
-    const list = isBulk ? (p.studentsArray || []) : [p.studentData];
-    let processed = 0;
-    for (const sData of list) {
-      if (!sData) continue;
-      const sNo = String(sData.studentNumber || '').trim();
-      const name = stripTags(String(sData.name || '').trim());
-      const section = stripTags(String(sData.section || 'Section A'));
-      const subjects = sData.enrolledSubjects || [];
-      if (!sNo || !name) continue;
-      await sbUpsert('students', { student_number: sNo, name, section }, 'student_number');
-      for (const sub of subjects) {
-        const subName = String(sub);
-        const ex = await sbGet('enrollments',
-          'select=id&student_number=eq.' + enc(sNo) + '&subject_name=eq.' + enc(subName));
-        if (!Array.isArray(ex) || ex.length === 0) {
-          await sbInsert('enrollments', { student_number: sNo, subject_name: subName });
-        }
-        await sbUpsert('grades', {
-          student_number: sNo, subject_name: subName,
-          q1: '', q2: '', q3: '', q4: '', final: '', remarks: '', breakdowns: []
-        }, 'student_number,subject_name');
-      }
-      processed++;
-    }
-    return { success: true, processed };
-  }
-
   // ------------------------------------------------------------
   // Public apiCall — same signature as before
   // ------------------------------------------------------------
