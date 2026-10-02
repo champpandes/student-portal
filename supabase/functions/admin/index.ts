@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
       case "approveRegistration":result = await approveRegistration(sb, body); break;
       case "rejectRegistration": result = await rejectRegistration(sb, body); break;
       case "recomputeAllGrades": result = await recomputeAllGrades(sb); break;
+      case "restoreAll":         result = await restoreAll(sb, body); break;
       case "postComment":        result = await postComment(sb, body); break;
       default:
         return json({ success: false, message: "Unknown action: " + action }, 200);
@@ -145,6 +146,7 @@ function json(data: any, status: number) {
 // ============================================================
 // Handlers
 // ============================================================
+
 async function adminLogin(sb: any, p: any) {
   const input = String(p.pin || "");
   if (!input) return { success: false, message: "Enter your PIN." };
@@ -406,7 +408,6 @@ async function manageSubject(sb: any, p: any) {
     if (error) throw error;
   }
 
-  // Return updated subject list
   const rows = await sb.from("subjects").select("*").order("subject_name");
   const subjects: string[] = [], descriptions: Record<string, string> = {}, weights: Record<string, any> = {};
   (rows.data || []).forEach((r: any) => {
@@ -503,6 +504,140 @@ async function recomputeAllGrades(sb: any) {
     if (fixed > 0) { report.push({ subject: subjName, fixed }); totalFixed += fixed; }
   }
   return { success: true, totalFixed, report };
+}
+
+// ============================================================
+// restoreAll — moved into the Edge Function so RLS doesn't block it
+// ============================================================
+
+function extractStudentsFromSubjectData(sd: any) {
+  const map: Record<string, any> = {};
+  Object.keys(sd).forEach((subject) => {
+    const rows = sd[subject];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row[0]) continue;
+      const sNo = String(row[0]);
+      if (!map[sNo]) map[sNo] = { student_number: sNo, name: String(row[1] || ""), section: String(row[2] || "Section A") };
+    }
+  });
+  return Object.keys(map).map(k => map[k]);
+}
+
+function extractEnrollmentsFromSubjectData(sd: any) {
+  const seen: Record<string, boolean> = {};
+  const list: any[] = [];
+  Object.keys(sd).forEach((subject) => {
+    const rows = sd[subject];
+    for (let i = 1; i < rows.length; i++) {
+      const sNo = String(rows[i][0] || "");
+      if (!sNo) continue;
+      const key = sNo + "|" + subject;
+      if (!seen[key]) { seen[key] = true; list.push({ student_number: sNo, subject_name: subject }); }
+    }
+  });
+  return list;
+}
+
+function extractGradesFromSubjectData(sd: any) {
+  const list: any[] = [];
+  Object.keys(sd).forEach((subject) => {
+    const rows = sd[subject];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row[0]) continue;
+      let bd: any[] = [];
+      try { if (row[9]) bd = JSON.parse(String(row[9])); } catch (e) { /* ignore */ }
+      list.push({
+        student_number: String(row[0]),
+        subject_name: subject,
+        q1: row[3] === "" ? "" : String(row[3]),
+        q2: row[4] === "" ? "" : String(row[4]),
+        q3: row[5] === "" ? "" : String(row[5]),
+        q4: row[6] === "" ? "" : String(row[6]),
+        final: row[7] === "" ? "" : String(row[7]),
+        remarks: String(row[8] || ""),
+        breakdowns: bd
+      });
+    }
+  });
+  return list;
+}
+
+async function restoreAll(sb: any, p: any) {
+  const backup = p.backup;
+  if (!backup) {
+    return { success: false, message: "Invalid backup file." };
+  }
+
+  const t = backup.tables
+    || (backup.subjectData ? {
+         subjects: backup.subjects || [],
+         students: extractStudentsFromSubjectData(backup.subjectData),
+         enrollments: extractEnrollmentsFromSubjectData(backup.subjectData),
+         grades: extractGradesFromSubjectData(backup.subjectData),
+         comments: backup.comments || [],
+         announcements: backup.announcements || [],
+         pending_registrations: backup.pendingRegistrations || []
+       } : {
+         subjects: backup.subjects || [],
+         students: backup.students || [],
+         enrollments: backup.enrollments || [],
+         grades: backup.grades || [],
+         comments: backup.comments || [],
+         announcements: backup.announcements || [],
+         pending_registrations: backup.pending_registrations || [],
+         settings: backup.settings || []
+       });
+
+  // ---- 1. Wipe existing data ----
+  const wipe = async (table: string, filterCol: string) => {
+    try {
+      const { error } = await sb.from(table).delete().not(filterCol, "is", null);
+      if (error) console.warn("[restoreAll] wipe " + table + ":", error.message);
+    } catch (e) {
+      console.warn("[restoreAll] wipe " + table + " threw:", e);
+    }
+  };
+
+  await wipe("grades", "id");
+  await wipe("enrollments", "id");
+  await wipe("students", "student_number");
+  await wipe("subjects", "id");
+  await wipe("comments", "id");
+  await wipe("announcements", "id");
+  await wipe("pending_registrations", "id");
+  // NOTE: settings is deliberately NOT wiped — keeps admin PIN hash
+
+  // ---- 2. Restore in dependency order ----
+  const restoreOrder = [
+    "subjects", "students", "enrollments", "grades",
+    "comments", "announcements", "pending_registrations"
+  ];
+
+  let restoredRows = 0;
+
+  for (const table of restoreOrder) {
+    const rows = t[table];
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100);
+      const { error } = await sb.from(table).insert(chunk);
+      if (error) {
+        return {
+          success: false,
+          message: "Restore failed on " + table + " at row " + i + ": " + error.message
+        };
+      }
+      restoredRows += chunk.length;
+    }
+  }
+
+  return {
+    success: true,
+    message: "Restored " + restoredRows + " rows."
+  };
 }
 
 async function postComment(sb: any, p: any) {
