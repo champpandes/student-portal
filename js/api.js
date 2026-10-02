@@ -116,17 +116,10 @@
   // Action handlers
   // ------------------------------------------------------------
   const handlers = {
-    adminLogin: async (p) => {
-      const input = String(p.pin || '');
-      if (!input) return { success: false, message: 'Enter your PIN.' };
-      const rows = await sbGet('settings', 'select=value&key=eq.admin_pin_hash&limit=1');
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return { success: false, message: 'Admin PIN not configured in database.' };
-      }
-      const hash = await sha256(input);
-      if (hash === rows[0].value) return { success: true };
-      return { success: false, message: 'Invalid PIN.' };
-    },
+    adminLogin: async (p) => callAdmin({
+      action: 'adminLogin',
+      pin: p.pin
+    }),
 
     getSubjects: async () => {
       const rows = await sbGet('subjects', 'select=*&order=subject_name.asc');
