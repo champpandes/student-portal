@@ -146,18 +146,60 @@ function json(data: any, status: number) {
 // ============================================================
 // Handlers
 // ============================================================
-
 async function adminLogin(sb: any, p: any) {
   const input = String(p.pin || "");
+  const deviceId = String(p.deviceId || "unknown").slice(0, 64);
   if (!input) return { success: false, message: "Enter your PIN." };
 
+  // Check lockout for this device
+  const lockRows = await sb.from("login_attempts").select("*").eq("device_id", deviceId);
+  const existing = (lockRows.data && lockRows.data.length) ? lockRows.data[0] : null;
+  const now = new Date();
+
+  if (existing && existing.locked_until && new Date(existing.locked_until) > now) {
+    const secsLeft = Math.ceil((new Date(existing.locked_until).getTime() - now.getTime()) / 1000);
+    const minsLeft = Math.ceil(secsLeft / 60);
+    return {
+      success: false,
+      message: `Too many failed attempts. Try again in ${minsLeft} minute${minsLeft === 1 ? "" : "s"}.`
+    };
+  }
+
+  // Verify PIN
   const rows = await sb.from("settings").select("value").eq("key", "admin_pin_hash").limit(1);
   if (!rows.data || rows.data.length === 0) {
     return { success: false, message: "Admin PIN not configured in database." };
   }
+
   const hash = await sha256(input);
-  if (hash === rows.data[0].value) return { success: true };
-  return { success: false, message: "Invalid PIN." };
+  if (hash === rows.data[0].value) {
+    // Success — reset attempt counter
+    await sb.from("login_attempts").upsert(
+      { device_id: deviceId, attempts: 0, locked_until: null, updated_at: now.toISOString() },
+      { onConflict: "device_id" }
+    );
+    return { success: true };
+  }
+
+  // Failed — increment
+  const curAttempts = (existing?.attempts || 0) + 1;
+  let lockedUntil: string | null = null;
+  if (curAttempts >= 5) {
+    lockedUntil = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
+  }
+  await sb.from("login_attempts").upsert(
+    { device_id: deviceId, attempts: curAttempts, locked_until: lockedUntil, updated_at: now.toISOString() },
+    { onConflict: "device_id" }
+  );
+
+  if (lockedUntil) {
+    return { success: false, message: "Too many failed attempts. Locked out for 15 minutes." };
+  }
+  const remaining = 5 - curAttempts;
+  return {
+    success: false,
+    message: `Invalid PIN. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
+  };
 }
 
 async function saveGrades(sb: any, p: any) {

@@ -55,19 +55,6 @@
   App.handleBackupRestoreFile = function (file) {
     if (!file) return;
 
-    const confirmMsg =
-      "⚠️ RESTORE FROM BACKUP\n\n" +
-      "This will COMPLETELY WIPE all current subject sheets, comments, and announcements " +
-      "from your Google Sheet and replace them with the contents of this backup file.\n\n" +
-      "There is no undo. Make sure you've downloaded a fresh backup first.\n\n" +
-      "File: " + file.name + "\n\n" +
-      "Type OK to proceed.";
-
-    if (!confirm(confirmMsg)) {
-      App.showToast("Restore cancelled.");
-      return;
-    }
-
     const reader = new FileReader();
     reader.onload = async (e) => {
       let parsed;
@@ -78,7 +65,6 @@
         return;
       }
 
-      // Accept old format (subjectData) OR new flat format (subjects/students/etc.)
       var isOldFormat = parsed.subjectData && typeof parsed.subjectData === 'object';
       var isNewFormat = parsed.subjects || parsed.students || parsed.grades;
 
@@ -89,6 +75,63 @@
 
       const btn = document.getElementById('backup-restore-btn');
       const original = btn.innerHTML;
+
+      // ---- STEP 1: Save current state as a safety backup ----
+      let safetyFilename = '';
+      try {
+        btn.innerHTML = '⏳ Saving current data…';
+        btn.disabled = true;
+        App.showToast("Saving a backup of your current data first…");
+
+        const currentRes = await App.apiCall({
+          action: "backupAll",
+          pin: state.adminPin
+        }, { retries: 1, timeout: 120000 });
+
+        if (!currentRes.success || !currentRes.backup) {
+          throw new Error(currentRes.message || "Could not save current data.");
+        }
+
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        safetyFilename = 'portal-pre-restore-' + stamp + '.json';
+
+        const blob = new Blob([JSON.stringify(currentRes.backup, null, 2)], {
+          type: 'application/json;charset=utf-8'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = safetyFilename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      } catch (err) {
+        console.error(err);
+        App.showToast("Could not save current data: " + err.message, "error");
+        btn.innerHTML = original;
+        btn.disabled = false;
+        return;
+      }
+
+      // ---- STEP 2: Confirm ----
+      const confirmMsg =
+        "✅ Your current data has been saved as:\n\n" +
+        "   " + safetyFilename + "\n\n" +
+        "Check your Downloads folder for this file — it's your safety net.\n\n" +
+        "Now replace ALL current data with the backup you selected?\n\n" +
+        "Selected file: " + file.name;
+
+      if (!confirm(confirmMsg)) {
+        App.showToast("Restore cancelled. Safety backup is in Downloads.");
+        btn.innerHTML = original;
+        btn.disabled = false;
+        return;
+      }
+
+      // ---- STEP 3: Do the restore ----
       btn.innerHTML = '⏳ Restoring…';
       btn.disabled = true;
 
