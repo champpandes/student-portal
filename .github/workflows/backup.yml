@@ -19,7 +19,7 @@ jobs:
       - name: Fetch all Supabase tables
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           mkdir -p backups
           STAMP=$(date -u +"%Y-%m-%d_%H-%M")
@@ -40,8 +40,8 @@ jobs:
             fi
             echo "  \"$TABLE\": " >> "$FILE"
             curl -sS -f \
-              -H "apikey: $SUPABASE_ANON_KEY" \
-              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              -H "apikey: $SUPABASE_SERVICE_KEY" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
               "$SUPABASE_URL/rest/v1/$TABLE?select=*" >> "$FILE"
           done
           echo '}' >> "$FILE"
