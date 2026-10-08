@@ -5,6 +5,7 @@
 
   let loginRole = 'student';
   let lastLoginInput = '';
+  App.getLoginRole = function () { return loginRole; };
 
   App.setLoginRole = function (role) {
     loginRole = role;

@@ -40,6 +40,28 @@
     document.getElementById('login-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') App.handleLogin();
     });
+
+    // Auto-format student numbers: type 1105075 → get 11-05075
+    const loginInput = document.getElementById('login-input');
+    loginInput.addEventListener('input', () => {
+      // Only format in student mode (skip teacher PIN)
+      if (App.getLoginRole && App.getLoginRole() !== 'student') return;
+
+      const cursorAtEnd = loginInput.selectionStart === loginInput.value.length;
+      let digits = loginInput.value.replace(/\D/g, '');
+
+      // Insert a dash after the first 2 digits (format XX-XXXXX)
+      if (digits.length > 2) {
+        digits = digits.slice(0, 2) + '-' + digits.slice(2);
+      }
+
+      if (digits !== loginInput.value) {
+        loginInput.value = digits;
+        if (cursorAtEnd) {
+          loginInput.setSelectionRange(digits.length, digits.length);
+        }
+      }
+    });
     document.getElementById('open-register-btn').addEventListener('click', App.openRegisterModal);
     document.getElementById('register-cancel-btn').addEventListener('click', App.closeRegisterModal);
     document.getElementById('submit-reg-btn').addEventListener('click', App.submitRegistration);

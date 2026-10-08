@@ -1,0 +1,9 @@
+node_modules/
+package.json
+package-lock.json
+src/
+tailwind.config.js
+code.gs
+app.js
+supabase/.temp/
+supabase/functions/admin/.npmrc
