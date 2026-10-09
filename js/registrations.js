@@ -3,7 +3,6 @@
 
   const state = App.state;
 
-  // Cache of pending items so approve-modal can look them up
   state._pendingCache = [];
 
   App.loadPendingRegistrations = async function () {
@@ -106,9 +105,6 @@
     }
   };
 
-  // ============================================================
-  // APPROVE — opens a modal for the teacher to assign
-  // ============================================================
   App.approveRegistration = function (studentNumber) {
     const item = state._pendingCache.find(p => p.studentNumber === studentNumber);
     if (!item) {
@@ -116,19 +112,16 @@
       return;
     }
 
-    // Fill modal
     document.getElementById('approve-student-name').textContent = item.name;
     document.getElementById('approve-student-number').textContent = 'Student No: ' + item.studentNumber;
     document.getElementById('approve-pending-student-number').value = item.studentNumber;
     document.getElementById('approve-student-section').value = item.section || '';
     document.getElementById('approve-error').classList.add('hidden');
 
-    // Section datalist (existing sections as suggestions)
     const datalist = document.getElementById('approve-section-list');
     const sections = state.sectionsCache || [];
     datalist.innerHTML = sections.map(s => '<option value="' + App.esc(s) + '"></option>').join('');
 
-    // Subject checkboxes (all unchecked by default — teacher picks)
     const cbContainer = document.getElementById('approve-subject-checkboxes');
     if (state.availableSubjects.length === 0) {
       cbContainer.innerHTML = '<span class="text-xs text-rose-500 font-bold">No subjects available. Add a subject first.</span>';
@@ -143,6 +136,7 @@
   };
 
   App.confirmApproval = async function () {
+    const btn = document.getElementById('confirm-approve-btn');
     const studentNumber = document.getElementById('approve-pending-student-number').value;
     const section = document.getElementById('approve-student-section').value.trim();
     const subjects = Array.prototype.slice.call(
@@ -164,41 +158,42 @@
       return;
     }
 
-    const btn = document.getElementById('confirm-approve-btn');
-    const original = btn.innerText;
-    btn.innerText = 'Approving...';
-    btn.disabled = true;
+    await App.withButtonLoading(btn, async () => {
+      try {
+        const res = await App.apiCall({
+          action: "approveRegistration",
+          pin: state.adminPin,
+          studentNumber: studentNumber,
+          section: section,
+          subjects: subjects
+        }, { retries: 1 });
 
-    try {
-      const res = await App.apiCall({
-        action: "approveRegistration",
-        pin: state.adminPin,
-        studentNumber: studentNumber,
-        section: section,
-        subjects: subjects
-      }, { retries: 1 });
-
-      if (res.success) {
-        App.closeModal(document.getElementById('approve-modal'));
-        App.showToast(res.message || "Registration approved.");
-        App.invalidateAllCache();
-        await App.loadPendingRegistrations();
-        App.loadAdminDashboard();
-      } else {
-        errorBox.textContent = res.message || 'Approval failed.';
+        if (res.success) {
+          App.closeModal(document.getElementById('approve-modal'));
+          App.showToast(res.message || "Registration approved.");
+          App.invalidateAllCache();
+          await App.loadPendingRegistrations();
+          App.loadAdminDashboard();
+        } else {
+          errorBox.textContent = res.message || 'Approval failed.';
+          errorBox.classList.remove('hidden');
+        }
+      } catch (e) {
+        errorBox.textContent = e.message || 'Approval failed.';
         errorBox.classList.remove('hidden');
       }
-    } catch (e) {
-      errorBox.textContent = e.message || 'Approval failed.';
-      errorBox.classList.remove('hidden');
-    }
-
-    btn.innerText = original;
-    btn.disabled = false;
+    }, { text: 'Approving...' });
   };
 
   App.rejectRegistration = async function (studentNumber) {
     if (!confirm("Reject this registration? The student will not be enrolled.")) return;
+
+    // Lock all reject buttons on screen
+    const allRejectBtns = document.querySelectorAll('button[data-action="reject"]');
+    allRejectBtns.forEach(b => {
+      b.disabled = true;
+      b.classList.add('opacity-60', 'cursor-wait');
+    });
 
     try {
       const res = await App.apiCall({
@@ -215,6 +210,15 @@
       }
     } catch (e) {
       App.showToast(e.message || "Rejection failed.", "error");
+    } finally {
+      // After reloadPendingRegistrations re-renders, buttons are new anyway.
+      // This is defensive in case of error.
+      allRejectBtns.forEach(b => {
+        if (document.contains(b)) {
+          b.disabled = false;
+          b.classList.remove('opacity-60', 'cursor-wait');
+        }
+      });
     }
   };
 
@@ -226,7 +230,6 @@
     document.querySelectorAll('#approve-subject-checkboxes input').forEach(cb => cb.checked = false);
   };
 
-  // ---------- Student-side pending modal ----------
   App.showPendingModal = function (info) {
     const modal = document.getElementById('pending-modal');
     const msgEl = document.getElementById('pending-modal-message');

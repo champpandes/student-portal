@@ -5,44 +5,40 @@
 
   App.downloadFullBackup = async function () {
     const btn = document.getElementById('backup-download-btn');
-    const original = btn.innerHTML;
-    btn.innerHTML = '⏳ Preparing…';
-    btn.disabled = true;
 
-    try {
-      const res = await App.apiCall({
-        action: "backupAll",
-        pin: state.adminPin
-      }, { retries: 1, timeout: 120000 });
+    await App.withButtonLoading(btn, async () => {
+      try {
+        const res = await App.apiCall({
+          action: "backupAll",
+          pin: state.adminPin
+        }, { retries: 1, timeout: 120000 });
 
-      if (!res.success || !res.backup) {
-        throw new Error(res.message || 'Backup failed.');
+        if (!res.success || !res.backup) {
+          throw new Error(res.message || 'Backup failed.');
+        }
+
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const filename = 'portal-backup-' + stamp + '.json';
+
+        const blob = new Blob([JSON.stringify(res.backup, null, 2)], {
+          type: 'application/json;charset=utf-8'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+        App.showToast("Backup downloaded: " + filename);
+      } catch (e) {
+        console.error(e);
+        App.showToast(e.message || 'Backup failed.', 'error');
       }
-
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const filename = 'portal-backup-' + stamp + '.json';
-
-      const blob = new Blob([JSON.stringify(res.backup, null, 2)], {
-        type: 'application/json;charset=utf-8'
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-
-      App.showToast("Backup downloaded: " + filename);
-    } catch (e) {
-      console.error(e);
-      App.showToast(e.message || 'Backup failed.', 'error');
-    }
-
-    btn.innerHTML = original;
-    btn.disabled = false;
+    }, { text: 'Preparing...' });
   };
 
   App.openBackupRestore = function () {
@@ -74,45 +70,41 @@
       }
 
       const btn = document.getElementById('backup-restore-btn');
-      const original = btn.innerHTML;
 
       // ---- STEP 1: Save current state as a safety backup ----
       let safetyFilename = '';
       try {
-        btn.innerHTML = '⏳ Saving current data…';
-        btn.disabled = true;
-        App.showToast("Saving a backup of your current data first…");
+        await App.withButtonLoading(btn, async () => {
+          App.showToast("Saving a backup of your current data first…");
 
-        const currentRes = await App.apiCall({
-          action: "backupAll",
-          pin: state.adminPin
-        }, { retries: 1, timeout: 120000 });
+          const currentRes = await App.apiCall({
+            action: "backupAll",
+            pin: state.adminPin
+          }, { retries: 1, timeout: 120000 });
 
-        if (!currentRes.success || !currentRes.backup) {
-          throw new Error(currentRes.message || "Could not save current data.");
-        }
+          if (!currentRes.success || !currentRes.backup) {
+            throw new Error(currentRes.message || "Could not save current data.");
+          }
 
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        safetyFilename = 'portal-pre-restore-' + stamp + '.json';
+          const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          safetyFilename = 'portal-pre-restore-' + stamp + '.json';
 
-        const blob = new Blob([JSON.stringify(currentRes.backup, null, 2)], {
-          type: 'application/json;charset=utf-8'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = safetyFilename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-
+          const blob = new Blob([JSON.stringify(currentRes.backup, null, 2)], {
+            type: 'application/json;charset=utf-8'
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = safetyFilename;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }, { text: 'Saving current data...' });
       } catch (err) {
         console.error(err);
         App.showToast("Could not save current data: " + err.message, "error");
-        btn.innerHTML = original;
-        btn.disabled = false;
         return;
       }
 
@@ -126,41 +118,33 @@
 
       if (!confirm(confirmMsg)) {
         App.showToast("Restore cancelled. Safety backup is in Downloads.");
-        btn.innerHTML = original;
-        btn.disabled = false;
         return;
       }
 
-      // ---- STEP 3: Do the restore ----
-      btn.innerHTML = '⏳ Restoring…';
-      btn.disabled = true;
+      // ---- STEP 3: Restore ----
+      await App.withButtonLoading(btn, async () => {
+        try {
+          const res = await App.apiCall({
+            action: "restoreAll",
+            pin: state.adminPin,
+            backup: parsed
+          }, { retries: 0, timeout: 180000 });
 
-      try {
-        const res = await App.apiCall({
-          action: "restoreAll",
-          pin: state.adminPin,
-          backup: parsed
-        }, { retries: 0, timeout: 180000 });
+          if (!res.success) throw new Error(res.message || 'Restore failed.');
 
-        if (!res.success) throw new Error(res.message || 'Restore failed.');
-
-        App.showToast("Restore complete. Reloading…");
-        App.invalidateAllCache();
-        setTimeout(() => window.location.reload(), 1500);
-      } catch (err) {
-        console.error(err);
-        App.showToast(err.message || 'Restore failed.', 'error');
-        btn.innerHTML = original;
-        btn.disabled = false;
-      }
+          App.showToast("Restore complete. Reloading…");
+          App.invalidateAllCache();
+          setTimeout(() => window.location.reload(), 1500);
+        } catch (err) {
+          console.error(err);
+          App.showToast(err.message || 'Restore failed.', 'error');
+        }
+      }, { text: 'Restoring...' });
     };
     reader.onerror = () => App.showToast("Could not read the file.", "error");
     reader.readAsText(file);
   };
 
-  // ============================================================
-  // RECOMPUTE ALL GRADES
-  // ============================================================
   App.recomputeAllGrades = async function () {
     const msg =
       "Recompute all grades?\n\n" +
@@ -176,38 +160,34 @@
     if (!confirm(msg)) return;
 
     const btn = document.getElementById('recompute-btn');
-    const original = btn.innerHTML;
-    btn.innerHTML = '⏳ Recomputing…';
-    btn.disabled = true;
 
-    try {
-      const res = await App.apiCall({
-        action: "recomputeAllGrades",
-        pin: state.adminPin
-      }, { retries: 0, timeout: 180000 });
+    await App.withButtonLoading(btn, async () => {
+      try {
+        const res = await App.apiCall({
+          action: "recomputeAllGrades",
+          pin: state.adminPin
+        }, { retries: 0, timeout: 180000 });
 
-      if (!res.success) throw new Error(res.message || "Recompute failed.");
+        if (!res.success) throw new Error(res.message || "Recompute failed.");
 
-      App.invalidateAllCache();
-      state.allAdminGradesCache = {};
-      await App.loadAdminDashboard();
+        App.invalidateAllCache();
+        state.allAdminGradesCache = {};
+        await App.loadAdminDashboard();
 
-      if (!res.totalFixed || res.totalFixed === 0) {
-        App.showToast("Recompute complete. No anomalies found.");
-      } else {
-        const summary = (res.report || [])
-          .map(r => r.subject + ": " + r.fixed)
-          .join("\n");
-        console.log("Recompute report:\n" + summary);
-        App.showToast("Fixed " + res.totalFixed + " row(s). Details in console.");
+        if (!res.totalFixed || res.totalFixed === 0) {
+          App.showToast("Recompute complete. No anomalies found.");
+        } else {
+          const summary = (res.report || [])
+            .map(r => r.subject + ": " + r.fixed)
+            .join("\n");
+          console.log("Recompute report:\n" + summary);
+          App.showToast("Fixed " + res.totalFixed + " row(s). Details in console.");
+        }
+      } catch (e) {
+        console.error(e);
+        App.showToast(e.message || "Recompute failed.", "error");
       }
-    } catch (e) {
-      console.error(e);
-      App.showToast(e.message || "Recompute failed.", "error");
-    }
-
-    btn.innerHTML = original;
-    btn.disabled = false;
+    }, { text: 'Recomputing...' });
   };
 
 })(window.App);
