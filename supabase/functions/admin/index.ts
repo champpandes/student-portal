@@ -26,6 +26,10 @@ const TRANSMUTATION: [number, number][] = [
   [16.00, 64], [12.00, 63], [8.00, 62],  [4.00, 61],  [0.00, 60]
 ];
 
+// ============================================================
+// Generic helpers
+// ============================================================
+
 function transmuteGrade(score: any): number | "" {
   if (score === "" || score === null || isNaN(score)) return "";
   const s = Number(score);
@@ -58,7 +62,17 @@ function defaultWeights() { return { quizzes: 35, participation: 15, attendance:
 
 function stripTags(s: any) { return String(s ?? "").replace(/[<>]/g, ""); }
 
-// NEW: map lowercase category name → id string for a subject
+function generateDefaultBreakdowns(_q1: any, _q2: any, _q3: any, _q4: any) {
+  // Categories are now dynamic. Empty breakdowns are simply an empty array.
+  return [];
+}
+
+async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Map lowercase category name → id string for a subject
 async function nameToIdMap(sb: any, subject: string): Promise<Record<string, string>> {
   const rows = await sb.from("subject_categories").select("id,name").eq("subject_name", subject);
   const map: Record<string, string> = {};
@@ -66,7 +80,7 @@ async function nameToIdMap(sb: any, subject: string): Promise<Record<string, str
   return map;
 }
 
-// NEW: convert flat breakdown {quizzes, participation, ...} → {categories: {id: value, ...}}
+// Convert flat breakdown {quizzes, participation, ...} → {categories: {id: value, ...}}
 function flatToCategories(flat: any, catMap: Record<string, string>): Record<string, any> {
   const out: Record<string, any> = {};
   ["quizzes", "participation", "attendance", "exams"].forEach(name => {
@@ -77,15 +91,16 @@ function flatToCategories(flat: any, catMap: Record<string, string>): Record<str
   return out;
 }
 
-function generateDefaultBreakdowns(_q1: any, _q2: any, _q3: any, _q4: any) {
-  // Categories are now dynamic. Empty breakdowns are simply an empty array.
-  return [];
+function json(data: any, status: number) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
+  });
 }
 
-async function sha256(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
+// ============================================================
+// Entry point
+// ============================================================
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -101,9 +116,8 @@ Deno.serve(async (req) => {
     const action = String(body?.action || "");
     const pin = String(body?.pin || "");
 
-    // ---- Verify PIN for all write actions ----
     const WRITE_ACTIONS = new Set([
-      "manageSubject", "saveGrades", "saveBreakdown", "bulkSaveBreakdown",
+      "manageSubject", "manageSection", "saveGrades", "saveBreakdown", "bulkSaveBreakdown",
       "addStudent", "bulkAddStudents", "updateStudentInfo", "deleteStudent",
       "clearComments", "saveAnnouncement", "deleteAnnouncement",
       "approveRegistration", "rejectRegistration", "restoreAll",
@@ -121,7 +135,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ---- Route ----
     let result: any;
     switch (action) {
       case "adminLogin":         result = await adminLogin(sb, body); break;
@@ -136,7 +149,7 @@ Deno.serve(async (req) => {
       case "saveAnnouncement":   result = await saveAnnouncement(sb, body); break;
       case "deleteAnnouncement": result = await deleteAnnouncement(sb, body); break;
       case "manageSubject":      result = await manageSubject(sb, body); break;
-      case "manageSection":      result = await manageSection(sb, body); break;      
+      case "manageSection":      result = await manageSection(sb, body); break;
       case "approveRegistration":result = await approveRegistration(sb, body); break;
       case "rejectRegistration": result = await rejectRegistration(sb, body); break;
       case "recomputeAllGrades": result = await recomputeAllGrades(sb); break;
@@ -153,22 +166,15 @@ Deno.serve(async (req) => {
   }
 });
 
-function json(data: any, status: number) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
-  });
-}
+// ============================================================
+// Auth
+// ============================================================
 
-// ============================================================
-// Handlers
-// ============================================================
 async function adminLogin(sb: any, p: any) {
   const input = String(p.pin || "");
   const deviceId = String(p.deviceId || "unknown").slice(0, 64);
   if (!input) return { success: false, message: "Enter your PIN." };
 
-  // Check lockout for this device
   const lockRows = await sb.from("login_attempts").select("*").eq("device_id", deviceId);
   const existing = (lockRows.data && lockRows.data.length) ? lockRows.data[0] : null;
   const now = new Date();
@@ -182,7 +188,6 @@ async function adminLogin(sb: any, p: any) {
     };
   }
 
-  // Verify PIN
   const rows = await sb.from("settings").select("value").eq("key", "admin_pin_hash").limit(1);
   if (!rows.data || rows.data.length === 0) {
     return { success: false, message: "Admin PIN not configured in database." };
@@ -190,7 +195,6 @@ async function adminLogin(sb: any, p: any) {
 
   const hash = await sha256(input);
   if (hash === rows.data[0].value) {
-    // Success — reset attempt counter
     await sb.from("login_attempts").upsert(
       { device_id: deviceId, attempts: 0, locked_until: null, updated_at: now.toISOString() },
       { onConflict: "device_id" }
@@ -198,7 +202,6 @@ async function adminLogin(sb: any, p: any) {
     return { success: true };
   }
 
-  // Failed — increment
   const curAttempts = (existing?.attempts || 0) + 1;
   let lockedUntil: string | null = null;
   if (curAttempts >= 5) {
@@ -218,6 +221,10 @@ async function adminLogin(sb: any, p: any) {
     message: `Invalid PIN. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
   };
 }
+
+// ============================================================
+// Grades
+// ============================================================
 
 async function saveGrades(sb: any, p: any) {
   const sNo = String(p.studentNumber || "");
@@ -246,7 +253,7 @@ async function saveGrades(sb: any, p: any) {
     q3: String(q3 === "" ? "" : q3), q4: String(q4 === "" ? "" : q4),
     final: String(final === "" ? "" : final),
     remarks: determineRemarks(final),
-    breakdowns: row?.breakdowns || generateDefaultBreakdowns(q1, q2, q3, q4)
+    breakdowns: row?.breakdowns || []
   };
 
   const { error } = await sb.from("grades").upsert(payload, {
@@ -345,6 +352,10 @@ async function saveBreakdown(sb: any, p: any, isBulk: boolean) {
   return { success: true, newTotal: lastNewTotal, processed };
 }
 
+// ============================================================
+// Students
+// ============================================================
+
 async function addStudent(sb: any, p: any, isBulk: boolean) {
   const list = isBulk ? (p.studentsArray || []) : [p.studentData];
   let processed = 0;
@@ -416,11 +427,41 @@ async function deleteStudent(sb: any, p: any) {
   return { success: true };
 }
 
+// ============================================================
+// Comments
+// ============================================================
+
 async function clearComments(sb: any) {
   const { error } = await sb.from("comments").delete().gt("id", 0);
   if (error) throw error;
   return { success: true };
 }
+
+async function postComment(sb: any, p: any) {
+  const sNo = String(p.studentNumber || "UNKNOWN");
+  const text = stripTags(String(p.commentText || "").trim());
+  if (!text) return { success: true };
+
+  let name = "Teacher Admin";
+  if (sNo !== "TEACHER_ADMIN") {
+    name = "Student";
+    const rows = await sb.from("students").select("name").eq("student_number", sNo);
+    if (rows.data && rows.data.length && rows.data[0].name) name = rows.data[0].name;
+  }
+
+  const { error } = await sb.from("comments").insert({
+    timestamp: new Date().toLocaleString(),
+    student_number: sNo,
+    student_name: stripTags(name),
+    comment_text: text
+  });
+  if (error) throw error;
+  return { success: true };
+}
+
+// ============================================================
+// Announcements
+// ============================================================
 
 async function saveAnnouncement(sb: any, p: any) {
   const msg = stripTags(String(p.message || "").trim());
@@ -443,7 +484,7 @@ async function deleteAnnouncement(sb: any, p: any) {
 }
 
 // ============================================================
-// manageSubject — now also saves categories + quarter weights
+// Subjects
 // ============================================================
 
 function findWeight(categories: any[], name: string): number {
@@ -466,7 +507,6 @@ async function buildSubjectsResponse(sb: any) {
     descriptions[r.subject_name] = r.description || "";
     quarterWeights[r.subject_name] = r.quarter_weights || { "1st": 25, "2nd": 25, "3rd": 25, "4th": 25 };
     categories[r.subject_name] = [];
-    // Legacy weights — kept for backward compatibility
     weights[r.subject_name] = {
       quizzes: r.weight_quizzes || 35,
       participation: r.weight_participation || 15,
@@ -491,7 +531,6 @@ async function buildSubjectsResponse(sb: any) {
 async function manageSubject(sb: any, p: any) {
   const subAction = String(p.subAction || "add");
 
-  // --- DELETE ---
   if (subAction === "delete") {
     const t = String(p.subjectName);
     await sb.from("subject_categories").delete().eq("subject_name", t);
@@ -501,7 +540,6 @@ async function manageSubject(sb: any, p: any) {
     return await buildSubjectsResponse(sb);
   }
 
-  // --- Validate categories ---
   const categories = Array.isArray(p.categories) ? p.categories : null;
   if (categories && categories.length > 0) {
     const sum = categories.reduce((acc: number, c: any) => acc + Number(c.weight || 0), 0);
@@ -518,7 +556,6 @@ async function manageSubject(sb: any, p: any) {
     }
   }
 
-  // --- Validate quarter weights ---
   const qw = p.quarterWeights;
   if (qw) {
     const sum = Number(qw["1st"] || 0) + Number(qw["2nd"] || 0) + Number(qw["3rd"] || 0) + Number(qw["4th"] || 0);
@@ -530,7 +567,6 @@ async function manageSubject(sb: any, p: any) {
   const finalName = subAction === "update" ? String(p.newName) : String(p.subjectName);
   const desc = stripTags(p.description || "");
 
-  // --- Rename path ---
   if (subAction === "update" && p.oldName && p.oldName !== finalName) {
     await sb.from("subjects").update({ subject_name: finalName }).eq("subject_name", p.oldName);
     await sb.from("subject_categories").update({ subject_name: finalName }).eq("subject_name", p.oldName);
@@ -538,11 +574,7 @@ async function manageSubject(sb: any, p: any) {
     await sb.from("enrollments").update({ subject_name: finalName }).eq("subject_name", p.oldName);
   }
 
-  // --- Upsert subject row ---
-  const subjPayload: any = {
-    subject_name: finalName,
-    description: desc
-  };
+  const subjPayload: any = { subject_name: finalName, description: desc };
   if (qw) subjPayload.quarter_weights = qw;
   if (categories && categories.length > 0) {
     subjPayload.weight_quizzes = findWeight(categories, "quizzes") || 35;
@@ -554,7 +586,6 @@ async function manageSubject(sb: any, p: any) {
   const { error: subjErr } = await sb.from("subjects").upsert(subjPayload, { onConflict: "subject_name" });
   if (subjErr) throw subjErr;
 
-  // --- Replace categories if provided ---
   if (categories && categories.length > 0) {
     await sb.from("subject_categories").delete().eq("subject_name", finalName);
     const rows = categories.map((c: any, i: number) => ({
@@ -569,6 +600,65 @@ async function manageSubject(sb: any, p: any) {
 
   return await buildSubjectsResponse(sb);
 }
+
+// ============================================================
+// Sections
+// ============================================================
+
+async function buildSectionsPayload(sb: any) {
+  const rows = await sb.from("sections").select("*").order("name");
+  return { success: true, sections: (rows.data || []).map((r: any) => String(r.name)) };
+}
+
+async function manageSection(sb: any, p: any) {
+  const subAction = String(p.subAction || "add");
+  const name = stripTags(String(p.name || "").trim());
+
+  if (!name) return { success: false, message: "Section name is required." };
+
+  if (subAction === "add") {
+    const { error } = await sb.from("sections").insert({ name });
+    if (error) {
+      if (String(error.message).toLowerCase().includes("duplicate")) {
+        return { success: false, message: "A section with that name already exists." };
+      }
+      throw error;
+    }
+    return await buildSectionsPayload(sb);
+  }
+
+  if (subAction === "rename") {
+    const oldName = stripTags(String(p.oldName || "").trim());
+    if (!oldName) return { success: false, message: "Original name is required." };
+    if (oldName === name) return await buildSectionsPayload(sb);
+
+    const { error } = await sb.from("sections").update({ name }).eq("name", oldName);
+    if (error) {
+      if (String(error.message).toLowerCase().includes("duplicate")) {
+        return { success: false, message: "A section with that name already exists." };
+      }
+      throw error;
+    }
+    await sb.from("students").update({ section: name }).eq("section", oldName);
+    return await buildSectionsPayload(sb);
+  }
+
+  if (subAction === "delete") {
+    const rows = await sb.from("students").select("student_number").eq("section", name).limit(1);
+    if (rows.data && rows.data.length > 0) {
+      return { success: false, message: "Cannot delete: students are still assigned to this section. Move them first." };
+    }
+    const { error } = await sb.from("sections").delete().eq("name", name);
+    if (error) throw error;
+    return await buildSectionsPayload(sb);
+  }
+
+  return { success: false, message: "Unknown subAction." };
+}
+
+// ============================================================
+// Registration approval
+// ============================================================
 
 async function approveRegistration(sb: any, p: any) {
   const sNo = String(p.studentNumber || "");
@@ -626,6 +716,10 @@ async function rejectRegistration(sb: any, p: any) {
   return { success: true };
 }
 
+// ============================================================
+// Recompute
+// ============================================================
+
 async function recomputeAllGrades(sb: any) {
   const allGrades = await sb.from("grades").select("*");
   if (!allGrades.data) return { success: true, totalFixed: 0, report: [] };
@@ -656,7 +750,7 @@ async function recomputeAllGrades(sb: any) {
 }
 
 // ============================================================
-// restoreAll — moved into the Edge Function so RLS doesn't block it
+// Restore (from backup JSON)
 // ============================================================
 
 function extractStudentsFromSubjectData(sd: any) {
@@ -739,7 +833,6 @@ async function restoreAll(sb: any, p: any) {
          settings: backup.settings || []
        });
 
-  // ---- 1. Wipe existing data ----
   const wipe = async (table: string, filterCol: string) => {
     try {
       const { error } = await sb.from(table).delete().not(filterCol, "is", null);
@@ -753,12 +846,12 @@ async function restoreAll(sb: any, p: any) {
   await wipe("enrollments", "id");
   await wipe("students", "student_number");
   await wipe("subjects", "id");
+  await wipe("subject_categories", "id");
   await wipe("comments", "id");
   await wipe("announcements", "id");
   await wipe("pending_registrations", "id");
-  // NOTE: settings is deliberately NOT wiped — keeps admin PIN hash
+  // NOTE: settings, sections, login_attempts are deliberately NOT wiped
 
-  // ---- 2. Restore in dependency order ----
   const restoreOrder = [
     "subjects", "students", "enrollments", "grades",
     "comments", "announcements", "pending_registrations"
@@ -783,30 +876,5 @@ async function restoreAll(sb: any, p: any) {
     }
   }
 
-  return {
-    success: true,
-    message: "Restored " + restoredRows + " rows."
-  };
-}
-
-async function postComment(sb: any, p: any) {
-  const sNo = String(p.studentNumber || "UNKNOWN");
-  const text = stripTags(String(p.commentText || "").trim());
-  if (!text) return { success: true };
-
-  let name = "Teacher Admin";
-  if (sNo !== "TEACHER_ADMIN") {
-    name = "Student";
-    const rows = await sb.from("students").select("name").eq("student_number", sNo);
-    if (rows.data && rows.data.length && rows.data[0].name) name = rows.data[0].name;
-  }
-
-  const { error } = await sb.from("comments").insert({
-    timestamp: new Date().toLocaleString(),
-    student_number: sNo,
-    student_name: stripTags(name),
-    comment_text: text
-  });
-  if (error) throw error;
-  return { success: true };
+  return { success: true, message: "Restored " + restoredRows + " rows." };
 }

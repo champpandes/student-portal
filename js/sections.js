@@ -41,7 +41,7 @@
 
     const btn = document.getElementById('section-submit-btn');
     btn.innerText = '+ Add Section';
-    btn.className = "w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap";
+    btn.className = "bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all";
     document.getElementById('section-cancel-edit-btn').classList.add('hidden');
   };
 
@@ -55,7 +55,7 @@
 
     const btn = document.getElementById('section-submit-btn');
     btn.innerText = 'Rename Section';
-    btn.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 shadow-md transition-all whitespace-nowrap";
+    btn.className = "bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all";
     document.getElementById('section-cancel-edit-btn').classList.remove('hidden');
     document.getElementById('new-section-input').focus();
     document.getElementById('new-section-input').select();
@@ -67,13 +67,16 @@
   App.handleSaveSection = async function () {
     const btn = document.getElementById('section-submit-btn');
     const name = document.getElementById('new-section-input').value.trim();
+
     if (!name) {
       App.showToast("Enter a section name.", "error");
       return;
     }
 
+    const isRename = !!editingOriginalName;
+    let succeeded = false;
+
     await App.withButtonLoading(btn, async () => {
-      const isRename = !!editingOriginalName;
       const res = await App.apiCall({
         action: "manageSection",
         pin: state.adminPin,
@@ -96,8 +99,13 @@
       App.renderSectionsList();
 
       App.showToast(isRename ? "Section renamed to '" + name + "'." : "Section '" + name + "' added.");
-      App.resetSectionForm();
+      succeeded = true;
     }, { text: 'Saving...' });
+
+    // Reset only AFTER withButtonLoading finishes restoring the button
+    if (succeeded) {
+      App.resetSectionForm();
+    }
   };
 
   // ============================================================
