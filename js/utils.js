@@ -74,7 +74,34 @@
   App.clearSession = function () {
     try { localStorage.removeItem(App.SESSION_KEY); } catch (e) {}
   };
+  // ---------- Button loading state ----------
+  // Usage: await App.withButtonLoading(btnElement, async () => { ... }, { text: 'Saving...' });
+  App.withButtonLoading = async function (btn, fn, opts) {
+    opts = opts || {};
+    if (!btn || btn.disabled) return;
 
+    const originalHTML = btn.innerHTML;
+    const originalClass = btn.className;
+    const loadingText = opts.text || 'Loading...';
+
+    btn.disabled = true;
+    btn.classList.add('opacity-60', 'cursor-wait');
+    btn.innerHTML =
+      '<span class="inline-flex items-center gap-2">' +
+        '<span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>' +
+        '<span>' + App.esc(loadingText) + '</span>' +
+      '</span>';
+
+    try {
+      return await fn();
+    } finally {
+      // Restore even if the callback throws
+      btn.disabled = false;
+      btn.classList.remove('opacity-60', 'cursor-wait');
+      btn.innerHTML = originalHTML;
+      btn.className = originalClass;
+    }
+  };
   // ---------- Toast ----------
   App.showToast = function (message, type) {
     type = type || 'success';

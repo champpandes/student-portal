@@ -46,23 +46,19 @@
       App.showToast("Announcement cannot be empty.", "error");
       return;
     }
-    const original = btn.innerText;
-    btn.innerText = "Sending...";
-    btn.disabled = true;
 
-    const res = await App.apiCall({
-      action: "saveAnnouncement", pin: state.adminPin, message: msg
-    }, { retries: 1 });
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "saveAnnouncement", pin: state.adminPin, message: msg
+      }, { retries: 1 });
 
-    if (res.success) {
-      App.showToast("Announcement broadcasted!");
-      App.loadAnnouncementHistory();
-    } else {
-      App.showToast(res.message || "Failed to broadcast.", "error");
-    }
-
-    btn.innerText = original;
-    btn.disabled = false;
+      if (res.success) {
+        App.showToast("Announcement broadcasted!");
+        App.loadAnnouncementHistory();
+      } else {
+        App.showToast(res.message || "Failed to broadcast.", "error");
+      }
+    }, { text: 'Sending...' });
   };
 
   App.loadAnnouncementHistory = async function () {
@@ -176,24 +172,20 @@
     const text = input.value.trim();
     if (!text) return;
 
-    const original = btn.innerText;
-    btn.innerText = "Sending...";
-    btn.disabled = true;
+    await App.withButtonLoading(btn, async () => {
+      const studentNo = state.currentStudentData ? state.currentStudentData.studentNumber : "UNKNOWN";
+      const res = await App.apiCall({
+        action: "postComment", studentNumber: studentNo, commentText: text
+      }, { retries: 1 });
 
-    const studentNo = state.currentStudentData ? state.currentStudentData.studentNumber : "UNKNOWN";
-    const res = await App.apiCall({
-      action: "postComment", studentNumber: studentNo, commentText: text
-    }, { retries: 1 });
-
-    if (res.success) {
-      input.value = "";
-      App.showToast("Comment posted!");
-      App.loadComments();
-    } else {
-      App.showToast(res.message || "Failed to post comment.", "error");
-    }
-    btn.innerText = original;
-    btn.disabled = false;
+      if (res.success) {
+        input.value = "";
+        App.showToast("Comment posted!");
+        App.loadComments();
+      } else {
+        App.showToast(res.message || "Failed to post comment.", "error");
+      }
+    }, { text: 'Sending...' });
   };
 
   App.submitAdminComment = async function () {
@@ -202,23 +194,19 @@
     const text = input.value.trim();
     if (!text) return;
 
-    const original = btn.innerText;
-    btn.innerText = "Sending...";
-    btn.disabled = true;
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "postComment", studentNumber: "TEACHER_ADMIN", commentText: text
+      }, { retries: 1 });
 
-    const res = await App.apiCall({
-      action: "postComment", studentNumber: "TEACHER_ADMIN", commentText: text
-    }, { retries: 1 });
-
-    if (res.success) {
-      input.value = "";
-      App.showToast("Reply posted!");
-      App.loadComments();
-    } else {
-      App.showToast(res.message || "Failed to post reply.", "error");
-    }
-    btn.innerText = original;
-    btn.disabled = false;
+      if (res.success) {
+        input.value = "";
+        App.showToast("Reply posted!");
+        App.loadComments();
+      } else {
+        App.showToast(res.message || "Failed to post reply.", "error");
+      }
+    }, { text: 'Sending...' });
   };
 
   App.clearClassComments = async function () {

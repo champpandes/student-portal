@@ -57,75 +57,69 @@
     const inputVal = document.getElementById('login-input').value.trim();
     if (!inputVal) return;
 
-    lastLoginInput = inputVal;
-    btn.innerText = "Authenticating...";
-    btn.disabled = true;
-    document.getElementById('login-error').classList.add('hidden-screen');
+    await App.withButtonLoading(btn, async () => {
+      lastLoginInput = inputVal;
+      document.getElementById('login-error').classList.add('hidden-screen');
 
-    try {
-      if (loginRole === 'teacher') {
-        const res = await App.apiCall({
-          action: "adminLogin", pin: inputVal, deviceId: App.getDeviceId()
-        }, { timeout: 45000 });
-        if (!res.success) throw new Error(res.message || "Invalid Teacher PIN.");
+      try {
+        if (loginRole === 'teacher') {
+          const res = await App.apiCall({
+            action: "adminLogin", pin: inputVal, deviceId: App.getDeviceId()
+          }, { timeout: 45000 });
+          if (!res.success) throw new Error(res.message || "Invalid Teacher PIN.");
 
-        state.adminPin = inputVal;
-        state.sessionToken = App.newSessionToken();
-        state.allAdminGradesCache = {};
-        App.saveSession({ role: 'teacher', pin: inputVal });
-        console.log('[Session] Saved teacher session');
+          state.adminPin = inputVal;
+          state.sessionToken = App.newSessionToken();
+          state.allAdminGradesCache = {};
+          App.saveSession({ role: 'teacher', pin: inputVal });
+          console.log('[Session] Saved teacher session');
 
-        App.showToast("Welcome back!");
+          App.showToast("Welcome back!");
+          App.showScreen('admin');
+          App.loadAnnouncement();
+          App.fetchAllSectionsForDropdowns();
+          App.loadAdminDashboard();
+          if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+        } else {
+          const res = await App.apiCall({
+            action: "getStudent", studentNumber: inputVal
+          }, { retries: 1, timeout: 45000 });
 
-        // Show dashboard immediately, load data in background
-        App.showScreen('admin');
-        App.loadAnnouncement();
-        App.fetchAllSectionsForDropdowns();
-        App.loadAdminDashboard();
-        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
-      } else {
-        const res = await App.apiCall({
-          action: "getStudent", studentNumber: inputVal
-        }, { retries: 1, timeout: 45000 });
-
-        if (res && res.pending) {
-          if (App.showPendingModal) {
-            App.showPendingModal({
-              message: res.message,
-              submittedName: res.submittedName,
-              studentNumber: inputVal
-            });
+          if (res && res.pending) {
+            if (App.showPendingModal) {
+              App.showPendingModal({
+                message: res.message,
+                submittedName: res.submittedName,
+                studentNumber: inputVal
+              });
+            }
+            return;
           }
-          btn.innerText = "Log In";
-          btn.disabled = false;
-          return;
+
+          if (res && res.rejected) {
+            throw new Error(res.message || "Your registration was not approved.");
+          }
+
+          if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
+            throw new Error((res && res.message) || "Student not found or has no enrolled subjects.");
+          }
+
+          state.currentStudentData = res;
+          state.sessionToken = App.newSessionToken();
+          App.saveSession({ role: 'student', studentNumber: res.studentNumber });
+          console.log('[Session] Saved student session');
+
+          setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
+          App.initializeStudentDropdowns(Object.keys(res.subjects));
+          App.showToast("Logged in as " + res.name);
+
+          App.showScreen('student');
+          App.loadAnnouncement();
         }
-
-        if (res && res.rejected) {
-          throw new Error(res.message || "Your registration was not approved.");
-        }
-
-        if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
-          throw new Error((res && res.message) || "Student not found or has no enrolled subjects.");
-        }
-
-        state.currentStudentData = res;
-        state.sessionToken = App.newSessionToken();
-        App.saveSession({ role: 'student', studentNumber: res.studentNumber });
-        console.log('[Session] Saved student session');
-
-        setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
-        App.initializeStudentDropdowns(Object.keys(res.subjects));
-        App.showToast("Logged in as " + res.name);
-
-        App.showScreen('student');
-        App.loadAnnouncement();
+      } catch (error) {
+        App.showToast(error.message || 'Login failed.', 'error');
       }
-    } catch (error) {
-      App.showToast(error.message || 'Login failed.', 'error');
-    }
-    btn.innerText = "Log In";
-    btn.disabled = false;
+    }, { text: 'Logging in...' });
   };
 
   App.handleLogout = function () {
@@ -227,7 +221,8 @@
     App.closeModal(document.getElementById('register-modal'));
   };
 
-  App.submitRegistration = async function () {
+    App.submitRegistration = async function () {
+    const btn = document.getElementById('submit-reg-btn');
     const id = document.getElementById('reg-student-id').value.trim();
     const name = document.getElementById('reg-student-name').value.trim();
 
@@ -241,38 +236,33 @@
       return;
     }
 
-    const btn = document.getElementById('submit-reg-btn');
-    const original = btn.innerText;
-    btn.innerText = "Submitting...";
-    btn.disabled = true;
+    await App.withButtonLoading(btn, async () => {
+      try {
+        const res = await App.apiCall({
+          action: "registerStudent",
+          studentData: { studentNumber: id, name: name }
+        }, { retries: 1 });
 
-    try {
-      const res = await App.apiCall({
-        action: "registerStudent",
-        studentData: { studentNumber: id, name: name }
-      }, { retries: 1 });
-
-      if (res.success && res.pending) {
-        App.closeRegisterModal();
-        App.showToast("Registration submitted for approval.");
-        if (App.showPendingModal) {
-          App.showPendingModal({
-            message: "Your registration has been submitted. Your teacher will review it and assign your section and subjects before you can log in.",
-            submittedName: name,
-            studentNumber: id
-          });
+        if (res.success && res.pending) {
+          App.closeRegisterModal();
+          App.showToast("Registration submitted for approval.");
+          if (App.showPendingModal) {
+            App.showPendingModal({
+              message: "Your registration has been submitted. Your teacher will review it and assign your section and subjects before you can log in.",
+              submittedName: name,
+              studentNumber: id
+            });
+          }
+        } else {
+          errorBox.textContent = res.message || "Registration failed.";
+          errorBox.classList.remove('hidden');
+          App.showToast(res.message || "Registration failed.", "error");
         }
-      } else {
-        errorBox.textContent = res.message || "Registration failed.";
+      } catch (err) {
+        errorBox.textContent = "Network error. Please try again.";
         errorBox.classList.remove('hidden');
-        App.showToast(res.message || "Registration failed.", "error");
       }
-    } catch (err) {
-      errorBox.textContent = "Network error. Please try again.";
-      errorBox.classList.remove('hidden');
-    }
-    btn.innerText = original;
-    btn.disabled = false;
+    }, { text: 'Submitting...' });
   };
 
   App.checkPendingStatus = async function () {
@@ -282,35 +272,31 @@
     }
 
     const btn = document.getElementById('pending-check-btn');
-    const original = btn.innerText;
-    btn.innerText = "Checking...";
-    btn.disabled = true;
 
-    try {
-      const res = await App.apiCall({
-        action: "getStudent",
-        studentNumber: lastLoginInput
-      }, { retries: 1 });
+    await App.withButtonLoading(btn, async () => {
+      try {
+        const res = await App.apiCall({
+          action: "getStudent",
+          studentNumber: lastLoginInput
+        }, { retries: 1 });
 
-      if (res && res.pending) {
-        App.showToast("Still pending. Please wait for your teacher's approval.", "error");
-      } else if (res && res.rejected) {
-        App.closePendingModal();
-        App.showToast(res.message || "Your registration was not approved.", "error");
-      } else if (res && res.subjects && Object.keys(res.subjects).length > 0) {
-        App.closePendingModal();
-        App.showToast("You've been approved! Logging in...");
-        document.getElementById('login-input').value = lastLoginInput;
-        await App.handleLogin();
-      } else {
-        App.showToast("Still not found. Please contact your teacher.", "error");
+        if (res && res.pending) {
+          App.showToast("Still pending. Please wait for your teacher's approval.", "error");
+        } else if (res && res.rejected) {
+          App.closePendingModal();
+          App.showToast(res.message || "Your registration was not approved.", "error");
+        } else if (res && res.subjects && Object.keys(res.subjects).length > 0) {
+          App.closePendingModal();
+          App.showToast("You've been approved! Logging in...");
+          document.getElementById('login-input').value = lastLoginInput;
+          await App.handleLogin();
+        } else {
+          App.showToast("Still not found. Please contact your teacher.", "error");
+        }
+      } catch (e) {
+        App.showToast("Check failed. Try again later.", "error");
       }
-    } catch (e) {
-      App.showToast("Check failed. Try again later.", "error");
-    }
-
-    btn.innerText = original;
-    btn.disabled = false;
+    }, { text: 'Checking...' });
   };
 
 })(window.App);
