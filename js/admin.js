@@ -82,30 +82,29 @@
     if (tabName === 'registrations') {
       if (App.loadPendingRegistrations) App.loadPendingRegistrations();
     }
+
+    if (tabName === 'sections') {
+      if (App.renderSectionsList) App.renderSectionsList();
+    }
   };
 
   // ---------- Refresh ----------
   App.refreshDashboard = async function () {
     const btn = document.getElementById('refresh-dashboard-btn');
-    if (!btn || btn.disabled) return;
 
-    btn.disabled = true;
-    btn.classList.add('opacity-50', 'cursor-wait');
+    await App.withButtonLoading(btn, async () => {
+      App.invalidateAllCache();
+      state.allAdminGradesCache = {};
 
-    App.invalidateAllCache();
-    state.allAdminGradesCache = {};
-
-    try {
-      await App.loadAdminDashboard();
-      if (App.loadPendingRegistrations) App.loadPendingRegistrations();
-      App.showToast("Dashboard refreshed.");
-    } catch (e) {
-      console.error(e);
-      App.showToast("Refresh failed. Try again.", "error");
-    } finally {
-      btn.classList.remove('opacity-50', 'cursor-wait');
-      btn.disabled = false;
-    }
+      try {
+        await App.loadAdminDashboard();
+        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+        App.showToast("Dashboard refreshed.");
+      } catch (e) {
+        console.error(e);
+        App.showToast("Refresh failed. Try again.", "error");
+      }
+    }, { text: 'Refreshing...' });
   };
 
   // ---------- Timestamp ----------
@@ -126,11 +125,7 @@
     const mobileList = document.getElementById('admin-mobile-card-list');
     const sync = document.getElementById('sync-indicator');
 
-    // ═══════════════════════════════════════════════════════════
-    // FIX: If subjects haven't loaded yet, wait for them first.
-    // This prevents the "Please add a subject" race condition
-    // on first page load after a session restore.
-    // ═══════════════════════════════════════════════════════════
+    // If subjects haven't loaded yet, wait for them first.
     if (state.availableSubjects.length === 0) {
       try {
         await App.fetchSubjects();
@@ -477,10 +472,6 @@
 
   App.savePanelInfo = async function () {
     const btn = document.getElementById('panel-save-info-btn');
-    const original = btn.innerText;
-    btn.innerText = "Saving...";
-    btn.disabled = true;
-
     const newId = document.getElementById('panel-student-id').value.trim();
     const oldId = document.getElementById('panel-old-student-id').value;
     const newSubject = document.getElementById('panel-student-subject').value;
@@ -493,35 +484,30 @@
       subject: newSubject
     };
 
-    const res = await App.apiCall({
-      action: "updateStudentInfo", pin: state.adminPin,
-      oldStudentNumber: oldId, oldSubject: oldSubject, newData: newData
-    }, { retries: 1 });
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "updateStudentInfo", pin: state.adminPin,
+        oldStudentNumber: oldId, oldSubject: oldSubject, newData: newData
+      }, { retries: 1 });
 
-    if (res.success) {
-      App.invalidateActiveCache();
-      await App.loadAdminDashboard();
-      state.activeManageStudentId = newId;
-      state.activeManageSubject = newSubject;
-      document.getElementById('panel-old-student-id').value = newId;
-      document.getElementById('panel-old-student-subject').value = newSubject;
-      document.getElementById('panel-subject-label').textContent = newSubject;
-      App.showToast("Profile updated.");
-      App.updateLastSavedTimestamp();
-      btn.innerText = "Update Profile & Subject";
-      btn.disabled = false;
-      return;
-    }
-    App.showToast(res.message || "Failed to save.", "error");
-    btn.innerText = original;
-    btn.disabled = false;
+      if (res.success) {
+        App.invalidateActiveCache();
+        await App.loadAdminDashboard();
+        state.activeManageStudentId = newId;
+        state.activeManageSubject = newSubject;
+        document.getElementById('panel-old-student-id').value = newId;
+        document.getElementById('panel-old-student-subject').value = newSubject;
+        document.getElementById('panel-subject-label').textContent = newSubject;
+        App.showToast("Profile updated.");
+        App.updateLastSavedTimestamp();
+      } else {
+        App.showToast(res.message || "Failed to save.", "error");
+      }
+    }, { text: 'Saving...' });
   };
 
   App.savePanelGrades = async function () {
     const btn = document.getElementById('panel-save-grades-btn');
-    const original = btn.innerText;
-    btn.innerText = "Saving...";
-    btn.disabled = true;
 
     const grades = {
       q1: document.getElementById('panel-q1').value,
@@ -530,43 +516,46 @@
       q4: document.getElementById('panel-q4').value
     };
 
-    const res = await App.apiCall({
-      action: "saveGrades", pin: state.adminPin,
-      studentNumber: state.activeManageStudentId,
-      subject: state.activeManageSubject,
-      grades: grades
-    }, { retries: 1 });
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "saveGrades", pin: state.adminPin,
+        studentNumber: state.activeManageStudentId,
+        subject: state.activeManageSubject,
+        grades: grades
+      }, { retries: 1 });
 
-    if (res.success) {
-      App.invalidateActiveCache();
-      await App.loadAdminDashboard();
-      App.showToast("Grades saved.");
-      App.updateLastSavedTimestamp();
-      btn.innerText = "Save Grades";
-      btn.disabled = false;
-      return;
-    }
-    App.showToast(res.message || "Failed to save.", "error");
-    btn.innerText = original;
-    btn.disabled = false;
+      if (res.success) {
+        App.invalidateActiveCache();
+        await App.loadAdminDashboard();
+        App.showToast("Grades saved.");
+        App.updateLastSavedTimestamp();
+      } else {
+        App.showToast(res.message || "Failed to save.", "error");
+      }
+    }, { text: 'Saving...' });
   };
 
   App.deleteStudentFromPanel = async function () {
     if (!confirm("Erase this student profile completely? This cannot be undone.")) return;
-    App.invalidateAllCache();
-    const res = await App.apiCall({
-      action: "deleteStudent", pin: state.adminPin,
-      studentNumber: state.activeManageStudentId
-    }, { retries: 1 });
 
-    if (res.success) {
-      App.showToast("Student deleted.");
-      App.updateLastSavedTimestamp();
-      await App.loadAdminDashboard();
-      App.closeSlidePanel();
-    } else {
-      App.showToast(res.message || "Delete failed.", "error");
-    }
+    const btn = document.getElementById('panel-delete-btn');
+
+    await App.withButtonLoading(btn, async () => {
+      App.invalidateAllCache();
+      const res = await App.apiCall({
+        action: "deleteStudent", pin: state.adminPin,
+        studentNumber: state.activeManageStudentId
+      }, { retries: 1 });
+
+      if (res.success) {
+        App.showToast("Student deleted.");
+        App.updateLastSavedTimestamp();
+        await App.loadAdminDashboard();
+        App.closeSlidePanel();
+      } else {
+        App.showToast(res.message || "Delete failed.", "error");
+      }
+    }, { text: 'Deleting...' });
   };
 
   // ---------- Add student ----------
@@ -582,6 +571,7 @@
   };
 
   App.saveNewStudent = async function () {
+    const btn = document.getElementById('save-new-student-btn');
     const id = document.getElementById('new-student-id').value.trim();
     const name = document.getElementById('new-student-name').value.trim();
     const sec = document.getElementById('new-student-section').value;
@@ -594,27 +584,25 @@
       return;
     }
 
-    const btn = document.getElementById('save-new-student-btn');
-    const original = btn.innerText;
-    btn.innerText = "Saving...";
-    btn.disabled = true;
+    let succeeded = false;
 
-    const res = await App.apiCall({
-      action: "addStudent", pin: state.adminPin,
-      studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects }
-    }, { retries: 1 });
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "addStudent", pin: state.adminPin,
+        studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects }
+      }, { retries: 1 });
 
-    if (res.success) {
-      App.showToast("Student " + name + " enrolled.");
-      App.closeAddStudentModal();
-      App.invalidateActiveCache();
-      await App.loadAdminDashboard();
-      App.updateLastSavedTimestamp();
-    } else {
-      App.showToast(res.message || "Failed to save new student.", "error");
-    }
-    btn.innerText = original;
-    btn.disabled = false;
+      if (res.success) {
+        App.showToast("Student " + name + " enrolled.");
+        App.closeAddStudentModal();
+        App.invalidateActiveCache();
+        await App.loadAdminDashboard();
+        App.updateLastSavedTimestamp();
+        succeeded = true;
+      } else {
+        App.showToast(res.message || "Failed to save new student.", "error");
+      }
+    }, { text: 'Saving...' });
   };
 
 })(window.App);
