@@ -234,23 +234,23 @@
     const totalVal = (breakdown && breakdown.total !== undefined && breakdown.total !== '')
       ? breakdown.total : '-';
 
-    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;" id="breakdown-grid-row">';
-
+    // --- Category cards (grid, wraps cleanly) ---
+    let html = '<div id="breakdown-grid-row" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;">';
     cats.forEach(c => {
-      html += '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="' + c.id + '">' +
-        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2 text-center">' +
+      html += '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center min-h-[100px]" data-field="' + c.id + '">' +
+        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2 text-center leading-tight">' +
           App.esc(c.name) + ' (' + App.esc(c.weight) + '%)' +
         '</span>' +
         '<span class="text-xl sm:text-2xl font-black text-slate-800 value-text">' + App.esc(val(c.id)) + '</span>' +
       '</div>';
     });
-
-    html += '<div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center">' +
-      '<span class="text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 sm:mb-2">Total</span>' +
-      '<span class="text-2xl sm:text-3xl font-black text-indigo-700" id="bd-total">' + App.esc(totalVal) + '</span>' +
-    '</div>';
-
     html += '</div>';
+
+    // --- Total as its own full-width summary bar ---
+    html += '<div class="mt-3 bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-4 flex items-center justify-between">' +
+      '<span class="text-xs sm:text-sm font-black text-indigo-600 uppercase tracking-wider">Weighted Total</span>' +
+      '<span class="text-3xl sm:text-4xl font-black text-indigo-700" id="bd-total">' + App.esc(totalVal) + '</span>' +
+    '</div>';
 
     if (state.adminPin !== "") {
       html += '<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end no-print">' +
