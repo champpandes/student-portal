@@ -1,5 +1,5 @@
 // ============================================================
-// api.js — Direct Supabase client (no Apps Script middleman)
+// api.js — Direct Supabase client
 // ============================================================
 (function (App) {
   'use strict';
@@ -39,43 +39,11 @@
   }
   function enc(v) { return encodeURIComponent(String(v == null ? '' : v)); }
   function stripTags(s) { return String(s == null ? '' : s).replace(/[<>]/g, ''); }
-  function enc(v) { return encodeURIComponent(String(v == null ? '' : v)); }
-  function stripTags(s) { return String(s == null ? '' : s).replace(/[<>]/g, ''); }
-
-  // ------------------------------------------------------------
-  // Category helpers — translate between DB shape and legacy shape
-  // ------------------------------------------------------------
-  let __catCache = {};
-
-  async function categoriesFor(subjectName) {
-    const key = String(subjectName);
-    if (__catCache[key]) return __catCache[key];
-    const rows = await sbGet('subject_categories',
-      'select=id,name&subject_name=eq.' + enc(key));
-    const map = {};
-    (rows || []).forEach(r => { map[String(r.name).toLowerCase()] = String(r.id); });
-    __catCache[key] = map;
-    return map;
-  }
-
-  function bdToLegacy(bd, catMap) {
-    const out = { quarter: bd.quarter, total: bd.total };
-    for (const name of Object.keys(catMap)) {
-      const id = catMap[name];
-      out[name] = (bd.categories && bd.categories[id] !== undefined)
-        ? bd.categories[id]
-        : '';
-    }
-    return out;
-  }
 
   // ------------------------------------------------------------
   // Admin Edge Function caller
-  // All privileged writes go through this function, which
-  // verifies the PIN server-side using the service_role key.
   // ------------------------------------------------------------
   const ADMIN_FN_URL = SB_URL + '/functions/v1/admin';
-
 
   async function callAdmin(payload) {
     const res = await fetch(ADMIN_FN_URL, {
@@ -122,24 +90,6 @@
     if (f === '' || f === null || isNaN(f)) return '';
     return Number(f) >= 75 ? 'Passed' : 'Failed';
   }
-  function defaultWeights() { return { quizzes: 35, participation: 15, attendance: 10, exams: 40 }; }
-  function validateWeights(w) {
-    const q = Number(w && w.quizzes) || 0, p = Number(w && w.participation) || 0;
-    const a = Number(w && w.attendance) || 0, e = Number(w && w.exams) || 0;
-    if (q + p + a + e !== 100) return { ok: false, message: 'Component weights must total exactly 100%.' };
-    return { ok: true, weights: { quizzes: q, participation: p, attendance: a, exams: e } };
-  }
-  function generateDefaultBreakdowns(q1, q2, q3, q4) {
-    const vals = [q1, q2, q3, q4], names = ['1st', '2nd', '3rd', '4th'];
-    return vals.map((v, i) => ({
-      quarter: names[i], quizzes: '', participation: '', attendance: '', exams: '',
-      total: (v !== null && v !== undefined && v !== '' && !isNaN(v)) ? v : ''
-    }));
-  }
-  async function sha256(text) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  }
 
   // ------------------------------------------------------------
   // Action handlers
@@ -147,11 +97,11 @@
   const handlers = {
     adminLogin: async (p) => callAdmin({
       action: 'adminLogin',
-      pin: p.pin
+      pin: p.pin,
+      deviceId: p.deviceId
     }),
 
     getSubjects: async () => {
-      // Fetch subjects + categories + quarter weights in one shot.
       const subjRows = await sbGet('subjects', 'select=*&order=subject_name.asc');
       const catRows  = await sbGet('subject_categories', 'select=*&order=subject_name.asc&order=position.asc');
 
@@ -187,9 +137,8 @@
       newName: p.newName,
       subjectName: p.subjectName,
       description: p.description,
-      weights: p.weights,               // legacy, still sent
-      categories: p.categories,         // NEW
-      quarterWeights: p.quarterWeights  // NEW
+      categories: p.categories,
+      quarterWeights: p.quarterWeights
     }),
 
     getSections: async () => {
@@ -206,7 +155,7 @@
       oldName: p.oldName
     }),
 
-        getStudent: async (p) => {
+    getStudent: async (p) => {
       const sNo = String(p.studentNumber || '');
       if (!sNo) return { success: false, message: 'No student number.' };
       const sRows = await sbGet('students', 'select=*&student_number=eq.' + enc(sNo));
@@ -223,24 +172,17 @@
       const s = sRows[0];
       const gRows = await sbGet('grades', 'select=*&student_number=eq.' + enc(sNo));
       const subjects = {};
-      for (const g of (Array.isArray(gRows) ? gRows : [])) {
+      (Array.isArray(gRows) ? gRows : []).forEach(g => {
         const q1 = g.q1 === '' ? null : Number(g.q1);
         const q2 = g.q2 === '' ? null : Number(g.q2);
         const q3 = g.q3 === '' ? null : Number(g.q3);
         const q4 = g.q4 === '' ? null : Number(g.q4);
         const fin = g.final !== '' ? Number(g.final) : calculateFinal([q1, q2, q3, q4]);
-
-        // Translate new-shape breakdowns back to legacy shape for the UI
-        const catMap = await categoriesFor(g.subject_name);
-        const legacyBds = Array.isArray(g.breakdowns)
-          ? g.breakdowns.map(bd => bdToLegacy(bd, catMap))
-          : [];
-
         subjects[g.subject_name] = {
           grades: { q1, q2, q3, q4, final: fin, remarks: g.remarks || determineRemarks(fin) },
-          breakdowns: legacyBds
+          breakdowns: Array.isArray(g.breakdowns) ? g.breakdowns : []
         };
-      }
+      });
       return { success: true, studentNumber: s.student_number, name: s.name, section: s.section, subjects };
     },
 
@@ -268,15 +210,13 @@
       });
     },
 
-    saveGrades: async (p) => {
-      return callAdmin({
-        action: 'saveGrades',
-        pin: p.pin,
-        studentNumber: p.studentNumber,
-        subject: p.subject,
-        grades: p.grades
-      });
-    },
+    saveGrades: async (p) => callAdmin({
+      action: 'saveGrades',
+      pin: p.pin,
+      studentNumber: p.studentNumber,
+      subject: p.subject,
+      grades: p.grades
+    }),
 
     saveBreakdown: async (p) => callAdmin({
       action: 'saveBreakdown',
@@ -284,8 +224,7 @@
       studentNumber: p.studentNumber,
       subject: p.subject,
       quarter: p.quarter,
-      breakdown: p.breakdown,
-      weights: p.weights
+      entries: p.entries
     }),
 
     bulkSaveBreakdown: async (p) => callAdmin({
@@ -293,7 +232,6 @@
       pin: p.pin,
       subject: p.subject,
       quarter: p.quarter,
-      weights: p.weights,
       items: p.items
     }),
 
@@ -317,13 +255,12 @@
       newData: p.newData
     }),
 
-    deleteStudent: async (p) => {
-      return callAdmin({
-        action: 'deleteStudent',
-        pin: p.pin,
-        studentNumber: p.studentNumber
-      });
-    },
+    deleteStudent: async (p) => callAdmin({
+      action: 'deleteStudent',
+      pin: p.pin,
+      studentNumber: p.studentNumber
+    }),
+
     getComments: async () => {
       const rows = await sbGet('comments', 'select=*&order=id.asc');
       return {
@@ -335,21 +272,17 @@
       };
     },
 
-    postComment: async (p) => {
-      return callAdmin({
-        action: 'postComment',
-        pin: p.pin,
-        studentNumber: p.studentNumber,
-        commentText: p.commentText
-      });
-    },
+    postComment: async (p) => callAdmin({
+      action: 'postComment',
+      pin: p.pin,
+      studentNumber: p.studentNumber,
+      commentText: p.commentText
+    }),
 
-    clearComments: async (p) => {
-      return callAdmin({
-        action: 'clearComments',
-        pin: p.pin
-      });
-    },
+    clearComments: async (p) => callAdmin({
+      action: 'clearComments',
+      pin: p.pin
+    }),
 
     getAnnouncement: async () => {
       const rows = await sbGet('announcements', 'select=*&is_active=eq.true&order=id.desc&limit=1');
@@ -437,108 +370,124 @@
     }),
 
     backupAll: async () => {
-      const [subjects, students, enrollments, grades, comments, announcements, pending] = await Promise.all([
+      const [subjects, students, enrollments, grades, comments, announcements, pending, assessments, scores] = await Promise.all([
         sbGet('subjects', 'select=*'), sbGet('students', 'select=*'),
         sbGet('enrollments', 'select=*'), sbGet('grades', 'select=*'),
         sbGet('comments', 'select=*'), sbGet('announcements', 'select=*'),
-        sbGet('pending_registrations', 'select=*')
+        sbGet('pending_registrations', 'select=*'),
+        sbGet('assessments', 'select=*'), sbGet('scores', 'select=*')
       ]);
       return {
         success: true,
         backup: {
-          version: '2.0', exportedAt: new Date().toISOString(), source: 'supabase',
+          version: '2.1', exportedAt: new Date().toISOString(), source: 'supabase',
           subjects, students, enrollments, grades, comments, announcements,
-          pending_registrations: pending
+          pending_registrations: pending, assessments, scores
         }
       };
     },
-    restoreAll: async (p) => {
-      const backup = p.backup;
-      if (!backup) {
-        return { success: false, message: 'Invalid backup file.' };
-      }
 
-      // Support BOTH formats:
-      //   - Old: { subjectData: {...}, comments: [], announcements: [] }
-      //   - New: { subjects: [...], students: [...], grades: [...], ... }
-      //   - Nested: { tables: { subjects: [...], ... } }
-      const t = backup.tables
-        || (backup.subjectData ? {
-             subjects: backup.subjects || [],
-             students: extractStudentsFromSubjectData(backup.subjectData),
-             enrollments: extractEnrollmentsFromSubjectData(backup.subjectData),
-             grades: extractGradesFromSubjectData(backup.subjectData),
-             comments: backup.comments || [],
-             announcements: backup.announcements || [],
-             pending_registrations: backup.pendingRegistrations || []
-           } : {
-             subjects: backup.subjects || [],
-             students: backup.students || [],
-             enrollments: backup.enrollments || [],
-             grades: backup.grades || [],
-             comments: backup.comments || [],
-             announcements: backup.announcements || [],
-             pending_registrations: backup.pending_registrations || [],
-             settings: backup.settings || []
-           });
-
-      // ---- 1. Wipe existing data ----
-      const wipe = async (table, filter) => {
-        try { await sbDelete(table, filter); } catch (e) { /* ignore */ }
-      };
-      await wipe('grades', 'id=gt.0');
-      await wipe('enrollments', 'id=gt.0');
-      await wipe('students', 'student_number=not.is.null');
-      await wipe('subjects', 'id=gt.0');
-      await wipe('comments', 'id=gt.0');
-      await wipe('announcements', 'id=gt.0');
-      await wipe('pending_registrations', 'id=gt.0');
-      // Do NOT wipe settings — keep the admin PIN hash
-
-      // ---- 2. Restore in dependency order ----
-      const restoreOrder = [
-        'subjects', 'students', 'enrollments', 'grades',
-        'comments', 'announcements', 'pending_registrations'
-      ];
-
-      let restoredRows = 0;
-
-      for (const table of restoreOrder) {
-        const rows = t[table];
-        if (!Array.isArray(rows) || rows.length === 0) continue;
-
-        for (let i = 0; i < rows.length; i += 100) {
-          const chunk = rows.slice(i, i + 100);
-          try {
-            await sbInsert(table, chunk);
-            restoredRows += chunk.length;
-          } catch (e) {
-            return {
-              success: false,
-              message: 'Restore failed on ' + table + ' at row ' + i + ': ' + e.message
-            };
-          }
-        }
-      }
-
-      return {
-        success: true,
-        message: 'Restored ' + restoredRows + ' rows.'
-      };
-    },
+    restoreAll: async (p) => callAdmin({
+      action: 'restoreAll',
+      pin: p.pin,
+      backup: p.backup
+    }),
 
     recomputeAllGrades: async (p) => callAdmin({
       action: 'recomputeAllGrades',
       pin: p.pin
+    }),
+
+    // ---- Class Recorder ----
+
+    getClassRecord: async (p) => {
+      const subject = String(p.subject || '');
+      const quarter = String(p.quarter || '');
+      if (!subject || !quarter) return { success: false, message: 'Subject and quarter required.' };
+
+      const catRows = await sbGet('subject_categories',
+        'select=id,name,weight,position&subject_name=eq.' + enc(subject) + '&order=position.asc');
+      const categories = Array.isArray(catRows) ? catRows : [];
+
+      const assessRows = await sbGet('assessments',
+        'select=*&subject_name=eq.' + enc(subject) + '&quarter=eq.' + enc(quarter) + '&order=category_id.asc&order=position.asc');
+      const assessments = Array.isArray(assessRows) ? assessRows : [];
+
+      let scores = [];
+      if (assessments.length > 0) {
+        const ids = assessments.map(a => a.id).join(',');
+        const scoreRows = await sbGet('scores', 'select=*&assessment_id=in.(' + ids + ')');
+        scores = Array.isArray(scoreRows) ? scoreRows : [];
+      }
+
+      // Students enrolled in this subject
+      const enrRows = await sbGet('enrollments',
+        'select=student_number&subject_name=eq.' + enc(subject));
+      const studentNumbers = (Array.isArray(enrRows) ? enrRows : []).map(e => String(e.student_number));
+
+      let students = [];
+      if (studentNumbers.length > 0) {
+        const inList = studentNumbers.map(s => '"' + s.replace(/"/g, '') + '"').join(',');
+        const sRows = await sbGet('students',
+          'select=student_number,name,section&student_number=in.(' + inList + ')&order=name.asc');
+        students = Array.isArray(sRows) ? sRows : [];
+      }
+
+      return {
+        success: true,
+        categories,
+        assessments,
+        scores,
+        students
+      };
+    },
+
+    addAssessment: async (p) => callAdmin({
+      action: 'addAssessment',
+      pin: p.pin,
+      subject: p.subject,
+      quarter: p.quarter,
+      categoryId: p.categoryId,
+      name: p.name,
+      totalPoints: p.totalPoints
+    }),
+
+    renameAssessment: async (p) => callAdmin({
+      action: 'renameAssessment',
+      pin: p.pin,
+      id: p.id,
+      name: p.name,
+      totalPoints: p.totalPoints
+    }),
+
+    deleteAssessment: async (p) => callAdmin({
+      action: 'deleteAssessment',
+      pin: p.pin,
+      id: p.id
+    }),
+
+    saveScore: async (p) => callAdmin({
+      action: 'saveScore',
+      pin: p.pin,
+      assessmentId: p.assessmentId,
+      studentNumber: p.studentNumber,
+      score: p.score
+    }),
+
+    saveScoresBatch: async (p) => callAdmin({
+      action: 'saveScoresBatch',
+      pin: p.pin,
+      items: p.items
+    }),
+
+    applyClassRecordToGrades: async (p) => callAdmin({
+      action: 'applyClassRecordToGrades',
+      pin: p.pin,
+      subject: p.subject,
+      quarter: p.quarter
     })
   };
 
-  // ------------------------------------------------------------
-  // Shared implementation helpers
-  // ------------------------------------------------------------
-  // ------------------------------------------------------------
-  // Public apiCall — same signature as before
-  // ------------------------------------------------------------
   App.apiCall = async function (payload, opts) {
     const action = String((payload && payload.action) || '');
     const handler = handlers[action];
@@ -553,60 +502,5 @@
       return { success: false, message: err.message || String(err) };
     }
   };
-
-  // ---- Helpers for old-format backup conversion ----
-  function extractStudentsFromSubjectData(sd) {
-    const map = {};
-    Object.keys(sd).forEach(function (subject) {
-      const rows = sd[subject];
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row[0]) continue;
-        const sNo = String(row[0]);
-        if (!map[sNo]) map[sNo] = { student_number: sNo, name: String(row[1] || ''), section: String(row[2] || 'Section A') };
-      }
-    });
-    return Object.keys(map).map(k => map[k]);
-  }
-
-  function extractEnrollmentsFromSubjectData(sd) {
-    const seen = {};
-    const list = [];
-    Object.keys(sd).forEach(function (subject) {
-      const rows = sd[subject];
-      for (let i = 1; i < rows.length; i++) {
-        const sNo = String(rows[i][0] || '');
-        if (!sNo) continue;
-        const key = sNo + '|' + subject;
-        if (!seen[key]) { seen[key] = true; list.push({ student_number: sNo, subject_name: subject }); }
-      }
-    });
-    return list;
-  }
-
-  function extractGradesFromSubjectData(sd) {
-    const list = [];
-    Object.keys(sd).forEach(function (subject) {
-      const rows = sd[subject];
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row[0]) continue;
-        let bd = [];
-        try { if (row[9]) bd = JSON.parse(String(row[9])); } catch (e) {}
-        list.push({
-          student_number: String(row[0]),
-          subject_name: subject,
-          q1: row[3] === '' ? '' : String(row[3]),
-          q2: row[4] === '' ? '' : String(row[4]),
-          q3: row[5] === '' ? '' : String(row[5]),
-          q4: row[6] === '' ? '' : String(row[6]),
-          final: row[7] === '' ? '' : String(row[7]),
-          remarks: String(row[8] || ''),
-          breakdowns: bd
-        });
-      }
-    });
-    return list;
-  }
 
 })(window.App);
