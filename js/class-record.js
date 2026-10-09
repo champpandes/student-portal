@@ -9,13 +9,29 @@
   // ============================================================
   // Populate the subject dropdown
   // ============================================================
-  App.populateClassRecordFilters = function () {
+  App.populateClassRecordFilters = async function () {
     const sel = document.getElementById('cr-subject');
     if (!sel) return;
+
+    // If subjects aren't loaded yet, fetch them now
+    if (!state.availableSubjects || state.availableSubjects.length === 0) {
+      try {
+        await App.fetchSubjects();
+      } catch (e) {
+        console.warn('Could not fetch subjects for Class Record', e);
+      }
+    }
+
+    if (!state.availableSubjects || state.availableSubjects.length === 0) {
+      sel.innerHTML = '<option value="">No subjects available</option>';
+      return;
+    }
+
     const prev = sel.value;
     sel.innerHTML = state.availableSubjects
       .map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>')
       .join('');
+
     if (prev && state.availableSubjects.indexOf(prev) !== -1) {
       sel.value = prev;
     } else if (state.availableSubjects.length > 0) {

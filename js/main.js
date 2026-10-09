@@ -86,6 +86,11 @@
       App.renderSectionsList();
     });
 
+    document.querySelector('[data-tab="class-record"]').addEventListener('click', async () => {
+      await App.populateClassRecordFilters();
+      App.loadClassRecord();
+    });
+
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();
