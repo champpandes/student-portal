@@ -39,7 +39,42 @@
   }
   function enc(v) { return encodeURIComponent(String(v == null ? '' : v)); }
   function stripTags(s) { return String(s == null ? '' : s).replace(/[<>]/g, ''); }
+  function enc(v) { return encodeURIComponent(String(v == null ? '' : v)); }
+  function stripTags(s) { return String(s == null ? '' : s).replace(/[<>]/g, ''); }
 
+  // ------------------------------------------------------------
+  // Category helpers — translate between DB shape and legacy shape
+  // ------------------------------------------------------------
+  let __catCache = {};
+
+  async function categoriesFor(subjectName) {
+    const key = String(subjectName);
+    if (__catCache[key]) return __catCache[key];
+    const rows = await sbGet('subject_categories',
+      'select=id,name&subject_name=eq.' + enc(key));
+    const map = {};
+    (rows || []).forEach(r => { map[String(r.name).toLowerCase()] = String(r.id); });
+    __catCache[key] = map;
+    return map;
+  }
+
+  function bdToLegacy(bd, catMap) {
+    const out = { quarter: bd.quarter, total: bd.total };
+    for (const name of Object.keys(catMap)) {
+      const id = catMap[name];
+      out[name] = (bd.categories && bd.categories[id] !== undefined)
+        ? bd.categories[id]
+        : '';
+    }
+    return out;
+  }
+
+  // ------------------------------------------------------------
+  // Admin Edge Function caller
+  // All privileged writes go through this function, which
+  // verifies the PIN server-side using the service_role key.
+  // ------------------------------------------------------------
+  const ADMIN_FN_URL = SB_URL + '/functions/v1/admin';
 
   // ------------------------------------------------------------
   // Admin Edge Function caller
@@ -157,7 +192,7 @@
       return { success: true, sections: list };
     },
 
-    getStudent: async (p) => {
+        getStudent: async (p) => {
       const sNo = String(p.studentNumber || '');
       if (!sNo) return { success: false, message: 'No student number.' };
       const sRows = await sbGet('students', 'select=*&student_number=eq.' + enc(sNo));
@@ -174,17 +209,24 @@
       const s = sRows[0];
       const gRows = await sbGet('grades', 'select=*&student_number=eq.' + enc(sNo));
       const subjects = {};
-      (Array.isArray(gRows) ? gRows : []).forEach(g => {
+      for (const g of (Array.isArray(gRows) ? gRows : [])) {
         const q1 = g.q1 === '' ? null : Number(g.q1);
         const q2 = g.q2 === '' ? null : Number(g.q2);
         const q3 = g.q3 === '' ? null : Number(g.q3);
         const q4 = g.q4 === '' ? null : Number(g.q4);
         const fin = g.final !== '' ? Number(g.final) : calculateFinal([q1, q2, q3, q4]);
+
+        // Translate new-shape breakdowns back to legacy shape for the UI
+        const catMap = await categoriesFor(g.subject_name);
+        const legacyBds = Array.isArray(g.breakdowns)
+          ? g.breakdowns.map(bd => bdToLegacy(bd, catMap))
+          : [];
+
         subjects[g.subject_name] = {
           grades: { q1, q2, q3, q4, final: fin, remarks: g.remarks || determineRemarks(fin) },
-          breakdowns: Array.isArray(g.breakdowns) ? g.breakdowns : []
+          breakdowns: legacyBds
         };
-      });
+      }
       return { success: true, studentNumber: s.student_number, name: s.name, section: s.section, subjects };
     },
 
