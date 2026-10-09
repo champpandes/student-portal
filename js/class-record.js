@@ -3,23 +3,27 @@
 
   const state = App.state;
 
-  // Local cache of the currently-loaded class record
   state._classRecord = null;
 
+  state._crFilters = {
+    search: '',
+    section: 'All',
+    sort: 'name-asc'
+  };
+
+  // NEW: pagination state
+  state._crPage = 1;
+  state._crPageSize = 25;
+
   // ============================================================
-  // Populate the subject dropdown
+  // Subject dropdown
   // ============================================================
   App.populateClassRecordFilters = async function () {
     const sel = document.getElementById('cr-subject');
     if (!sel) return;
 
-    // If subjects aren't loaded yet, fetch them now
     if (!state.availableSubjects || state.availableSubjects.length === 0) {
-      try {
-        await App.fetchSubjects();
-      } catch (e) {
-        console.warn('Could not fetch subjects for Class Record', e);
-      }
+      try { await App.fetchSubjects(); } catch (e) { console.warn(e); }
     }
 
     if (!state.availableSubjects || state.availableSubjects.length === 0) {
@@ -32,15 +36,12 @@
       .map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>')
       .join('');
 
-    if (prev && state.availableSubjects.indexOf(prev) !== -1) {
-      sel.value = prev;
-    } else if (state.availableSubjects.length > 0) {
-      sel.value = state.availableSubjects[0];
-    }
+    if (prev && state.availableSubjects.indexOf(prev) !== -1) sel.value = prev;
+    else if (state.availableSubjects.length > 0) sel.value = state.availableSubjects[0];
   };
 
   // ============================================================
-  // Load the class record for the current subject+quarter
+  // Load
   // ============================================================
   App.loadClassRecord = async function () {
     const subjSel = document.getElementById('cr-subject');
@@ -63,10 +64,16 @@
         subject: subject,
         quarter: quarter
       });
-
       if (!res.success) throw new Error(res.message || 'Failed to load.');
 
       state._classRecord = res;
+      // Reset filters on subject change
+      const secSel = document.getElementById('cr-section-filter');
+      if (secSel) secSel.value = 'All';
+      state._crFilters.section = 'All';
+      state._crPage = 1;
+
+      App.populateClassRecordSectionFilter();
       App.renderClassRecord();
     } catch (e) {
       console.error(e);
@@ -75,16 +82,112 @@
   };
 
   // ============================================================
-  // Render the whole thing
+  // Section filter populate
+  // ============================================================
+  App.populateClassRecordSectionFilter = function () {
+    const sel = document.getElementById('cr-section-filter');
+    if (!sel || !state._classRecord) return;
+
+    const sections = [];
+    const seen = {};
+    (state._classRecord.students || []).forEach(s => {
+      const sec = String(s.section || '').trim();
+      if (sec && !seen[sec]) { seen[sec] = true; sections.push(sec); }
+    });
+    sections.sort();
+
+    const prev = sel.value;
+    sel.innerHTML = '<option value="All">All Sections</option>' +
+      sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
+
+    if (prev && sections.indexOf(prev) !== -1) sel.value = prev;
+    else sel.value = 'All';
+  };
+
+  // ============================================================
+  // Filters — reset page on change
+  // ============================================================
+  App.crApplyFilters = function () {
+    const searchEl = document.getElementById('cr-search');
+    const secEl = document.getElementById('cr-section-filter');
+    const sortEl = document.getElementById('cr-sort');
+
+    state._crFilters.search = (searchEl ? searchEl.value : '').toLowerCase().trim();
+    state._crFilters.section = secEl ? secEl.value : 'All';
+    state._crFilters.sort = sortEl ? sortEl.value : 'name-asc';
+
+    state._crPage = 1;  // reset to first page
+    App.renderClassRecord();
+  };
+
+  App.crGotoPage = function (page) {
+    const totalPages = App._crTotalPages();
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    state._crPage = page;
+    App.renderClassRecord();
+  };
+
+  App.crSetPageSize = function (size) {
+    state._crPageSize = Number(size) || 25;
+    state._crPage = 1;
+    App.renderClassRecord();
+  };
+
+  App._crFilteredStudents = function () {
+    if (!state._classRecord) return [];
+    let list = (state._classRecord.students || []).slice();
+    const f = state._crFilters;
+
+    if (f.search) {
+      list = list.filter(s =>
+        String(s.name || '').toLowerCase().indexOf(f.search) !== -1 ||
+        String(s.student_number || '').toLowerCase().indexOf(f.search) !== -1
+      );
+    }
+    if (f.section && f.section !== 'All') {
+      list = list.filter(s => String(s.section || '') === f.section);
+    }
+
+    const sortKey = f.sort || 'name-asc';
+    list.sort((a, b) => {
+      const nameA = String(a.name || '').toLowerCase();
+      const nameB = String(b.name || '').toLowerCase();
+      const noA = String(a.student_number || '').toLowerCase();
+      const noB = String(b.student_number || '').toLowerCase();
+      const secA = String(a.section || '').toLowerCase();
+      const secB = String(b.section || '').toLowerCase();
+
+      switch (sortKey) {
+        case 'name-desc':   return nameB < nameA ? -1 : (nameB > nameA ? 1 : 0);
+        case 'number-asc':  return noA < noB ? -1 : (noA > noB ? 1 : 0);
+        case 'number-desc': return noB < noA ? -1 : (noB > noA ? 1 : 0);
+        case 'section-asc': return secA < secB ? -1 : (secA > secB ? 1 : (nameA < nameB ? -1 : 1));
+        case 'name-asc':
+        default:            return nameA < nameB ? -1 : (nameA > nameB ? 1 : 0);
+      }
+    });
+    return list;
+  };
+
+  App._crTotalPages = function () {
+    const total = App._crFilteredStudents().length;
+    return Math.max(1, Math.ceil(total / state._crPageSize));
+  };
+
+  // ============================================================
+  // Render
   // ============================================================
   App.renderClassRecord = function () {
     const body = document.getElementById('cr-body');
     const rec = state._classRecord;
     if (!body || !rec) return;
 
-    const { categories, assessments, scores, students } = rec;
+    App.populateClassRecordSectionFilter();
 
-    if (students.length === 0) {
+    const { categories, assessments, scores } = rec;
+
+    if (!rec.students || rec.students.length === 0) {
       body.innerHTML = '<div class="bg-white p-12 rounded-2xl border border-slate-200/80 shadow-sm text-center text-slate-400 text-sm font-medium">No students enrolled in this subject yet. Add students first.</div>';
       return;
     }
@@ -94,13 +197,18 @@
       return;
     }
 
-    // Index scores by (assessment_id, student_number)
+    // Paginate
+    const allFiltered = App._crFilteredStudents();
+    const totalPages = Math.max(1, Math.ceil(allFiltered.length / state._crPageSize));
+    if (state._crPage > totalPages) state._crPage = totalPages;
+    const startIdx = (state._crPage - 1) * state._crPageSize;
+    const students = allFiltered.slice(startIdx, startIdx + state._crPageSize);
+
     const scoreMap = {};
     (scores || []).forEach(s => {
       scoreMap[s.assessment_id + '|' + s.student_number] = s.score;
     });
 
-    // Group assessments by category
     const assessByCat = {};
     (assessments || []).forEach(a => {
       const k = String(a.category_id);
@@ -111,20 +219,84 @@
       assessByCat[k].sort((a, b) => (a.position || 0) - (b.position || 0));
     });
 
-    // Build each category block
-    const html = categories
+    const filterInfo = App._crFilterSummary(allFiltered.length, rec.students.length);
+
+    const categoryBlocks = categories
       .sort((a, b) => (a.position || 0) - (b.position || 0))
       .map(cat => App.buildCategoryBlock(cat, assessByCat[String(cat.id)] || [], students, scoreMap))
       .join('');
 
-    body.innerHTML = html;
+    const pagination = App._crPaginationUI(startIdx, students.length, allFiltered.length, totalPages);
+
+    body.innerHTML = filterInfo + categoryBlocks + pagination;
+  };
+
+  App._crFilterSummary = function (visible, total) {
+    const f = state._crFilters;
+    const hasFilter = f.search || (f.section && f.section !== 'All');
+    if (!hasFilter) return '';
+    return '<div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-xs font-bold text-indigo-700">' +
+      'Showing <b>' + visible + '</b> of <b>' + total + '</b> students' +
+      (f.search ? ' · Search: "' + App.esc(f.search) + '"' : '') +
+      (f.section && f.section !== 'All' ? ' · Section: ' + App.esc(f.section) : '') +
+      '</div>';
   };
 
   // ============================================================
-  // One category block
+  // Pagination UI
+  // ============================================================
+  App._crPaginationUI = function (startIdx, shown, total, totalPages) {
+    if (total === 0) return '';
+
+    const from = total === 0 ? 0 : startIdx + 1;
+    const to = startIdx + shown;
+
+    // Page numbers (show up to 7, with ellipsis)
+    const p = state._crPage;
+    const nums = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) nums.push(i);
+    } else {
+      if (p <= 4) {
+        nums.push(1,2,3,4,5,'...',totalPages);
+      } else if (p >= totalPages - 3) {
+        nums.push(1,'...',totalPages-4,totalPages-3,totalPages-2,totalPages-1,totalPages);
+      } else {
+        nums.push(1,'...',p-1,p,p+1,'...',totalPages);
+      }
+    }
+
+    const btnCls = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors';
+    const numBtn = (n) => {
+      if (n === '...') return '<span class="px-2 py-1.5 text-xs text-slate-400">…</span>';
+      if (n === p) return '<span class="' + btnCls + ' bg-indigo-600 text-white">' + n + '</span>';
+      return '<button type="button" data-cr-page="' + n + '" class="' + btnCls + ' bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">' + n + '</button>';
+    };
+
+    return '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">' +
+      '<div class="text-xs font-bold text-slate-500">Showing <b>' + from + '–' + to + '</b> of <b>' + total + '</b></div>' +
+      '<div class="flex items-center gap-2">' +
+        (p > 1
+          ? '<button type="button" data-cr-page="' + (p-1) + '" class="' + btnCls + ' bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">← Prev</button>'
+          : '<span class="' + btnCls + ' bg-slate-100 text-slate-300 cursor-not-allowed">← Prev</span>') +
+        nums.map(numBtn).join('') +
+        (p < totalPages
+          ? '<button type="button" data-cr-page="' + (p+1) + '" class="' + btnCls + ' bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Next →</button>'
+          : '<span class="' + btnCls + ' bg-slate-100 text-slate-300 cursor-not-allowed">Next →</span>') +
+      '</div>' +
+      '<div class="flex items-center gap-2">' +
+        '<label for="cr-page-size" class="text-[11px] font-bold text-slate-500">Rows:</label>' +
+        '<select id="cr-page-size" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-indigo-600">' +
+          [10,25,50,100].map(n => '<option value="' + n + '"' + (n === state._crPageSize ? ' selected' : '') + '>' + n + '</option>').join('') +
+        '</select>' +
+      '</div>' +
+    '</div>';
+  };
+
+  // ============================================================
+  // Category block
   // ============================================================
   App.buildCategoryBlock = function (cat, assessments, students, scoreMap) {
-    // Compute each student's category average (%)
     const computeAvg = (studentNo) => {
       let got = 0, total = 0;
       assessments.forEach(a => {
@@ -140,7 +312,6 @@
 
     let html = '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">';
 
-    // Category header
     html += '<div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">' +
       '<div class="flex items-center gap-3">' +
         '<div class="font-black text-slate-900 text-sm">' + App.esc(cat.name) + '</div>' +
@@ -153,70 +324,65 @@
     '</div>';
 
     if (assessments.length === 0) {
-      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No assessments yet. Click <b>+ Add Assessment</b> above to create one.</div>';
-    } else {
-      // Build the grid
-      const totalCols = assessments.length + 2; // name + assessments + avg
-
-      html += '<div class="overflow-x-auto"><table class="w-full text-left text-sm border-collapse">';
-      html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-wider">';
-      html += '<th class="p-3 min-w-[180px]">Student</th>';
-
-      assessments.forEach(a => {
-        html += '<th class="p-3 text-center min-w-[100px]">' +
-          '<div class="flex flex-col items-center gap-1">' +
-            '<span class="text-slate-700 text-xs font-black normal-case">' + App.esc(a.name) + '</span>' +
-            '<span class="text-[10px] text-slate-400 font-bold">/' + App.esc(a.total_points) + '</span>' +
-            '<div class="flex items-center gap-1 mt-1">' +
-              '<button type="button" data-action="edit-assessment" data-id="' + a.id + '" ' +
-                      'data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" ' +
-                      'data-category-id="' + a.category_id + '" data-category-name="' + App.esc(cat.name) + '" ' +
-                      'class="text-[10px] text-slate-500 hover:text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50 transition-colors">Edit</button>' +
-              '<button type="button" data-action="delete-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" ' +
-                      'class="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 transition-colors">×</button>' +
-            '</div>' +
-          '</div>' +
-        '</th>';
-      });
-
-      html += '<th class="p-3 text-center min-w-[80px] bg-indigo-50/50">Avg</th>';
-      html += '</tr></thead>';
-
-      html += '<tbody class="divide-y divide-slate-100">';
-      students.forEach(stu => {
-        html += '<tr class="hover:bg-slate-50/40 transition-colors">';
-        html += '<td class="p-3">' +
-          '<div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div>' +
-          '<div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div>' +
-        '</td>';
-
-        assessments.forEach(a => {
-          const key = a.id + '|' + stu.student_number;
-          const val = scoreMap[key];
-          const display = (val === undefined || val === null || val === '') ? '' : val;
-          html += '<td class="p-2 text-center">' +
-            '<input type="number" step="any" min="0" max="' + App.esc(a.total_points) + '" ' +
-                   'data-assessment-id="' + a.id + '" ' +
-                   'data-student-number="' + App.esc(stu.student_number) + '" ' +
-                   'data-total-points="' + App.esc(a.total_points) + '" ' +
-                   'value="' + App.esc(display) + '" ' +
-                   'class="cr-score-input w-20 text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">' +
-          '</td>';
-        });
-
-        // Row average
-        const avg = computeAvg(stu.student_number);
-        const avgColor = avg === '-' ? 'text-slate-400' : (Number(avg) >= 75 ? 'text-emerald-600' : 'text-rose-600');
-        html += '<td class="p-3 text-center bg-indigo-50/30">' +
-          '<span class="font-black text-sm ' + avgColor + '">' + avg + '</span>' +
-        '</td>';
-
-        html += '</tr>';
-      });
-      html += '</tbody></table></div>';
+      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No assessments yet.</div></div>';
+      return html;
+    }
+    if (students.length === 0) {
+      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No students match the current filter.</div></div>';
+      return html;
     }
 
-    html += '</div>';
+    html += '<div class="overflow-x-auto"><table class="w-full text-left text-sm border-collapse">';
+    html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-wider">';
+    html += '<th class="p-3 min-w-[180px]">Student</th>';
+
+    assessments.forEach(a => {
+      html += '<th class="p-3 text-center min-w-[100px]">' +
+        '<div class="flex flex-col items-center gap-1">' +
+          '<span class="text-slate-700 text-xs font-black normal-case">' + App.esc(a.name) + '</span>' +
+          '<span class="text-[10px] text-slate-400 font-bold">/' + App.esc(a.total_points) + '</span>' +
+          '<div class="flex items-center gap-1 mt-1">' +
+            '<button type="button" data-action="edit-assessment" data-id="' + a.id + '" ' +
+                    'data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" ' +
+                    'data-category-id="' + a.category_id + '" data-category-name="' + App.esc(cat.name) + '" ' +
+                    'class="text-[10px] text-slate-500 hover:text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">Edit</button>' +
+            '<button type="button" data-action="delete-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" ' +
+                    'class="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50">×</button>' +
+          '</div>' +
+        '</div>' +
+      '</th>';
+    });
+    html += '<th class="p-3 text-center min-w-[80px] bg-indigo-50/50">Avg</th>';
+    html += '</tr></thead>';
+
+    html += '<tbody class="divide-y divide-slate-100">';
+    students.forEach(stu => {
+      html += '<tr class="hover:bg-slate-50/40 transition-colors">';
+      html += '<td class="p-3">' +
+        '<div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div>' +
+        '<div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div>' +
+      '</td>';
+
+      assessments.forEach(a => {
+        const val = scoreMap[a.id + '|' + stu.student_number];
+        const display = (val === undefined || val === null || val === '') ? '' : val;
+        html += '<td class="p-2 text-center">' +
+          '<input type="number" step="any" min="0" max="' + App.esc(a.total_points) + '" ' +
+                 'data-assessment-id="' + a.id + '" ' +
+                 'data-student-number="' + App.esc(stu.student_number) + '" ' +
+                 'data-total-points="' + App.esc(a.total_points) + '" ' +
+                 'value="' + App.esc(display) + '" ' +
+                 'class="cr-score-input w-20 text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">' +
+        '</td>';
+      });
+
+      const avg = computeAvg(stu.student_number);
+      const avgColor = avg === '-' ? 'text-slate-400' : (Number(avg) >= 75 ? 'text-emerald-600' : 'text-rose-600');
+      html += '<td class="p-3 text-center bg-indigo-50/30"><span class="font-black text-sm ' + avgColor + '">' + avg + '</span></td>';
+
+      html += '</tr>';
+    });
+    html += '</tbody></table></div></div>';
     return html;
   };
 
@@ -269,13 +435,11 @@
           name: name, totalPoints: totalPoints
         }, { retries: 1 });
       }
-
       if (!res.success) {
         err.textContent = res.message || 'Failed to save.';
         err.classList.remove('hidden');
         return;
       }
-
       App.closeAssessmentModal();
       App.showToast(editId ? 'Assessment updated.' : 'Assessment added.');
       await App.loadClassRecord();
@@ -318,7 +482,6 @@
       return;
     }
 
-    // Skip if unchanged
     if (String(value) === String(input.dataset.originalValue || '')) return;
 
     const original = input.style.borderColor;
@@ -333,7 +496,6 @@
 
     if (res.success) {
       input.dataset.originalValue = value;
-      // Update local cache so avg recomputes without refetch
       if (state._classRecord) {
         const idx = state._classRecord.scores.findIndex(s =>
           s.assessment_id === assessmentId && s.student_number === studentNumber);
@@ -342,7 +504,6 @@
           assessment_id: assessmentId, student_number: studentNumber, score: value
         });
       }
-      // Rerender just the averages (cheap: re-render whole thing for now)
       App.renderClassRecord();
     } else {
       App.showToast(res.message || 'Failed to save score.', 'error');
@@ -351,22 +512,19 @@
   };
 
   // ============================================================
-  // Apply to grade sheet
+  // Apply
   // ============================================================
   App.applyClassRecord = async function () {
     const subject = document.getElementById('cr-subject').value;
     const quarter = document.getElementById('cr-quarter').value;
 
-    if (!subject) {
-      App.showToast('Pick a subject first.', 'error');
-      return;
-    }
+    if (!subject) { App.showToast('Pick a subject first.', 'error'); return; }
 
     const msg =
       'Apply class record averages to the grade sheet?\n\n' +
       'Subject: ' + subject + '\n' +
       'Quarter: ' + quarter + '\n\n' +
-      'Every student in this subject will have their grade sheet\'s breakdown overwritten with the averages from this class record. Grades will be recalculated.\n\n' +
+      'Every student in this subject will have their grade sheet\'s breakdown overwritten with the averages from this class record.\n\n' +
       'Continue?';
 
     if (!confirm(msg)) return;

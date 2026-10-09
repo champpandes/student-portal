@@ -97,6 +97,15 @@
     if (crSearch) crSearch.addEventListener('input', App.debounce(App.crApplyFilters, 200));
     if (crSection) crSection.addEventListener('change', App.crApplyFilters);
     if (crSort) crSort.addEventListener('change', App.crApplyFilters);
+      // Pagination — delegated click on page buttons + change on rows-per-page
+    document.getElementById('cr-body').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-cr-page]');
+      if (!btn) return;
+      App.crGotoPage(Number(btn.dataset.crPage));
+    });
+    document.getElementById('cr-body').addEventListener('change', (e) => {
+      if (e.target.id === 'cr-page-size') App.crSetPageSize(e.target.value);
+    });
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();
