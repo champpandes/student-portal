@@ -70,7 +70,7 @@
   };
 
   // ============================================================
-  // Populate dropdowns (unchanged behavior, new state fields)
+  // Populate dropdowns
   // ============================================================
   App.populateSubjectUIs = function () {
     const adminFilter = document.getElementById('admin-subject-filter');
@@ -288,24 +288,21 @@
     document.getElementById('new-subject-desc-input').value = state.subjectDescriptions[subjectName] || '';
     document.getElementById('editing-original-subject').value = subjectName;
 
-    // Quarter weights
     const qw = state.subjectQuarterWeights[subjectName] || { "1st": 25, "2nd": 25, "3rd": 25, "4th": 25 };
     document.getElementById('qw-1st').value = qw['1st'];
     document.getElementById('qw-2nd').value = qw['2nd'];
     document.getElementById('qw-3rd').value = qw['3rd'];
     document.getElementById('qw-4th').value = qw['4th'];
 
-    // Categories
     const list = document.getElementById('category-list');
     list.innerHTML = '';
     const cats = state.subjectCategories[subjectName] || [];
     cats.forEach(c => App.addCategoryRow(c.name, c.weight));
-
     App.updateCategoryTotals();
 
     const submit = document.getElementById('subject-submit-btn');
     submit.innerText = "Update Subject";
-    submit.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 shadow-md transition-all whitespace-nowrap";
+    submit.className = "bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-emerald-600/20 transition-all";
     document.getElementById('subject-cancel-edit-btn').classList.remove('hidden');
     document.getElementById('new-subject-input').focus();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -330,14 +327,15 @@
 
     const submit = document.getElementById('subject-submit-btn');
     submit.innerText = "+ Add Subject";
-    submit.className = "w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap";
+    submit.className = "bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all";
     document.getElementById('subject-cancel-edit-btn').classList.add('hidden');
   };
 
   // ============================================================
-  // Save / Delete
+  // Save
   // ============================================================
   App.handleSaveSubject = async function () {
+    const btn = document.getElementById('subject-submit-btn');
     const newName = document.getElementById('new-subject-input').value.trim();
     const descVal = document.getElementById('new-subject-desc-input').value.trim();
     const oldName = document.getElementById('editing-original-subject').value;
@@ -362,71 +360,96 @@
       return;
     }
 
-    // Legacy weights — derived from category names for backward compat
-    const legacyWeights = {
-      quizzes: (categories.find(c => c.name.toLowerCase() === 'quizzes') || {}).weight || 0,
-      participation: (categories.find(c => c.name.toLowerCase() === 'participation') || {}).weight || 0,
-      attendance: (categories.find(c => c.name.toLowerCase() === 'attendance') || {}).weight || 0,
-      exams: (categories.find(c => c.name.toLowerCase() === 'exams') || {}).weight || 0
-    };
+    let succeeded = false;
 
-    const res = await App.apiCall({
-      action: "manageSubject",
-      pin: state.adminPin,
-      subAction: oldName ? "update" : "add",
-      oldName: oldName,
-      newName: newName,
-      subjectName: newName,
-      description: descVal,
-      weights: legacyWeights,
-      categories: categories,
-      quarterWeights: qw
-    }, { retries: 1 });
+    await App.withButtonLoading(btn, async () => {
+      const legacyWeights = {
+        quizzes: (categories.find(c => c.name.toLowerCase() === 'quizzes') || {}).weight || 0,
+        participation: (categories.find(c => c.name.toLowerCase() === 'participation') || {}).weight || 0,
+        attendance: (categories.find(c => c.name.toLowerCase() === 'attendance') || {}).weight || 0,
+        exams: (categories.find(c => c.name.toLowerCase() === 'exams') || {}).weight || 0
+      };
 
-    if (!res.success) {
-      App.showToast(res.message || "Failed to save subject.", "error");
-      return;
-    }
+      const res = await App.apiCall({
+        action: "manageSubject",
+        pin: state.adminPin,
+        subAction: oldName ? "update" : "add",
+        oldName: oldName,
+        newName: newName,
+        subjectName: newName,
+        description: descVal,
+        weights: legacyWeights,
+        categories: categories,
+        quarterWeights: qw
+      }, { retries: 1 });
 
-    if (res.subjects) state.availableSubjects = res.subjects;
-    if (res.descriptions) state.subjectDescriptions = res.descriptions;
-    if (res.weights) state.subjectWeights = res.weights;
-    if (res.categories) state.subjectCategories = res.categories;
-    if (res.quarterWeights) state.subjectQuarterWeights = res.quarterWeights;
+      if (!res.success) {
+        App.showToast(res.message || "Failed to save subject.", "error");
+        return;
+      }
 
-    App.populateSubjectUIs();
-    App.renderSubjectsListUI();
-    App.invalidateAllCache();
-    sessionStorage.removeItem('sp_subjects_cache');
-    await App.loadAdminDashboard();
-
-    App.showToast(oldName ? "Subject '" + newName + "' updated!" : "Subject '" + newName + "' added!");
-    App.resetSubjectForm();
-  };
-
-  App.handleDeleteSubject = async function (name) {
-    if (!confirm("WARNING: Deleting '" + name + "' will also delete ALL grades for this subject.\n\nProceed?")) return;
-
-    const res = await App.apiCall({
-      action: "manageSubject", pin: state.adminPin, subAction: "delete", subjectName: name
-    }, { retries: 1 });
-
-    if (res.success) {
-      if (state.activeAdminSubject === name) state.activeAdminSubject = "All";
       if (res.subjects) state.availableSubjects = res.subjects;
       if (res.descriptions) state.subjectDescriptions = res.descriptions;
       if (res.weights) state.subjectWeights = res.weights;
       if (res.categories) state.subjectCategories = res.categories;
       if (res.quarterWeights) state.subjectQuarterWeights = res.quarterWeights;
 
-      App.showToast("Subject '" + name + "' deleted.");
       App.populateSubjectUIs();
       App.renderSubjectsListUI();
       App.invalidateAllCache();
       sessionStorage.removeItem('sp_subjects_cache');
       await App.loadAdminDashboard();
-    } else {
-      App.showToast(res.message || "Failed to delete subject.", "error");
+
+      App.showToast(oldName ? "Subject '" + newName + "' updated!" : "Subject '" + newName + "' added!");
+      succeeded = true;
+    }, { text: 'Saving...' });
+
+    // Reset only after withButtonLoading finishes restoring the button
+    if (succeeded) {
+      App.resetSubjectForm();
+    }
+  };
+
+  // ============================================================
+  // Delete
+  // ============================================================
+  App.handleDeleteSubject = async function (name) {
+    if (!confirm("WARNING: Deleting '" + name + "' will also delete ALL grades for this subject.\n\nProceed?")) return;
+
+    const list = document.getElementById('subjects-list-ui');
+    const btns = list.querySelectorAll('button');
+    btns.forEach(b => { b.disabled = true; b.classList.add('opacity-60', 'cursor-wait'); });
+
+    try {
+      const res = await App.apiCall({
+        action: "manageSubject", pin: state.adminPin, subAction: "delete", subjectName: name
+      }, { retries: 1 });
+
+      if (res.success) {
+        if (state.activeAdminSubject === name) state.activeAdminSubject = "All";
+        if (res.subjects) state.availableSubjects = res.subjects;
+        if (res.descriptions) state.subjectDescriptions = res.descriptions;
+        if (res.weights) state.subjectWeights = res.weights;
+        if (res.categories) state.subjectCategories = res.categories;
+        if (res.quarterWeights) state.subjectQuarterWeights = res.quarterWeights;
+
+        App.showToast("Subject '" + name + "' deleted.");
+        App.populateSubjectUIs();
+        App.renderSubjectsListUI();
+        App.invalidateAllCache();
+        sessionStorage.removeItem('sp_subjects_cache');
+        await App.loadAdminDashboard();
+      } else {
+        App.showToast(res.message || "Failed to delete subject.", "error");
+      }
+    } finally {
+      // Old buttons were replaced by renderSubjectsListUI; this is defensive
+      btns.forEach(b => {
+        if (document.contains(b)) {
+          b.disabled = false;
+          b.classList.remove('opacity-60', 'cursor-wait');
+        }
+      });
     }
   };
 
