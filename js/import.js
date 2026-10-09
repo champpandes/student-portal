@@ -72,6 +72,7 @@
 
   // ---------- Preview ----------
   App.previewDataTransfer = async function () {
+    const btn = document.getElementById('preview-btn');
     const action = document.getElementById('import-action').value;
     const fileInput = document.getElementById('csv-file-input');
     const pasteInput = document.getElementById('smart-paste-input').value;
@@ -79,7 +80,6 @@
     const previewSection = document.getElementById('preview-section');
     const thead = document.getElementById('preview-thead');
     const tbody = document.getElementById('preview-table-body');
-    const btn = document.getElementById('preview-btn');
 
     status.classList.add('hidden');
     previewSection.classList.add('hidden');
@@ -90,125 +90,121 @@
       return;
     }
 
-    const original = btn.innerHTML;
-    btn.innerHTML = "Reading...";
-    btn.disabled = true;
+    await App.withButtonLoading(btn, async () => {
+      try {
+        const subj = document.getElementById('import-subject').value;
+        let rawRows = [];
+        let isPaste = false;
 
-    try {
-      const subj = document.getElementById('import-subject').value;
-      let rawRows = [];
-      let isPaste = false;
-
-      if (pasteInput.trim()) {
-        rawRows = pasteInput.trim().split('\n');
-        isPaste = true;
-      } else {
-        rawRows = (await readCSVFile(fileInput.files[0])).split('\n');
-      }
-
-      tbody.innerHTML = '';
-      const startRow = isPaste ? 0 : 1;
-
-      if (action === 'register') {
-        const cId = colToIndex('col-id-reg');
-        const cName = colToIndex('col-name');
-        const cSec = colToIndex('col-sec');
-        if (cId < 0 || cName < 0) throw new Error("ID and Name columns are required.");
-
-        thead.innerHTML = '<tr>' +
-          '<th class="p-3 font-bold">Student No.</th>' +
-          '<th class="p-3 font-bold">Name</th>' +
-          (cSec >= 0 ? '<th class="p-3 font-bold">Section</th>' : '') +
-        '</tr>';
-
-        for (let i = startRow; i < rawRows.length; i++) {
-          if (!rawRows[i].trim()) continue;
-          const cols = isPaste
-            ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, ''))
-            : parseCSV(rawRows[i]);
-          if (!cols[cId] || !cols[cName]) continue;
-          if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
-
-          const cleanNo = String(cols[cId]).trim();
-          const name = String(cols[cName]).trim();
-          const sec = cSec >= 0 ? String(cols[cSec] || '').trim() : '';
-
-          state.pendingImportData.push({
-            studentNumber: cleanNo, name: name, section: sec, enrolledSubjects: [subj]
-          });
-
-          tbody.insertAdjacentHTML('beforeend',
-            '<tr class="hover:bg-slate-50 transition-colors">' +
-              '<td class="p-3 border-b border-slate-100 font-semibold">' + App.esc(cleanNo) + '</td>' +
-              '<td class="p-3 border-b border-slate-100 font-bold text-slate-700">' + App.esc(name) + '</td>' +
-              (cSec >= 0 ? '<td class="p-3 border-b border-slate-100 text-slate-500">' + App.esc(sec) + '</td>' : '') +
-            '</tr>');
+        if (pasteInput.trim()) {
+          rawRows = pasteInput.trim().split('\n');
+          isPaste = true;
+        } else {
+          rawRows = (await readCSVFile(fileInput.files[0])).split('\n');
         }
-      } else {
-        const cId = colToIndex('col-id-grades');
-        const cQz = colToIndex('col-quiz');
-        const cPa = colToIndex('col-part');
-        const cAt = colToIndex('col-att');
-        const cEx = colToIndex('col-exam');
 
-        if (cId < 0) throw new Error("Student ID column is required.");
-        if (cQz < 0 && cPa < 0 && cAt < 0 && cEx < 0) throw new Error("Map at least one grade category.");
+        tbody.innerHTML = '';
+        const startRow = isPaste ? 0 : 1;
 
-        let headHTML = '<tr><th class="p-3 font-bold">Student No.</th>';
-        if (cQz >= 0) headHTML += '<th class="p-3 font-bold text-center">Quizzes</th>';
-        if (cPa >= 0) headHTML += '<th class="p-3 font-bold text-center">Part.</th>';
-        if (cAt >= 0) headHTML += '<th class="p-3 font-bold text-center">Att.</th>';
-        if (cEx >= 0) headHTML += '<th class="p-3 font-bold text-center">Exams</th>';
-        headHTML += '</tr>';
-        thead.innerHTML = headHTML;
+        if (action === 'register') {
+          const cId = colToIndex('col-id-reg');
+          const cName = colToIndex('col-name');
+          const cSec = colToIndex('col-sec');
+          if (cId < 0 || cName < 0) throw new Error("ID and Name columns are required.");
 
-        for (let i = startRow; i < rawRows.length; i++) {
-          if (!rawRows[i].trim()) continue;
-          const cols = isPaste
-            ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, ''))
-            : parseCSV(rawRows[i]);
-          if (!cols[cId]) continue;
-          if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
+          thead.innerHTML = '<tr>' +
+            '<th class="p-3 font-bold">Student No.</th>' +
+            '<th class="p-3 font-bold">Name</th>' +
+            (cSec >= 0 ? '<th class="p-3 font-bold">Section</th>' : '') +
+          '</tr>';
 
-          const cleanNo = String(cols[cId]).trim();
-          const item = {
-            studentNumber: cleanNo,
-            quizzes: cQz >= 0 ? (Number(cols[cQz]) || 0) : null,
-            participation: cPa >= 0 ? (Number(cols[cPa]) || 0) : null,
-            attendance: cAt >= 0 ? (Number(cols[cAt]) || 0) : null,
-            exams: cEx >= 0 ? (Number(cols[cEx]) || 0) : null
-          };
-          state.pendingImportData.push(item);
+          for (let i = startRow; i < rawRows.length; i++) {
+            if (!rawRows[i].trim()) continue;
+            const cols = isPaste
+              ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, ''))
+              : parseCSV(rawRows[i]);
+            if (!cols[cId] || !cols[cName]) continue;
+            if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
 
-          let rowHTML = '<tr class="hover:bg-slate-50 transition-colors">' +
-            '<td class="p-3 border-b border-slate-100 font-semibold">' + App.esc(cleanNo) + '</td>';
-          if (cQz >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.quizzes) + '</td>';
-          if (cPa >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.participation) + '</td>';
-          if (cAt >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.attendance) + '</td>';
-          if (cEx >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.exams) + '</td>';
-          rowHTML += '</tr>';
-          tbody.insertAdjacentHTML('beforeend', rowHTML);
+            const cleanNo = String(cols[cId]).trim();
+            const name = String(cols[cName]).trim();
+            const sec = cSec >= 0 ? String(cols[cSec] || '').trim() : '';
+
+            state.pendingImportData.push({
+              studentNumber: cleanNo, name: name, section: sec, enrolledSubjects: [subj]
+            });
+
+            tbody.insertAdjacentHTML('beforeend',
+              '<tr class="hover:bg-slate-50 transition-colors">' +
+                '<td class="p-3 border-b border-slate-100 font-semibold">' + App.esc(cleanNo) + '</td>' +
+                '<td class="p-3 border-b border-slate-100 font-bold text-slate-700">' + App.esc(name) + '</td>' +
+                (cSec >= 0 ? '<td class="p-3 border-b border-slate-100 text-slate-500">' + App.esc(sec) + '</td>' : '') +
+              '</tr>');
+          }
+        } else {
+          const cId = colToIndex('col-id-grades');
+          const cQz = colToIndex('col-quiz');
+          const cPa = colToIndex('col-part');
+          const cAt = colToIndex('col-att');
+          const cEx = colToIndex('col-exam');
+
+          if (cId < 0) throw new Error("Student ID column is required.");
+          if (cQz < 0 && cPa < 0 && cAt < 0 && cEx < 0) throw new Error("Map at least one grade category.");
+
+          let headHTML = '<tr><th class="p-3 font-bold">Student No.</th>';
+          if (cQz >= 0) headHTML += '<th class="p-3 font-bold text-center">Quizzes</th>';
+          if (cPa >= 0) headHTML += '<th class="p-3 font-bold text-center">Part.</th>';
+          if (cAt >= 0) headHTML += '<th class="p-3 font-bold text-center">Att.</th>';
+          if (cEx >= 0) headHTML += '<th class="p-3 font-bold text-center">Exams</th>';
+          headHTML += '</tr>';
+          thead.innerHTML = headHTML;
+
+          for (let i = startRow; i < rawRows.length; i++) {
+            if (!rawRows[i].trim()) continue;
+            const cols = isPaste
+              ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, ''))
+              : parseCSV(rawRows[i]);
+            if (!cols[cId]) continue;
+            if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
+
+            const cleanNo = String(cols[cId]).trim();
+            const item = {
+              studentNumber: cleanNo,
+              quizzes: cQz >= 0 ? (Number(cols[cQz]) || 0) : null,
+              participation: cPa >= 0 ? (Number(cols[cPa]) || 0) : null,
+              attendance: cAt >= 0 ? (Number(cols[cAt]) || 0) : null,
+              exams: cEx >= 0 ? (Number(cols[cEx]) || 0) : null
+            };
+            state.pendingImportData.push(item);
+
+            let rowHTML = '<tr class="hover:bg-slate-50 transition-colors">' +
+              '<td class="p-3 border-b border-slate-100 font-semibold">' + App.esc(cleanNo) + '</td>';
+            if (cQz >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.quizzes) + '</td>';
+            if (cPa >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.participation) + '</td>';
+            if (cAt >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.attendance) + '</td>';
+            if (cEx >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.exams) + '</td>';
+            rowHTML += '</tr>';
+            tbody.insertAdjacentHTML('beforeend', rowHTML);
+          }
         }
-      }
 
-      if (state.pendingImportData.length > 0) {
-        status.textContent = 'Found ' + state.pendingImportData.length + ' valid entries to process.';
-        status.className = "bg-emerald-50 border border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
-        status.classList.remove('hidden');
-        previewSection.classList.remove('hidden');
-        btn.classList.add('hidden');
-        document.getElementById('confirm-btn').classList.remove('hidden');
-      } else {
-        App.showToast("No valid data found. Check columns.", "error");
+        if (state.pendingImportData.length > 0) {
+          status.textContent = 'Found ' + state.pendingImportData.length + ' valid entries to process.';
+          status.className = "bg-emerald-50 border border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
+          status.classList.remove('hidden');
+          previewSection.classList.remove('hidden');
+          btn.classList.add('hidden');
+          document.getElementById('confirm-btn').classList.remove('hidden');
+        } else {
+          App.showToast("No valid data found. Check columns.", "error");
+        }
+      } catch (e) {
+        App.showToast(e.message, "error");
       }
-    } catch (e) {
-      App.showToast(e.message, "error");
-    }
-    btn.innerHTML = original;
-    btn.disabled = false;
+    }, { text: 'Reading...' });
   };
 
-  // ---------- Confirm ----------
+  // ---------- Confirm / Import ----------
   App.confirmDataTransfer = async function () {
     const btn = document.getElementById('confirm-btn');
     const cancelBtn = document.getElementById('import-cancel-btn');
@@ -358,53 +354,48 @@
     }
 
     const btn = document.getElementById('xlsx-export-btn');
-    const original = btn.innerHTML;
-    btn.innerHTML = '⏳ Building…';
-    btn.disabled = true;
 
-    try {
-      const XLSX = await loadSheetJS();
+    await App.withButtonLoading(btn, async () => {
+      try {
+        const XLSX = await loadSheetJS();
 
-      const headers = [
-        "Student Number","Full Name","Section","Subject",
-        "1st Quarter","2nd Quarter","3rd Quarter","4th Quarter",
-        "Final Grade","Remarks"
-      ];
+        const headers = [
+          "Student Number","Full Name","Section","Subject",
+          "1st Quarter","2nd Quarter","3rd Quarter","4th Quarter",
+          "Final Grade","Remarks"
+        ];
 
-      const rows = [headers];
-      state.currentAdminData.forEach(s => {
-        rows.push([
-          s.studentNumber || '',
-          s.name || '',
-          s.section || '',
-          s.subject || '',
-          s.q1 || '', s.q2 || '', s.q3 || '', s.q4 || '',
-          s.final || '',
-          s.remarks || ''
-        ]);
-      });
+        const rows = [headers];
+        state.currentAdminData.forEach(s => {
+          rows.push([
+            s.studentNumber || '',
+            s.name || '',
+            s.section || '',
+            s.subject || '',
+            s.q1 || '', s.q2 || '', s.q3 || '', s.q4 || '',
+            s.final || '',
+            s.remarks || ''
+          ]);
+        });
 
-      const ws = XLSX.utils.aoa_to_sheet(rows);
+        const ws = XLSX.utils.aoa_to_sheet(rows);
 
-      // Column widths
-      ws['!cols'] = [
-        { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 24 },
-        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
-        { wch: 10 }, { wch: 10 }
-      ];
+        ws['!cols'] = [
+          { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 24 },
+          { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+          { wch: 10 }, { wch: 10 }
+        ];
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Records');
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Records');
 
-      XLSX.writeFile(wb, filename);
-      App.showToast("Excel file downloaded!");
-    } catch (e) {
-      console.error(e);
-      App.showToast(e.message || 'XLSX export failed.', 'error');
-    }
-
-    btn.innerHTML = original;
-    btn.disabled = false;
+        XLSX.writeFile(wb, filename);
+        App.showToast("Excel file downloaded!");
+      } catch (e) {
+        console.error(e);
+        App.showToast(e.message || 'XLSX export failed.', 'error');
+      }
+    }, { text: 'Building...' });
   };
 
 })(window.App);
