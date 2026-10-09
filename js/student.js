@@ -97,7 +97,7 @@
   };
 
   /* ============================================================
-     PRINT — Student grade report
+     PRINT — Student grade report (unchanged — quarter-level view)
      ============================================================ */
   App.printStudentGrades = function () {
     if (!state.currentStudentData || !state.activeStudentSubject) {
@@ -185,7 +185,7 @@
     window.print();
   };
 
-  // ---------- Breakdown ----------
+  // ---------- Breakdown: admin opens by clicking a quarter number ----------
   App.openAdminBreakdown = async function (cell, studentNumber, subject, quarter) {
     const original = cell.textContent;
     cell.textContent = "...";
@@ -207,43 +207,50 @@
     }
   };
 
+  // ---------- Breakdown: read-only view (dynamic categories) ----------
   App.openBreakdown = function (quarter, subject) {
     const qNum = quarter.replace(/\D/g, '');
-    const breakdown = state.currentStudentData.subjects[subject].breakdowns
-      .find(b => String(b.quarter).indexOf(qNum) !== -1);
+    const breakdowns = state.currentStudentData.subjects[subject].breakdowns || [];
+    const breakdown = breakdowns.find(b => String(b.quarter).indexOf(qNum) !== -1);
 
     document.getElementById('breakdown-title').textContent = quarter + ' Quarter Details';
     document.getElementById('breakdown-subject-label').textContent =
       subject.replace(/\(SY.*?\)/i, '').trim() + ' Component View';
 
-    const w = state.subjectWeights[subject] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
-    const val = k => {
-      if (!breakdown || breakdown[k] === "" || breakdown[k] === null || breakdown[k] === undefined) return '-';
-      return breakdown[k];
-    };
+    const cats = state.subjectCategories[subject] || [];
+    if (cats.length === 0) {
+      document.getElementById('breakdown-content').innerHTML =
+        '<div class="p-8 text-center text-slate-400 font-bold">No categories configured for this subject. Add categories in the Subjects tab.</div>';
+      App.showScreen('breakdown');
+      return;
+    }
 
-    let html = '<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4" id="breakdown-grid-row">' +
-      '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="quizzes">' +
-        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Quizzes (' + App.esc(w.quizzes) + '%)</span>' +
-        '<span class="text-xl sm:text-2xl font-black text-slate-800 value-text">' + App.esc(val('quizzes')) + '</span>' +
-      '</div>' +
-      '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="participation">' +
-        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Participation (' + App.esc(w.participation) + '%)</span>' +
-        '<span class="text-xl sm:text-2xl font-black text-slate-800 value-text">' + App.esc(val('participation')) + '</span>' +
-      '</div>' +
-      '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="attendance">' +
-        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Attendance (' + App.esc(w.attendance) + '%)</span>' +
-        '<span class="text-xl sm:text-2xl font-black text-slate-800 value-text">' + App.esc(val('attendance')) + '</span>' +
-      '</div>' +
-      '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="exams">' +
-        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2">Exams (' + App.esc(w.exams) + '%)</span>' +
-        '<span class="text-xl sm:text-2xl font-black text-slate-800 value-text">' + App.esc(val('exams')) + '</span>' +
-      '</div>' +
-      '<div class="col-span-2 sm:col-span-1 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center">' +
-        '<span class="text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 sm:mb-2">Total</span>' +
-        '<span class="text-2xl sm:text-3xl font-black text-indigo-700" id="bd-total">' + App.esc(val('total')) + '</span>' +
-      '</div>' +
+    const catValues = (breakdown && breakdown.categories) ? breakdown.categories : {};
+    const val = (id) => {
+      const v = catValues[String(id)];
+      if (v === undefined || v === null || v === '') return '-';
+      return v;
+    };
+    const totalVal = (breakdown && breakdown.total !== undefined && breakdown.total !== '')
+      ? breakdown.total : '-';
+
+    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;" id="breakdown-grid-row">';
+
+    cats.forEach(c => {
+      html += '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center" data-field="' + c.id + '">' +
+        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2 text-center">' +
+          App.esc(c.name) + ' (' + App.esc(c.weight) + '%)' +
+        '</span>' +
+        '<span class="text-xl sm:text-2xl font-black text-slate-800 value-text">' + App.esc(val(c.id)) + '</span>' +
+      '</div>';
+    });
+
+    html += '<div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center">' +
+      '<span class="text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 sm:mb-2">Total</span>' +
+      '<span class="text-2xl sm:text-3xl font-black text-indigo-700" id="bd-total">' + App.esc(totalVal) + '</span>' +
     '</div>';
+
+    html += '</div>';
 
     if (state.adminPin !== "") {
       html += '<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end no-print">' +
@@ -258,52 +265,77 @@
     App.showScreen('breakdown');
   };
 
+  // ---------- Breakdown: edit (dynamic categories) ----------
   App.toggleBreakdownEdit = async function (btn, quarter, subject) {
     const grid = document.getElementById('breakdown-grid-row');
     const isEditing = btn.textContent.indexOf('Save') === -1;
+    const cats = state.subjectCategories[subject] || [];
 
+    if (cats.length === 0) return;
+
+    // --- ENTER EDIT MODE ---
     if (isEditing) {
-      ['quizzes','participation','attendance','exams'].forEach(f => {
-        const t = grid.querySelector('div[data-field="' + f + '"] .value-text');
+      cats.forEach(c => {
+        const t = grid.querySelector('div[data-field="' + c.id + '"] .value-text');
         const current = t.textContent === '-' ? '' : t.textContent;
-        t.innerHTML = '<input type="number" class="w-16 sm:w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none text-base" value="' + App.esc(current) + '">';
+        t.innerHTML = '<input type="number" data-cat-id="' + c.id + '" ' +
+          'class="w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none text-base" ' +
+          'value="' + App.esc(current) + '">';
       });
       btn.textContent = "Save Changes";
       btn.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-semibold transition-colors text-sm";
       return;
     }
 
-    btn.textContent = "Saving...";
+    // --- SAVE ---
+    const originalText = btn.textContent;
+    const originalClass = btn.className;
     btn.disabled = true;
+    btn.classList.add('opacity-60', 'cursor-wait');
+    btn.innerHTML = '<span class="inline-flex items-center gap-2"><span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span><span>Saving...</span></span>';
 
-    const bd = {};
-    ['quizzes','participation','attendance','exams'].forEach(f => {
-      bd[f] = Number(grid.querySelector('div[data-field="' + f + '"] .value-text input').value || 0);
-    });
-    const weights = state.subjectWeights[subject] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
-
-    const res = await App.apiCall({
-      action: "saveBreakdown", pin: state.adminPin,
-      studentNumber: state.currentStudentData.studentNumber,
-      subject: subject, quarter: quarter, breakdown: bd, weights: weights
-    }, { retries: 1 });
-
-    if (res.success) {
-      document.getElementById('bd-total').textContent = res.newTotal;
-      ['quizzes','participation','attendance','exams'].forEach(f => {
-        grid.querySelector('div[data-field="' + f + '"] .value-text').textContent = bd[f];
+    try {
+      const entries = cats.map(c => {
+        const inp = grid.querySelector('input[data-cat-id="' + c.id + '"]');
+        const raw = inp ? inp.value.trim() : '';
+        return { categoryId: c.id, value: raw === '' ? '' : Number(raw) };
       });
-      btn.textContent = "Edit Breakdown";
-      btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm";
+
+      const res = await App.apiCall({
+        action: "saveBreakdown",
+        pin: state.adminPin,
+        studentNumber: state.currentStudentData.studentNumber,
+        subject: subject,
+        quarter: quarter,
+        entries: entries
+      }, { retries: 1 });
+
+      if (res.success) {
+        document.getElementById('bd-total').textContent = res.newTotal;
+        cats.forEach(c => {
+          const t = grid.querySelector('div[data-field="' + c.id + '"] .value-text');
+          const e = entries.find(x => String(x.categoryId) === String(c.id));
+          t.textContent = (e.value === '' || e.value === null) ? '-' : e.value;
+        });
+        App.showToast("Breakdown updated.");
+        App.invalidateActiveCache();
+        App.updateLastSavedTimestamp();
+        await App.loadAdminDashboard();
+
+        btn.textContent = "Edit Breakdown";
+        btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm";
+      } else {
+        App.showToast(res.message || "Failed to save.", "error");
+        btn.textContent = originalText;
+        btn.className = originalClass;
+      }
+    } catch (e) {
+      App.showToast(e.message || "Failed to save.", "error");
+      btn.textContent = originalText;
+      btn.className = originalClass;
+    } finally {
       btn.disabled = false;
-      App.showToast("Breakdown updated.");
-      App.invalidateActiveCache();
-      App.updateLastSavedTimestamp();
-      await App.loadAdminDashboard();
-    } else {
-      App.showToast(res.message || "Failed to save.", "error");
-      btn.textContent = "Save Changes";
-      btn.disabled = false;
+      btn.classList.remove('opacity-60', 'cursor-wait');
     }
   };
 
