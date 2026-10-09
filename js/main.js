@@ -165,6 +165,12 @@
     });
     document.getElementById('subject-submit-btn').addEventListener('click', App.handleSaveSubject);
     document.getElementById('subject-cancel-edit-btn').addEventListener('click', App.resetSubjectForm);
+    document.getElementById('add-category-btn').addEventListener('click', () => {
+      App.addCategoryRow('', '');
+    });
+    ['qw-1st','qw-2nd','qw-3rd','qw-4th'].forEach(id => {
+      document.getElementById(id).addEventListener('input', App.updateCategoryTotals);
+    });
 
     document.getElementById('broadcast-btn').addEventListener('click', App.broadcastAnnouncement);
     document.getElementById('refresh-announcements-btn').addEventListener('click', () => {
@@ -281,7 +287,10 @@
       App.fetchAllSectionsForDropdowns();
       App.loadComments();
     }
-
+    // Pre-populate the subject form with the default 4 categories
+    if (typeof App.resetSubjectForm === 'function') {
+      App.resetSubjectForm();
+    }
     const sidebar = document.getElementById('admin-sidebar');
     if (sidebar) sidebar.classList.remove('collapsed');
   }
