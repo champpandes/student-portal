@@ -4,7 +4,7 @@
 // Bump CACHE_VERSION whenever you deploy significant updates.
 // ============================================================
 
-const CACHE_VERSION = 'v2.4.4';
+const CACHE_VERSION = 'v2.5.1';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -19,6 +19,8 @@ const STATIC_ASSETS = [
   './js/api.js',
   './js/grades.js',
   './js/subjects.js',
+  './js/sections.js',
+  './js/class-record.js',
   './js/comments.js',
   './js/auth.js',
   './js/admin.js',

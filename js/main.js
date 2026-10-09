@@ -178,6 +178,62 @@
     document.getElementById('subject-cancel-edit-btn').addEventListener('click', App.resetSubjectForm);
     document.getElementById('section-submit-btn').addEventListener('click', App.handleSaveSection);
     document.getElementById('section-cancel-edit-btn').addEventListener('click', App.resetSectionForm);
+    // ---- Class Record ----
+    document.getElementById('cr-subject').addEventListener('change', App.loadClassRecord);
+    document.getElementById('cr-quarter').addEventListener('change', App.loadClassRecord);
+    document.getElementById('cr-refresh-btn').addEventListener('click', App.loadClassRecord);
+    document.getElementById('cr-apply-btn').addEventListener('click', App.applyClassRecord);
+
+    // Assessment modal
+    document.getElementById('assessment-cancel-btn').addEventListener('click', App.closeAssessmentModal);
+    document.getElementById('assessment-save-btn').addEventListener('click', App.saveAssessment);
+
+    // Class record delegated events (add/edit/delete assessment + score inputs)
+    document.getElementById('cr-body').addEventListener('click', (e) => {
+      const addBtn = e.target.closest('button[data-action="add-assessment"]');
+      if (addBtn) {
+        const quarter = document.getElementById('cr-quarter').value;
+        App.openAssessmentModal(
+          Number(addBtn.dataset.categoryId),
+          addBtn.dataset.categoryName,
+          quarter,
+          null, '', 100
+        );
+        return;
+      }
+
+      const editBtn = e.target.closest('button[data-action="edit-assessment"]');
+      if (editBtn) {
+        const quarter = document.getElementById('cr-quarter').value;
+        App.openAssessmentModal(
+          Number(editBtn.dataset.categoryId),
+          editBtn.dataset.categoryName,
+          quarter,
+          Number(editBtn.dataset.id),
+          editBtn.dataset.name,
+          Number(editBtn.dataset.total)
+        );
+        return;
+      }
+
+      const delBtn = e.target.closest('button[data-action="delete-assessment"]');
+      if (delBtn) {
+        App.deleteAssessment(Number(delBtn.dataset.id), delBtn.dataset.name);
+        return;
+      }
+    });
+
+    // Track original values on focus, save on blur
+    document.getElementById('cr-body').addEventListener('focusin', (e) => {
+      if (e.target.classList.contains('cr-score-input')) {
+        e.target.dataset.originalValue = e.target.value;
+      }
+    });
+    document.getElementById('cr-body').addEventListener('focusout', (e) => {
+      if (e.target.classList.contains('cr-score-input')) {
+        App.saveScoreInline(e.target);
+      }
+    });
     document.getElementById('add-category-btn').addEventListener('click', () => {
       App.addCategoryRow('', '');
     });

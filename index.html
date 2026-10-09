@@ -127,6 +127,9 @@
             <button data-tab="sections" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>🏫</span> <span class="sidebar-text">Sections</span>
             </button>
+            <button data-tab="class-record" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+              <span>📓</span> <span class="sidebar-text">Class Record</span>
+            </button>
             <button data-tab="grading-sheet" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>🖨️</span> <span class="sidebar-text">Grading Sheets</span>
             </button>
@@ -168,7 +171,7 @@
           <div id="last-saved-badge" class="hidden items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-200">
             <span>🟢 Saved at <span id="last-saved-text">--:--</span></span>
           </div>
-          <button id="refresh-dashboard-btn" type="button" aria-label="Refresh data" title="Refresh data from sheet"
+          <button id="refresh-dashboard-btn" type="button" aria-label="Refresh data" title="Refresh data"
                   class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -287,39 +290,40 @@
               </div>
             </div>
 
-<div class="pt-4 border-t border-slate-100">
-  <div class="flex items-center justify-between mb-2">
-    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Quarter Weights (Must total 100%)</label>
-    <span id="qw-total" class="text-[11px] font-bold text-slate-500">Total: 100%</span>
-  </div>
-  <div class="grid grid-cols-4 gap-3">
-    <div>
-      <label for="qw-1st" class="block text-[11px] font-bold text-slate-500 mb-1">1st</label>
-      <input type="number" id="qw-1st" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-    </div>
-    <div>
-      <label for="qw-2nd" class="block text-[11px] font-bold text-slate-500 mb-1">2nd</label>
-      <input type="number" id="qw-2nd" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-    </div>
-    <div>
-      <label for="qw-3rd" class="block text-[11px] font-bold text-slate-500 mb-1">3rd</label>
-      <input type="number" id="qw-3rd" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-    </div>
-    <div>
-      <label for="qw-4th" class="block text-[11px] font-bold text-slate-500 mb-1">4th</label>
-      <input type="number" id="qw-4th" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-    </div>
-  </div>
-</div>
+            <div class="pt-4 border-t border-slate-100">
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Quarter Weights (Must total 100%)</label>
+                <span id="qw-total" class="text-[11px] font-bold text-slate-500">Total: 100%</span>
+              </div>
+              <div class="grid grid-cols-4 gap-3">
+                <div>
+                  <label for="qw-1st" class="block text-[11px] font-bold text-slate-500 mb-1">1st</label>
+                  <input type="number" id="qw-1st" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label for="qw-2nd" class="block text-[11px] font-bold text-slate-500 mb-1">2nd</label>
+                  <input type="number" id="qw-2nd" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label for="qw-3rd" class="block text-[11px] font-bold text-slate-500 mb-1">3rd</label>
+                  <input type="number" id="qw-3rd" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label for="qw-4th" class="block text-[11px] font-bold text-slate-500 mb-1">4th</label>
+                  <input type="number" id="qw-4th" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+                </div>
+              </div>
+            </div>
 
-<div class="pt-4 border-t border-slate-100">
-  <div class="flex items-center justify-between mb-2">
-    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Grade Categories (Must total 100%)</label>
-    <span id="cat-total" class="text-[11px] font-bold text-slate-500">Total: 100%</span>
-  </div>
-  <div id="category-list" class="space-y-2"></div>
-  <button type="button" id="add-category-btn" class="mt-3 text-xs text-indigo-600 hover:underline font-bold">+ Add Category</button>
-</div>
+            <div class="pt-4 border-t border-slate-100">
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Grade Categories (Must total 100%)</label>
+                <span id="cat-total" class="text-[11px] font-bold text-slate-500">Total: 100%</span>
+              </div>
+              <div id="category-list" class="space-y-2"></div>
+              <button type="button" id="add-category-btn" class="mt-3 text-xs text-indigo-600 hover:underline font-bold">+ Add Category</button>
+            </div>
+
             <div class="flex items-center gap-3 pt-2">
               <button id="subject-submit-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all">+ Add Subject</button>
               <button id="subject-cancel-edit-btn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-sm transition-all">Cancel Edit</button>
@@ -333,8 +337,7 @@
         </div>
       </div>
 
-      <!-- ===== TAB: Grading Sheets ===== -->
-             <!-- ===== TAB: Sections ===== -->
+      <!-- ===== TAB: Sections ===== -->
       <div id="tab-sections" class="admin-tab-content hidden-screen space-y-6">
         <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
           <h3 class="text-base font-black text-slate-900 mb-1">Manage Sections</h3>
@@ -362,6 +365,37 @@
         </div>
       </div>
 
+      <!-- ===== TAB: Class Record ===== -->
+      <div id="tab-class-record" class="admin-tab-content hidden-screen space-y-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h3 class="text-base font-black text-slate-900 mb-1">Class Record</h3>
+          <p class="text-xs text-slate-500 font-medium mb-4">Enter individual assessment scores. The averages feed into the grade sheet when you click Apply.</p>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <label for="cr-subject" class="sr-only">Subject</label>
+            <select id="cr-subject" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600"></select>
+            <label for="cr-quarter" class="sr-only">Quarter</label>
+            <select id="cr-quarter" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-indigo-600">
+              <option value="1st">1st Quarter</option>
+              <option value="2nd">2nd Quarter</option>
+              <option value="3rd">3rd Quarter</option>
+              <option value="4th">4th Quarter</option>
+            </select>
+            <button id="cr-refresh-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all">
+              🔄 Refresh
+            </button>
+            <button id="cr-apply-btn" class="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all">
+              📤 Apply to Grade Sheet
+            </button>
+          </div>
+        </div>
+
+        <div id="cr-body" class="space-y-6">
+          <div class="text-center text-slate-400 py-12 text-sm font-medium">Pick a subject above to start.</div>
+        </div>
+      </div>
+
+      <!-- ===== TAB: Grading Sheets ===== -->
       <div id="tab-grading-sheet" class="admin-tab-content hidden-screen space-y-6">
         <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm no-print flex flex-col md:flex-row gap-4 items-center justify-between">
           <div>
@@ -498,7 +532,7 @@
             <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
               <div>
                 <h3 class="text-base font-black text-slate-900 mb-1">Broadcast New Announcement</h3>
-                <p class="text-xs text-slate-500 font-medium mb-4">The most recent message shows on every student dashboard. Previous announcements are kept in history below.</p>
+                <p class="text-xs text-slate-500 font-medium mb-4">The most recent message shows on every student dashboard.</p>
                 <label for="admin-announcement-input" class="sr-only">Announcement</label>
                 <textarea id="admin-announcement-input" rows="4" placeholder="Type announcement message here..."
                           class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium outline-none focus:border-indigo-600 mb-4"></textarea>
@@ -589,7 +623,7 @@
             <div>
               <h3 class="text-base font-black text-slate-900 mb-1">Recompute All Grades</h3>
               <p class="text-xs text-slate-500 font-medium mb-4">
-                Scans every subject sheet and re-transmutes each grade using the current table. Safe to run anytime.
+                Scans every subject and re-transmutes each grade using the current table. Safe to run anytime.
               </p>
             </div>
             <button id="recompute-btn"
@@ -603,7 +637,7 @@
           <h3 class="text-base font-black text-slate-900 mb-1">Restore Warning</h3>
           <p class="text-xs text-slate-500 font-medium">
             Restoring from a backup will <b class="text-rose-600">completely wipe</b> all current subject sheets and replace them with the backup's contents.
-            Comments, announcements, and subjects are also replaced. Download a fresh backup first if you're not sure.
+            Download a fresh backup first if you're not sure.
           </p>
         </div>
       </div>
@@ -877,6 +911,43 @@
     </div>
   </div>
 
+  <!-- ==================== ASSESSMENT MODAL ==================== -->
+  <div id="assessment-modal" role="dialog" aria-modal="true" aria-labelledby="assessment-modal-title"
+       class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4">
+      <h3 id="assessment-modal-title" class="text-lg font-black text-slate-900">Add Assessment</h3>
+      <p class="text-xs text-slate-500 font-medium">Every student in this subject/quarter will get a column for this assessment.</p>
+
+      <input type="hidden" id="assessment-edit-id">
+      <input type="hidden" id="assessment-category-id">
+      <input type="hidden" id="assessment-quarter">
+
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Category</div>
+        <div id="assessment-category-label" class="font-bold text-sm text-slate-800">—</div>
+      </div>
+
+      <div>
+        <label for="assessment-name" class="block text-xs font-bold text-slate-600 mb-1">Assessment Name</label>
+        <input type="text" id="assessment-name" placeholder="e.g. Quiz 1"
+               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+      </div>
+
+      <div>
+        <label for="assessment-total" class="block text-xs font-bold text-slate-600 mb-1">Total Points</label>
+        <input type="number" id="assessment-total" value="100" min="1"
+               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+      </div>
+
+      <div id="assessment-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
+
+      <div class="flex gap-2 pt-2">
+        <button id="assessment-cancel-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
+        <button id="assessment-save-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Save</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== PENDING REGISTRATION MODAL ==================== -->
   <div id="pending-modal" role="dialog" aria-modal="true" aria-labelledby="pending-modal-title"
        class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -948,7 +1019,7 @@
         </div>
 
         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-          <div class="text-[11px] font-black uppercase text-slate-400">Column Mapping (Enter Excel Column Letters like A, B, C...)</div>
+          <div class="text-[11px] font-black uppercase text-slate-400">Column Mapping (Excel column letters)</div>
 
           <div id="col-mapping-register" class="grid grid-cols-3 gap-3">
             <div>
@@ -1030,6 +1101,7 @@
   <script src="js/grades.js"></script>
   <script src="js/subjects.js"></script>
   <script src="js/sections.js"></script>
+  <script src="js/class-record.js"></script>
   <script src="js/comments.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>
