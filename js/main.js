@@ -81,6 +81,11 @@
       btn.addEventListener('click', () => App.switchAdminTab(btn.dataset.tab, btn));
     });
 
+    // Handle section tab specially since admin.js doesn't know about it yet
+    document.querySelector('[data-tab="sections"]').addEventListener('click', () => {
+      App.renderSectionsList();
+    });
+
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();
@@ -157,6 +162,12 @@
     document.getElementById('panel-save-grades-btn').addEventListener('click', App.savePanelGrades);
     document.getElementById('panel-delete-btn').addEventListener('click', App.deleteStudentFromPanel);
 
+    document.getElementById('sections-list-ui').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      if (btn.dataset.action === 'edit') App.prepareEditSection(btn.dataset.section);
+      else if (btn.dataset.action === 'delete') App.handleDeleteSection(btn.dataset.section);
+    });
     document.getElementById('subjects-list-ui').addEventListener('click', e => {
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
@@ -165,6 +176,8 @@
     });
     document.getElementById('subject-submit-btn').addEventListener('click', App.handleSaveSubject);
     document.getElementById('subject-cancel-edit-btn').addEventListener('click', App.resetSubjectForm);
+    document.getElementById('section-submit-btn').addEventListener('click', App.handleSaveSection);
+    document.getElementById('section-cancel-edit-btn').addEventListener('click', App.resetSectionForm);
     document.getElementById('add-category-btn').addEventListener('click', () => {
       App.addCategoryRow('', '');
     });
@@ -290,6 +303,9 @@
     // Pre-populate the subject form with the default 4 categories
     if (typeof App.resetSubjectForm === 'function') {
       App.resetSubjectForm();
+    }
+    if (typeof App.resetSectionForm === 'function') {
+      App.resetSectionForm();
     }
     const sidebar = document.getElementById('admin-sidebar');
     if (sidebar) sidebar.classList.remove('collapsed');

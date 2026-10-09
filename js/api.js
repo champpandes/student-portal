@@ -193,15 +193,18 @@
     }),
 
     getSections: async () => {
-      const rows = await sbGet('students', 'select=section');
-      const seen = {}, list = [];
-      (Array.isArray(rows) ? rows : []).forEach(r => {
-        const s = String(r.section || '').trim();
-        if (s && !seen[s]) { seen[s] = true; list.push(s); }
-      });
-      list.sort();
+      const rows = await sbGet('sections', 'select=name&order=name.asc');
+      const list = (Array.isArray(rows) ? rows : []).map(r => String(r.name));
       return { success: true, sections: list };
     },
+
+    manageSection: async (p) => callAdmin({
+      action: 'manageSection',
+      pin: p.pin,
+      subAction: p.subAction,
+      name: p.name,
+      oldName: p.oldName
+    }),
 
         getStudent: async (p) => {
       const sNo = String(p.studentNumber || '');

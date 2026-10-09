@@ -115,12 +115,13 @@
     document.getElementById('approve-student-name').textContent = item.name;
     document.getElementById('approve-student-number').textContent = 'Student No: ' + item.studentNumber;
     document.getElementById('approve-pending-student-number').value = item.studentNumber;
-    document.getElementById('approve-student-section').value = item.section || '';
     document.getElementById('approve-error').classList.add('hidden');
 
-    const datalist = document.getElementById('approve-section-list');
+    const sel = document.getElementById('approve-student-section');
     const sections = state.sectionsCache || [];
-    datalist.innerHTML = sections.map(s => '<option value="' + App.esc(s) + '"></option>').join('');
+    sel.innerHTML = '<option value="">Select section...</option>' +
+      sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
+    sel.value = item.section && sections.indexOf(item.section) !== -1 ? item.section : '';
 
     const cbContainer = document.getElementById('approve-subject-checkboxes');
     if (state.availableSubjects.length === 0) {

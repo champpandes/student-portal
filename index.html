@@ -124,6 +124,9 @@
             <button data-tab="subjects" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📚</span> <span class="sidebar-text">Subjects & Weights</span>
             </button>
+            <button data-tab="sections" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+              <span>🏫</span> <span class="sidebar-text">Sections</span>
+            </button>
             <button data-tab="grading-sheet" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>🖨️</span> <span class="sidebar-text">Grading Sheets</span>
             </button>
@@ -331,6 +334,34 @@
       </div>
 
       <!-- ===== TAB: Grading Sheets ===== -->
+             <!-- ===== TAB: Sections ===== -->
+      <div id="tab-sections" class="admin-tab-content hidden-screen space-y-6">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h3 class="text-base font-black text-slate-900 mb-1">Manage Sections</h3>
+          <p class="text-xs text-slate-500 font-medium mb-6">Sections are shared across all subjects. Renaming a section updates every student in it. Deleting is blocked if any student is still assigned.</p>
+
+          <input type="hidden" id="editing-original-section" value="">
+
+          <div class="space-y-4">
+            <div>
+              <label for="new-section-input" class="block text-xs font-bold text-slate-600 mb-1">Section Name</label>
+              <input type="text" id="new-section-input" placeholder="e.g. BSIT 1A"
+                     class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-indigo-600">
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+              <button id="section-submit-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all">+ Add Section</button>
+              <button id="section-cancel-edit-btn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-sm transition-all">Cancel Rename</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div class="p-5 border-b border-slate-100 font-bold text-slate-800 text-sm">Active Sections</div>
+          <ul id="sections-list-ui" class="divide-y divide-slate-100"></ul>
+        </div>
+      </div>
+
       <div id="tab-grading-sheet" class="admin-tab-content hidden-screen space-y-6">
         <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm no-print flex flex-col md:flex-row gap-4 items-center justify-between">
           <div>
@@ -820,11 +851,11 @@
 
       <div>
         <label for="approve-student-section" class="block text-xs font-bold text-slate-600 mb-1">Section</label>
-        <input type="text" id="approve-student-section" list="approve-section-list"
-               placeholder="Type or pick a section..."
-               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
-        <datalist id="approve-section-list"></datalist>
-        <p class="text-[10px] text-slate-400 mt-1">Existing sections appear as suggestions. You can also type a new one.</p>
+        <select id="approve-student-section"
+                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+          <option value="">Select section...</option>
+        </select>
+        <p class="text-[10px] text-slate-400 mt-1">Sections are managed in the Sections tab. Add new ones there first.</p>
       </div>
 
       <div>
@@ -998,6 +1029,7 @@
   <script src="js/api.js"></script>
   <script src="js/grades.js"></script>
   <script src="js/subjects.js"></script>
+  <script src="js/sections.js"></script>
   <script src="js/comments.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>

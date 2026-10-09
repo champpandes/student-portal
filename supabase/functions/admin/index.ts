@@ -136,6 +136,7 @@ Deno.serve(async (req) => {
       case "saveAnnouncement":   result = await saveAnnouncement(sb, body); break;
       case "deleteAnnouncement": result = await deleteAnnouncement(sb, body); break;
       case "manageSubject":      result = await manageSubject(sb, body); break;
+      case "manageSection":      result = await manageSection(sb, body); break;      
       case "approveRegistration":result = await approveRegistration(sb, body); break;
       case "rejectRegistration": result = await rejectRegistration(sb, body); break;
       case "recomputeAllGrades": result = await recomputeAllGrades(sb); break;
