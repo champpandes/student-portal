@@ -58,12 +58,28 @@ function defaultWeights() { return { quizzes: 35, participation: 15, attendance:
 
 function stripTags(s: any) { return String(s ?? "").replace(/[<>]/g, ""); }
 
-function generateDefaultBreakdowns(q1: any, q2: any, q3: any, q4: any) {
-  const vals = [q1, q2, q3, q4], names = ["1st", "2nd", "3rd", "4th"];
-  return vals.map((v, i) => ({
-    quarter: names[i], quizzes: "", participation: "", attendance: "", exams: "",
-    total: (v !== null && v !== undefined && v !== "" && !isNaN(v)) ? v : ""
-  }));
+// NEW: map lowercase category name → id string for a subject
+async function nameToIdMap(sb: any, subject: string): Promise<Record<string, string>> {
+  const rows = await sb.from("subject_categories").select("id,name").eq("subject_name", subject);
+  const map: Record<string, string> = {};
+  (rows.data || []).forEach((r: any) => { map[String(r.name).toLowerCase()] = String(r.id); });
+  return map;
+}
+
+// NEW: convert flat breakdown {quizzes, participation, ...} → {categories: {id: value, ...}}
+function flatToCategories(flat: any, catMap: Record<string, string>): Record<string, any> {
+  const out: Record<string, any> = {};
+  ["quizzes", "participation", "attendance", "exams"].forEach(name => {
+    if (catMap[name] && flat[name] !== undefined) {
+      out[catMap[name]] = flat[name];
+    }
+  });
+  return out;
+}
+
+function generateDefaultBreakdowns(_q1: any, _q2: any, _q3: any, _q4: any) {
+  // Categories are now dynamic. Empty breakdowns are simply an empty array.
+  return [];
 }
 
 async function sha256(text: string): Promise<string> {
@@ -251,6 +267,11 @@ async function saveBreakdown(sb: any, p: any, isBulk: boolean) {
   const items = isBulk ? (p.items || []) : [{ studentNumber: p.studentNumber, breakdown: p.breakdown }];
   if (items.length === 0) return { success: true, newTotal: "", processed: 0 };
 
+  const catMap = await nameToIdMap(sb, subj);
+  if (Object.keys(catMap).length === 0) {
+    return { success: false, message: "No categories configured for this subject." };
+  }
+
   const rows = await sb.from("grades").select("*").eq("subject_name", subj);
   const byStudent: Record<string, any> = {};
   (rows.data || []).forEach((r: any) => { byStudent[r.student_number] = r; });
@@ -263,6 +284,8 @@ async function saveBreakdown(sb: any, p: any, isBulk: boolean) {
     if (!row) continue;
 
     const bd = item.breakdown || {};
+    const newCats = flatToCategories(bd, catMap);
+
     const has = (bd.quizzes !== "" && bd.quizzes != null && !isNaN(bd.quizzes)) ||
                 (bd.participation !== "" && bd.participation != null && !isNaN(bd.participation)) ||
                 (bd.attendance !== "" && bd.attendance != null && !isNaN(bd.attendance)) ||
@@ -282,19 +305,17 @@ async function saveBreakdown(sb: any, p: any, isBulk: boolean) {
     lastNewTotal = qScore;
 
     let bds = Array.isArray(row.breakdowns) ? row.breakdowns.slice() : [];
-    if (bds.length === 0) bds = generateDefaultBreakdowns(row.q1, row.q2, row.q3, row.q4);
     let matched = false;
     for (let j = 0; j < bds.length; j++) {
       if (String(bds[j].quarter || "").indexOf(qNum) !== -1) {
-        bds[j].quizzes = bd.quizzes; bds[j].participation = bd.participation;
-        bds[j].attendance = bd.attendance; bds[j].exams = bd.exams;
-        bds[j].total = qScore; matched = true; break;
+        bds[j].categories = { ...(bds[j].categories || {}), ...newCats };
+        bds[j].total = qScore;
+        matched = true;
+        break;
       }
     }
     if (!matched) {
-      bds.push({ quarter: qNum + "st", quizzes: bd.quizzes,
-        participation: bd.participation, attendance: bd.attendance,
-        exams: bd.exams, total: qScore });
+      bds.push({ quarter: qNum + "st", categories: newCats, total: qScore });
     }
 
     const updated: any = { q1: row.q1, q2: row.q2, q3: row.q3, q4: row.q4 };
