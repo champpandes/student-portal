@@ -90,7 +90,13 @@
       await App.populateClassRecordFilters();
       App.loadClassRecord();
     });
-
+    // Class Record — filters and sort
+    const crSearch = document.getElementById('cr-search');
+    const crSection = document.getElementById('cr-section-filter');
+    const crSort = document.getElementById('cr-sort');
+    if (crSearch) crSearch.addEventListener('input', App.debounce(App.crApplyFilters, 200));
+    if (crSection) crSection.addEventListener('change', App.crApplyFilters);
+    if (crSort) crSort.addEventListener('change', App.crApplyFilters);
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();
