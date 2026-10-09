@@ -97,11 +97,19 @@
     if (crSearch) crSearch.addEventListener('input', App.debounce(App.crApplyFilters, 200));
     if (crSection) crSection.addEventListener('change', App.crApplyFilters);
     if (crSort) crSort.addEventListener('change', App.crApplyFilters);
-      // Pagination — delegated click on page buttons + change on rows-per-page
+    // Class Record — delegated events on the body
     document.getElementById('cr-body').addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-cr-page]');
-      if (!btn) return;
-      App.crGotoPage(Number(btn.dataset.crPage));
+      // Pagination
+      const pageBtn = e.target.closest('button[data-cr-page]');
+      if (pageBtn) { App.crGotoPage(Number(pageBtn.dataset.crPage)); return; }
+
+      // Collapse toggle
+      const toggleBtn = e.target.closest('button[data-action="toggle-category"]');
+      if (toggleBtn) { App.crToggleCategory(toggleBtn.dataset.categoryId); return; }
+
+      // Expand / collapse all
+      if (e.target.closest('#cr-expand-all-btn')) { App.crExpandAll(); return; }
+      if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
     });
     document.getElementById('cr-body').addEventListener('change', (e) => {
       if (e.target.id === 'cr-page-size') App.crSetPageSize(e.target.value);

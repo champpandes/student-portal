@@ -11,9 +11,11 @@
     sort: 'name-asc'
   };
 
-  // NEW: pagination state
   state._crPage = 1;
   state._crPageSize = 25;
+
+  // NEW: collapse state per category ID. Missing = expanded (default).
+  state._crCollapsed = {};
 
   // ============================================================
   // Subject dropdown
@@ -72,6 +74,8 @@
       if (secSel) secSel.value = 'All';
       state._crFilters.section = 'All';
       state._crPage = 1;
+      // Reset collapse state on subject change (start fresh)
+      state._crCollapsed = {};
 
       App.populateClassRecordSectionFilter();
       App.renderClassRecord();
@@ -105,7 +109,27 @@
   };
 
   // ============================================================
-  // Filters — reset page on change
+  // Toggle collapse
+  // ============================================================
+  App.crToggleCategory = function (categoryId) {
+    const id = String(categoryId);
+    state._crCollapsed[id] = !state._crCollapsed[id];
+    App.renderClassRecord();
+  };
+
+  App.crCollapseAll = function () {
+    const cats = (state._classRecord && state._classRecord.categories) || [];
+    cats.forEach(c => { state._crCollapsed[String(c.id)] = true; });
+    App.renderClassRecord();
+  };
+
+  App.crExpandAll = function () {
+    state._crCollapsed = {};
+    App.renderClassRecord();
+  };
+
+  // ============================================================
+  // Filters
   // ============================================================
   App.crApplyFilters = function () {
     const searchEl = document.getElementById('cr-search');
@@ -116,7 +140,7 @@
     state._crFilters.section = secEl ? secEl.value : 'All';
     state._crFilters.sort = sortEl ? sortEl.value : 'name-asc';
 
-    state._crPage = 1;  // reset to first page
+    state._crPage = 1;
     App.renderClassRecord();
   };
 
@@ -197,7 +221,6 @@
       return;
     }
 
-    // Paginate
     const allFiltered = App._crFilteredStudents();
     const totalPages = Math.max(1, Math.ceil(allFiltered.length / state._crPageSize));
     if (state._crPage > totalPages) state._crPage = totalPages;
@@ -221,6 +244,13 @@
 
     const filterInfo = App._crFilterSummary(allFiltered.length, rec.students.length);
 
+    // Collapse-all / expand-all controls
+    const controls = '<div class="flex items-center justify-end gap-2">' +
+      '<button type="button" id="cr-expand-all-btn" class="text-[11px] text-indigo-600 hover:underline font-bold">Expand all</button>' +
+      '<span class="text-slate-300">·</span>' +
+      '<button type="button" id="cr-collapse-all-btn" class="text-[11px] text-indigo-600 hover:underline font-bold">Collapse all</button>' +
+    '</div>';
+
     const categoryBlocks = categories
       .sort((a, b) => (a.position || 0) - (b.position || 0))
       .map(cat => App.buildCategoryBlock(cat, assessByCat[String(cat.id)] || [], students, scoreMap))
@@ -228,7 +258,7 @@
 
     const pagination = App._crPaginationUI(startIdx, students.length, allFiltered.length, totalPages);
 
-    body.innerHTML = filterInfo + categoryBlocks + pagination;
+    body.innerHTML = filterInfo + controls + categoryBlocks + pagination;
   };
 
   App._crFilterSummary = function (visible, total) {
@@ -250,20 +280,14 @@
 
     const from = total === 0 ? 0 : startIdx + 1;
     const to = startIdx + shown;
-
-    // Page numbers (show up to 7, with ellipsis)
     const p = state._crPage;
     const nums = [];
     if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) nums.push(i);
     } else {
-      if (p <= 4) {
-        nums.push(1,2,3,4,5,'...',totalPages);
-      } else if (p >= totalPages - 3) {
-        nums.push(1,'...',totalPages-4,totalPages-3,totalPages-2,totalPages-1,totalPages);
-      } else {
-        nums.push(1,'...',p-1,p,p+1,'...',totalPages);
-      }
+      if (p <= 4) nums.push(1,2,3,4,5,'...',totalPages);
+      else if (p >= totalPages - 3) nums.push(1,'...',totalPages-4,totalPages-3,totalPages-2,totalPages-1,totalPages);
+      else nums.push(1,'...',p-1,p,p+1,'...',totalPages);
     }
 
     const btnCls = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors';
@@ -294,9 +318,12 @@
   };
 
   // ============================================================
-  // Category block
+  // Category block (now collapsible)
   // ============================================================
   App.buildCategoryBlock = function (cat, assessments, students, scoreMap) {
+    const catId = String(cat.id);
+    const isCollapsed = !!state._crCollapsed[catId];
+
     const computeAvg = (studentNo) => {
       let got = 0, total = 0;
       assessments.forEach(a => {
@@ -312,77 +339,90 @@
 
     let html = '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">';
 
+    // Header — clickable to toggle
     html += '<div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">' +
-      '<div class="flex items-center gap-3">' +
+      '<button type="button" data-action="toggle-category" data-category-id="' + cat.id + '" ' +
+              'class="flex items-center gap-3 text-left hover:opacity-80 transition-opacity">' +
+        '<span class="w-5 h-5 flex items-center justify-center text-slate-400 transition-transform duration-200" ' +
+              'style="transform: rotate(' + (isCollapsed ? '-90' : '0') + 'deg);">' +
+          '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>' +
+          '</svg>' +
+        '</span>' +
         '<div class="font-black text-slate-900 text-sm">' + App.esc(cat.name) + '</div>' +
         '<span class="text-[11px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md">' + App.esc(cat.weight) + '%</span>' +
-      '</div>' +
+        (isCollapsed && assessments.length > 0
+          ? '<span class="text-[10px] font-bold text-slate-400 ml-1">(' + assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ')</span>'
+          : '') +
+      '</button>' +
       '<button type="button" data-action="add-assessment" data-category-id="' + cat.id + '" data-category-name="' + App.esc(cat.name) + '" ' +
               'class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all">' +
         '+ Add Assessment' +
       '</button>' +
     '</div>';
 
-    if (assessments.length === 0) {
-      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No assessments yet.</div></div>';
-      return html;
-    }
-    if (students.length === 0) {
-      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No students match the current filter.</div></div>';
-      return html;
-    }
-
-    html += '<div class="overflow-x-auto"><table class="w-full text-left text-sm border-collapse">';
-    html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-wider">';
-    html += '<th class="p-3 min-w-[180px]">Student</th>';
-
-    assessments.forEach(a => {
-      html += '<th class="p-3 text-center min-w-[100px]">' +
-        '<div class="flex flex-col items-center gap-1">' +
-          '<span class="text-slate-700 text-xs font-black normal-case">' + App.esc(a.name) + '</span>' +
-          '<span class="text-[10px] text-slate-400 font-bold">/' + App.esc(a.total_points) + '</span>' +
-          '<div class="flex items-center gap-1 mt-1">' +
-            '<button type="button" data-action="edit-assessment" data-id="' + a.id + '" ' +
-                    'data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" ' +
-                    'data-category-id="' + a.category_id + '" data-category-name="' + App.esc(cat.name) + '" ' +
-                    'class="text-[10px] text-slate-500 hover:text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">Edit</button>' +
-            '<button type="button" data-action="delete-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" ' +
-                    'class="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50">×</button>' +
-          '</div>' +
-        '</div>' +
-      '</th>';
-    });
-    html += '<th class="p-3 text-center min-w-[80px] bg-indigo-50/50">Avg</th>';
-    html += '</tr></thead>';
-
-    html += '<tbody class="divide-y divide-slate-100">';
-    students.forEach(stu => {
-      html += '<tr class="hover:bg-slate-50/40 transition-colors">';
-      html += '<td class="p-3">' +
-        '<div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div>' +
-        '<div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div>' +
-      '</td>';
+    // Body
+    if (isCollapsed) {
+      // Collapsed — no body rendered
+    } else if (assessments.length === 0) {
+      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No assessments yet.</div>';
+    } else if (students.length === 0) {
+      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No students match the current filter.</div>';
+    } else {
+      html += '<div class="overflow-x-auto"><table class="w-full text-left text-sm border-collapse">';
+      html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-wider">';
+      html += '<th class="p-3 min-w-[180px]">Student</th>';
 
       assessments.forEach(a => {
-        const val = scoreMap[a.id + '|' + stu.student_number];
-        const display = (val === undefined || val === null || val === '') ? '' : val;
-        html += '<td class="p-2 text-center">' +
-          '<input type="number" step="any" min="0" max="' + App.esc(a.total_points) + '" ' +
-                 'data-assessment-id="' + a.id + '" ' +
-                 'data-student-number="' + App.esc(stu.student_number) + '" ' +
-                 'data-total-points="' + App.esc(a.total_points) + '" ' +
-                 'value="' + App.esc(display) + '" ' +
-                 'class="cr-score-input w-20 text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">' +
-        '</td>';
+        html += '<th class="p-3 text-center min-w-[100px]">' +
+          '<div class="flex flex-col items-center gap-1">' +
+            '<span class="text-slate-700 text-xs font-black normal-case">' + App.esc(a.name) + '</span>' +
+            '<span class="text-[10px] text-slate-400 font-bold">/' + App.esc(a.total_points) + '</span>' +
+            '<div class="flex items-center gap-1 mt-1">' +
+              '<button type="button" data-action="edit-assessment" data-id="' + a.id + '" ' +
+                      'data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" ' +
+                      'data-category-id="' + a.category_id + '" data-category-name="' + App.esc(cat.name) + '" ' +
+                      'class="text-[10px] text-slate-500 hover:text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">Edit</button>' +
+              '<button type="button" data-action="delete-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" ' +
+                      'class="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50">×</button>' +
+            '</div>' +
+          '</div>' +
+        '</th>';
       });
+      html += '<th class="p-3 text-center min-w-[80px] bg-indigo-50/50">Avg</th>';
+      html += '</tr></thead>';
 
-      const avg = computeAvg(stu.student_number);
-      const avgColor = avg === '-' ? 'text-slate-400' : (Number(avg) >= 75 ? 'text-emerald-600' : 'text-rose-600');
-      html += '<td class="p-3 text-center bg-indigo-50/30"><span class="font-black text-sm ' + avgColor + '">' + avg + '</span></td>';
+      html += '<tbody class="divide-y divide-slate-100">';
+      students.forEach(stu => {
+        html += '<tr class="hover:bg-slate-50/40 transition-colors">';
+        html += '<td class="p-3">' +
+          '<div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div>' +
+          '<div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div>' +
+        '</td>';
 
-      html += '</tr>';
-    });
-    html += '</tbody></table></div></div>';
+        assessments.forEach(a => {
+          const val = scoreMap[a.id + '|' + stu.student_number];
+          const display = (val === undefined || val === null || val === '') ? '' : val;
+          html += '<td class="p-2 text-center">' +
+            '<input type="number" step="any" min="0" max="' + App.esc(a.total_points) + '" ' +
+                   'data-assessment-id="' + a.id + '" ' +
+                   'data-student-number="' + App.esc(stu.student_number) + '" ' +
+                   'data-total-points="' + App.esc(a.total_points) + '" ' +
+                   'value="' + App.esc(display) + '" ' +
+                   'class="cr-score-input w-20 text-center bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">' +
+          '</td>';
+        });
+
+        const avg = computeAvg(stu.student_number);
+        const avgColor = avg === '-' ? 'text-slate-400' : (Number(avg) >= 75 ? 'text-emerald-600' : 'text-rose-600');
+        html += '<td class="p-3 text-center bg-indigo-50/30"><span class="font-black text-sm ' + avgColor + '">' + avg + '</span></td>';
+
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += '</div>';
     return html;
   };
 
