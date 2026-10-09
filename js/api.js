@@ -76,12 +76,6 @@
   // ------------------------------------------------------------
   const ADMIN_FN_URL = SB_URL + '/functions/v1/admin';
 
-  // ------------------------------------------------------------
-  // Admin Edge Function caller
-  // All privileged writes go through this function, which
-  // verifies the PIN server-side using the service_role key.
-  // ------------------------------------------------------------
-  const ADMIN_FN_URL = SB_URL + '/functions/v1/admin';
 
   async function callAdmin(payload) {
     const res = await fetch(ADMIN_FN_URL, {
