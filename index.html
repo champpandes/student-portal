@@ -284,32 +284,39 @@
               </div>
             </div>
 
-            <div class="pt-4 border-t border-slate-100">
-              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Grade Component Weights (Must total exactly 100%)</label>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label for="weight-quizzes" class="block text-[11px] font-bold text-slate-500 mb-1">Quizzes (%)</label>
-                  <input type="number" id="weight-quizzes" value="35"
-                         class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                  <label for="weight-participation" class="block text-[11px] font-bold text-slate-500 mb-1">Participation (%)</label>
-                  <input type="number" id="weight-participation" value="15"
-                         class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                  <label for="weight-attendance" class="block text-[11px] font-bold text-slate-500 mb-1">Attendance (%)</label>
-                  <input type="number" id="weight-attendance" value="10"
-                         class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                  <label for="weight-exams" class="block text-[11px] font-bold text-slate-500 mb-1">Exams (%)</label>
-                  <input type="number" id="weight-exams" value="40"
-                         class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
-                </div>
-              </div>
-            </div>
+<div class="pt-4 border-t border-slate-100">
+  <div class="flex items-center justify-between mb-2">
+    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Quarter Weights (Must total 100%)</label>
+    <span id="qw-total" class="text-[11px] font-bold text-slate-500">Total: 100%</span>
+  </div>
+  <div class="grid grid-cols-4 gap-3">
+    <div>
+      <label for="qw-1st" class="block text-[11px] font-bold text-slate-500 mb-1">1st</label>
+      <input type="number" id="qw-1st" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+    </div>
+    <div>
+      <label for="qw-2nd" class="block text-[11px] font-bold text-slate-500 mb-1">2nd</label>
+      <input type="number" id="qw-2nd" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+    </div>
+    <div>
+      <label for="qw-3rd" class="block text-[11px] font-bold text-slate-500 mb-1">3rd</label>
+      <input type="number" id="qw-3rd" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+    </div>
+    <div>
+      <label for="qw-4th" class="block text-[11px] font-bold text-slate-500 mb-1">4th</label>
+      <input type="number" id="qw-4th" value="25" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-center font-bold bg-white outline-none focus:border-indigo-500">
+    </div>
+  </div>
+</div>
 
+<div class="pt-4 border-t border-slate-100">
+  <div class="flex items-center justify-between mb-2">
+    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Grade Categories (Must total 100%)</label>
+    <span id="cat-total" class="text-[11px] font-bold text-slate-500">Total: 100%</span>
+  </div>
+  <div id="category-list" class="space-y-2"></div>
+  <button type="button" id="add-category-btn" class="mt-3 text-xs text-indigo-600 hover:underline font-bold">+ Add Category</button>
+</div>
             <div class="flex items-center gap-3 pt-2">
               <button id="subject-submit-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all">+ Add Subject</button>
               <button id="subject-cancel-edit-btn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-sm transition-all">Cancel Edit</button>

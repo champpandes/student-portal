@@ -30,6 +30,8 @@ App.state = {
   availableSubjects: [],
   subjectDescriptions: {},
   subjectWeights: {},
+  subjectCategories: {},      // subject -> [{id, name, weight, position}]
+  subjectQuarterWeights: {},  // subject -> {"1st":25, "2nd":25, ...}
 
   // Data
   currentAdminData: [],

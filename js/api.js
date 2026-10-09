@@ -151,17 +151,32 @@
     }),
 
     getSubjects: async () => {
-      const rows = await sbGet('subjects', 'select=*&order=subject_name.asc');
+      // Fetch subjects + categories + quarter weights in one shot.
+      const subjRows = await sbGet('subjects', 'select=*&order=subject_name.asc');
+      const catRows  = await sbGet('subject_categories', 'select=*&order=subject_name.asc&order=position.asc');
+
       const subjects = [], descriptions = {}, weights = {};
-      (Array.isArray(rows) ? rows : []).forEach(r => {
+      const categories = {}, quarterWeights = {};
+
+      (Array.isArray(subjRows) ? subjRows : []).forEach(r => {
         subjects.push(r.subject_name);
         descriptions[r.subject_name] = r.description || '';
         weights[r.subject_name] = {
           quizzes: r.weight_quizzes || 35, participation: r.weight_participation || 15,
           attendance: r.weight_attendance || 10, exams: r.weight_exams || 40
         };
+        quarterWeights[r.subject_name] = r.quarter_weights || { '1st': 25, '2nd': 25, '3rd': 25, '4th': 25 };
+        categories[r.subject_name] = [];
       });
-      return { success: true, subjects, descriptions, weights };
+
+      (Array.isArray(catRows) ? catRows : []).forEach(c => {
+        if (!categories[c.subject_name]) categories[c.subject_name] = [];
+        categories[c.subject_name].push({
+          id: c.id, name: c.name, weight: Number(c.weight), position: c.position
+        });
+      });
+
+      return { success: true, subjects, descriptions, weights, categories, quarterWeights };
     },
 
     manageSubject: async (p) => callAdmin({
@@ -172,7 +187,9 @@
       newName: p.newName,
       subjectName: p.subjectName,
       description: p.description,
-      weights: p.weights
+      weights: p.weights,               // legacy, still sent
+      categories: p.categories,         // NEW
+      quarterWeights: p.quarterWeights  // NEW
     }),
 
     getSections: async () => {
