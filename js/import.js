@@ -53,7 +53,7 @@
     const cats = (state.subjectCategories && state.subjectCategories[subject]) || [];
 
     if (!subject || cats.length === 0) {
-      container.innerHTML = '<div class="col-span-full text-xs text-rose-500 font-bold py-2">Pick a subject with at least one category first.</div>';
+      container.innerHTML = '<div class="text-xs text-rose-500 font-bold py-2">Pick a subject with at least one category first.</div>';
       return;
     }
 
@@ -63,22 +63,22 @@
       existing[inp.dataset.categoryId] = inp.value;
     });
 
-    // Render one column input per category
+    // Render one row per category
     container.innerHTML = cats
       .sort((a, b) => (a.position || 0) - (b.position || 0))
       .map((cat, idx) => {
         const inputId = 'gcol-' + cat.id;
         const prevVal = existing[String(cat.id)] || '';
-        return '<div>' +
-          '<label for="' + inputId + '" class="block text-[10px] font-bold text-slate-500 mb-1 truncate" title="' + App.esc(cat.name) + '">' +
+        return '<div class="flex items-center gap-3">' +
+          '<label for="' + inputId + '" class="flex-1 min-w-0 text-xs font-bold text-slate-700 truncate" title="' + App.esc(cat.name) + '">' +
             App.esc(cat.name) +
-            ' <span class="text-slate-400 font-normal">(' + App.esc(cat.weight) + '%)</span>' +
+            ' <span class="text-slate-400 font-medium">(' + App.esc(cat.weight) + '%)</span>' +
           '</label>' +
           '<input type="text" id="' + inputId + '" ' +
                  'data-category-id="' + cat.id + '" ' +
                  'placeholder="' + String.fromCharCode(66 + idx) + '" ' +
                  'value="' + App.esc(prevVal) + '" ' +
-                 'class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">' +
+                 'class="w-20 shrink-0 bg-white border border-slate-200 rounded-lg p-2 text-center text-xs font-bold uppercase outline-none focus:border-indigo-600">' +
         '</div>';
       })
       .join('');
@@ -168,7 +168,6 @@
         const startRow = isPaste ? 0 : 1;
 
         if (action === 'register') {
-          // ---- REGISTER STUDENTS (unchanged) ----
           const cId = getInputColIndex('col-id-reg');
           const cName = getInputColIndex('col-name');
           const cSec = getInputColIndex('col-sec');
@@ -204,11 +203,9 @@
               '</tr>');
           }
         } else {
-          // ---- UPLOAD GRADES (dynamic categories) ----
           const cId = getInputColIndex('col-id-grades');
           if (cId < 0) throw new Error("Student ID column is required.");
 
-          // Read dynamic category columns
           const catInputs = Array.from(document.querySelectorAll('#grade-category-cols [data-category-id]'));
           const catCols = catInputs.map(inp => ({
             categoryId: Number(inp.dataset.categoryId),
@@ -220,7 +217,6 @@
             throw new Error("Map at least one category column.");
           }
 
-          // Preview header
           let headHTML = '<tr><th class="p-3 font-bold">Student No.</th>';
           catCols.forEach(c => {
             headHTML += '<th class="p-3 font-bold text-center">' + App.esc(c.name) + '</th>';
@@ -238,7 +234,6 @@
 
             const cleanNo = String(cols[cId]).trim();
 
-            // Build entries array for the new format
             const entries = catCols.map(c => ({
               categoryId: c.categoryId,
               value: c.colIndex >= 0 && cols[c.colIndex] !== undefined && cols[c.colIndex] !== ''
@@ -323,13 +318,10 @@
       } else {
         setProgress(20, 'Saving ' + total + ' grade entries…', "One batch request…");
 
-        // pendingImportData already contains entries arrays (new format)
-        const items = state.pendingImportData;
-
         const res = await App.apiCall({
           action: "bulkSaveBreakdown", pin: state.adminPin,
           subject: subj, quarter: qtr,
-          items: items
+          items: state.pendingImportData
         }, { retries: 1, timeout: 180000 });
 
         if (!res.success) throw new Error(res.message || "Bulk grade import failed.");
@@ -358,7 +350,7 @@
   };
 
   // ============================================================
-  // CSV Export (unchanged)
+  // CSV Export
   // ============================================================
   App.exportTableToCSV = function (filename) {
     if (!state.currentAdminData || state.currentAdminData.length === 0) {
@@ -398,7 +390,7 @@
   };
 
   // ============================================================
-  // XLSX Export (unchanged)
+  // XLSX Export
   // ============================================================
   const SHEETJS_URL = 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js';
 
