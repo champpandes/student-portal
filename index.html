@@ -389,7 +389,6 @@
             </button>
           </div>
 
-          <!-- Filter bar -->
           <div class="mt-3 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label for="cr-search" class="sr-only">Search students</label>
@@ -1044,7 +1043,7 @@
         </div>
 
         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-          <div class="text-[11px] font-black uppercase text-slate-400">Column Mapping (Excel column letters)</div>
+          <div class="text-[11px] font-black uppercase text-slate-400">Column Mapping (Excel column letters like A, B, C…)</div>
 
           <div id="col-mapping-register" class="grid grid-cols-3 gap-3">
             <div>
@@ -1061,26 +1060,16 @@
             </div>
           </div>
 
-          <div id="col-mapping-grades" class="hidden grid grid-cols-5 gap-2">
+          <div id="col-mapping-grades" class="hidden space-y-3">
             <div>
-              <label for="col-id-grades" class="block text-[10px] font-bold text-slate-500 mb-1">ID Col</label>
-              <input type="text" id="col-id-grades" placeholder="A" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+              <label for="col-id-grades" class="block text-[10px] font-bold text-slate-500 mb-1">Student ID Column</label>
+              <input type="text" id="col-id-grades" placeholder="A" class="w-24 bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
             </div>
             <div>
-              <label for="col-quiz" class="block text-[10px] font-bold text-slate-500 mb-1">Quiz Col</label>
-              <input type="text" id="col-quiz" placeholder="B" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
-            </div>
-            <div>
-              <label for="col-part" class="block text-[10px] font-bold text-slate-500 mb-1">Part. Col</label>
-              <input type="text" id="col-part" placeholder="C" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
-            </div>
-            <div>
-              <label for="col-att" class="block text-[10px] font-bold text-slate-500 mb-1">Att. Col</label>
-              <input type="text" id="col-att" placeholder="D" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
-            </div>
-            <div>
-              <label for="col-exam" class="block text-[10px] font-bold text-slate-500 mb-1">Exam Col</label>
-              <input type="text" id="col-exam" placeholder="E" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">
+              <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Grade Category Columns</div>
+              <div id="grade-category-cols" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <!-- Populated dynamically from the selected subject's categories -->
+              </div>
             </div>
           </div>
         </div>
