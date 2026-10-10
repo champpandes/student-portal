@@ -3,7 +3,9 @@
 
   const state = App.state;
 
-  // ---------- Modal ----------
+  // ============================================================
+  // Modal open/close
+  // ============================================================
   App.openImportModal = function () {
     document.getElementById('transfer-status').classList.add('hidden');
     document.getElementById('preview-section').classList.add('hidden');
@@ -18,11 +20,10 @@
     document.getElementById('csv-file-input').value = '';
     document.getElementById('smart-paste-input').value = '';
 
-    ['col-id-reg','col-name','col-sec','col-id-grades','col-quiz','col-part','col-att','col-exam']
-      .forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-      });
+    ['col-id-reg','col-name','col-sec','col-id-grades'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
 
     state.pendingImportData = [];
     App.toggleImportUI();
@@ -33,14 +34,59 @@
     App.closeModal(document.getElementById('import-modal'));
   };
 
+  // ============================================================
+  // Toggle UI + populate grade columns
+  // ============================================================
   App.toggleImportUI = function () {
     const isGrades = document.getElementById('import-action').value === 'grades';
     document.getElementById('import-quarter-container').classList.toggle('hidden', !isGrades);
     document.getElementById('col-mapping-register').classList.toggle('hidden', isGrades);
     document.getElementById('col-mapping-grades').classList.toggle('hidden', !isGrades);
+    if (isGrades) App.populateGradeColumnMappings();
   };
 
-  // ---------- Parsers ----------
+  App.populateGradeColumnMappings = function () {
+    const container = document.getElementById('grade-category-cols');
+    if (!container) return;
+
+    const subject = document.getElementById('import-subject').value;
+    const cats = (state.subjectCategories && state.subjectCategories[subject]) || [];
+
+    if (!subject || cats.length === 0) {
+      container.innerHTML = '<div class="col-span-full text-xs text-rose-500 font-bold py-2">Pick a subject with at least one category first.</div>';
+      return;
+    }
+
+    // Preserve existing input values by category ID
+    const existing = {};
+    container.querySelectorAll('[data-category-id]').forEach(inp => {
+      existing[inp.dataset.categoryId] = inp.value;
+    });
+
+    // Render one column input per category
+    container.innerHTML = cats
+      .sort((a, b) => (a.position || 0) - (b.position || 0))
+      .map((cat, idx) => {
+        const inputId = 'gcol-' + cat.id;
+        const prevVal = existing[String(cat.id)] || '';
+        return '<div>' +
+          '<label for="' + inputId + '" class="block text-[10px] font-bold text-slate-500 mb-1 truncate" title="' + App.esc(cat.name) + '">' +
+            App.esc(cat.name) +
+            ' <span class="text-slate-400 font-normal">(' + App.esc(cat.weight) + '%)</span>' +
+          '</label>' +
+          '<input type="text" id="' + inputId + '" ' +
+                 'data-category-id="' + cat.id + '" ' +
+                 'placeholder="' + String.fromCharCode(66 + idx) + '" ' +
+                 'value="' + App.esc(prevVal) + '" ' +
+                 'class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase">' +
+        '</div>';
+      })
+      .join('');
+  };
+
+  // ============================================================
+  // Parsers
+  // ============================================================
   function readCSVFile(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -64,13 +110,28 @@
     return result;
   }
 
-  function colToIndex(id) {
-    const v = document.getElementById(id).value.trim().toUpperCase();
+  // Convert "A" → 0, "B" → 1, "AA" → 26, etc.
+  function colLetterToIndex(letter) {
+    const v = String(letter || '').trim().toUpperCase();
     if (!v) return -1;
-    return v.charCodeAt(0) - 65;
+    let n = 0;
+    for (let i = 0; i < v.length; i++) {
+      const c = v.charCodeAt(i);
+      if (c < 65 || c > 90) return -1;
+      n = n * 26 + (c - 64);
+    }
+    return n - 1;
   }
 
-  // ---------- Preview ----------
+  function getInputColIndex(id) {
+    const el = document.getElementById(id);
+    if (!el) return -1;
+    return colLetterToIndex(el.value);
+  }
+
+  // ============================================================
+  // Preview
+  // ============================================================
   App.previewDataTransfer = async function () {
     const btn = document.getElementById('preview-btn');
     const action = document.getElementById('import-action').value;
@@ -107,9 +168,10 @@
         const startRow = isPaste ? 0 : 1;
 
         if (action === 'register') {
-          const cId = colToIndex('col-id-reg');
-          const cName = colToIndex('col-name');
-          const cSec = colToIndex('col-sec');
+          // ---- REGISTER STUDENTS (unchanged) ----
+          const cId = getInputColIndex('col-id-reg');
+          const cName = getInputColIndex('col-name');
+          const cSec = getInputColIndex('col-sec');
           if (cId < 0 || cName < 0) throw new Error("ID and Name columns are required.");
 
           thead.innerHTML = '<tr>' +
@@ -142,20 +204,27 @@
               '</tr>');
           }
         } else {
-          const cId = colToIndex('col-id-grades');
-          const cQz = colToIndex('col-quiz');
-          const cPa = colToIndex('col-part');
-          const cAt = colToIndex('col-att');
-          const cEx = colToIndex('col-exam');
-
+          // ---- UPLOAD GRADES (dynamic categories) ----
+          const cId = getInputColIndex('col-id-grades');
           if (cId < 0) throw new Error("Student ID column is required.");
-          if (cQz < 0 && cPa < 0 && cAt < 0 && cEx < 0) throw new Error("Map at least one grade category.");
 
+          // Read dynamic category columns
+          const catInputs = Array.from(document.querySelectorAll('#grade-category-cols [data-category-id]'));
+          const catCols = catInputs.map(inp => ({
+            categoryId: Number(inp.dataset.categoryId),
+            name: (state.subjectCategories[subj] || []).find(c => String(c.id) === inp.dataset.categoryId)?.name || 'Category',
+            colIndex: colLetterToIndex(inp.value)
+          })).filter(c => c.colIndex >= 0);
+
+          if (catCols.length === 0) {
+            throw new Error("Map at least one category column.");
+          }
+
+          // Preview header
           let headHTML = '<tr><th class="p-3 font-bold">Student No.</th>';
-          if (cQz >= 0) headHTML += '<th class="p-3 font-bold text-center">Quizzes</th>';
-          if (cPa >= 0) headHTML += '<th class="p-3 font-bold text-center">Part.</th>';
-          if (cAt >= 0) headHTML += '<th class="p-3 font-bold text-center">Att.</th>';
-          if (cEx >= 0) headHTML += '<th class="p-3 font-bold text-center">Exams</th>';
+          catCols.forEach(c => {
+            headHTML += '<th class="p-3 font-bold text-center">' + App.esc(c.name) + '</th>';
+          });
           headHTML += '</tr>';
           thead.innerHTML = headHTML;
 
@@ -168,21 +237,27 @@
             if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
 
             const cleanNo = String(cols[cId]).trim();
-            const item = {
+
+            // Build entries array for the new format
+            const entries = catCols.map(c => ({
+              categoryId: c.categoryId,
+              value: c.colIndex >= 0 && cols[c.colIndex] !== undefined && cols[c.colIndex] !== ''
+                ? Number(cols[c.colIndex]) || 0
+                : ''
+            }));
+
+            state.pendingImportData.push({
               studentNumber: cleanNo,
-              quizzes: cQz >= 0 ? (Number(cols[cQz]) || 0) : null,
-              participation: cPa >= 0 ? (Number(cols[cPa]) || 0) : null,
-              attendance: cAt >= 0 ? (Number(cols[cAt]) || 0) : null,
-              exams: cEx >= 0 ? (Number(cols[cEx]) || 0) : null
-            };
-            state.pendingImportData.push(item);
+              entries: entries
+            });
 
             let rowHTML = '<tr class="hover:bg-slate-50 transition-colors">' +
               '<td class="p-3 border-b border-slate-100 font-semibold">' + App.esc(cleanNo) + '</td>';
-            if (cQz >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.quizzes) + '</td>';
-            if (cPa >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.participation) + '</td>';
-            if (cAt >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.attendance) + '</td>';
-            if (cEx >= 0) rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + App.esc(item.exams) + '</td>';
+            entries.forEach(e => {
+              rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' +
+                (e.value === '' ? '—' : App.esc(e.value)) +
+              '</td>';
+            });
             rowHTML += '</tr>';
             tbody.insertAdjacentHTML('beforeend', rowHTML);
           }
@@ -204,7 +279,9 @@
     }, { text: 'Reading...' });
   };
 
-  // ---------- Confirm / Import ----------
+  // ============================================================
+  // Confirm / Import
+  // ============================================================
   App.confirmDataTransfer = async function () {
     const btn = document.getElementById('confirm-btn');
     const cancelBtn = document.getElementById('import-cancel-btn');
@@ -246,20 +323,13 @@
       } else {
         setProgress(20, 'Saving ' + total + ' grade entries…', "One batch request…");
 
-        const weights = state.subjectWeights[subj] || { quizzes: 35, participation: 15, attendance: 10, exams: 40 };
-        const items = state.pendingImportData.map(item => ({
-          studentNumber: item.studentNumber,
-          breakdown: {
-            quizzes: item.quizzes,
-            participation: item.participation,
-            attendance: item.attendance,
-            exams: item.exams
-          }
-        }));
+        // pendingImportData already contains entries arrays (new format)
+        const items = state.pendingImportData;
 
         const res = await App.apiCall({
           action: "bulkSaveBreakdown", pin: state.adminPin,
-          subject: subj, quarter: qtr, weights: weights, items: items
+          subject: subj, quarter: qtr,
+          items: items
         }, { retries: 1, timeout: 180000 });
 
         if (!res.success) throw new Error(res.message || "Bulk grade import failed.");
@@ -287,7 +357,9 @@
     }
   };
 
-  // ---------- CSV Export ----------
+  // ============================================================
+  // CSV Export (unchanged)
+  // ============================================================
   App.exportTableToCSV = function (filename) {
     if (!state.currentAdminData || state.currentAdminData.length === 0) {
       App.showToast("No data to export.", "error");
@@ -325,7 +397,9 @@
     App.showToast("Backup exported!");
   };
 
-  // ---------- XLSX Export (lazy-loads SheetJS) ----------
+  // ============================================================
+  // XLSX Export (unchanged)
+  // ============================================================
   const SHEETJS_URL = 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js';
 
   function loadSheetJS() {

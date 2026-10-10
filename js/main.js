@@ -291,6 +291,11 @@
 
     document.getElementById('open-import-btn').addEventListener('click', App.openImportModal);
     document.getElementById('import-action').addEventListener('change', App.toggleImportUI);
+    document.getElementById('import-subject').addEventListener('change', () => {
+      if (document.getElementById('import-action').value === 'grades') {
+        App.populateGradeColumnMappings();
+      }
+    });
     document.getElementById('preview-btn').addEventListener('click', App.previewDataTransfer);
     document.getElementById('confirm-btn').addEventListener('click', App.confirmDataTransfer);
     document.getElementById('import-cancel-btn').addEventListener('click', App.closeImportModal);
