@@ -1,8 +1,8 @@
 // ============================================================
-// Service Worker — Teacher Portal PWA
+// Service Worker — Champ Class Portal PWA
 // ============================================================
 
-const CACHE_VERSION = 'v2.9.4';
+const CACHE_VERSION = 'v2.9.5';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -31,6 +31,7 @@ const STATIC_ASSETS = [
   './js/teachers.js',
   './js/profile.js',
   './js/main.js'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(
