@@ -2,7 +2,7 @@
 // Edge Function: admin
 // Handles all privileged operations for the Teacher Portal.
 // Runs server-side with the service_role key.
-// Multi-teacher version (Phase 1B).
+// Multi-teacher version (Phase 1C — scoped reads).
 // ============================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -30,10 +30,7 @@ const TRANSMUTATION: [number, number][] = [
 ];
 
 const QUARTER_ORDINAL: Record<string, string> = {
-  "1": "1st",
-  "2": "2nd",
-  "3": "3rd",
-  "4": "4th"
+  "1": "1st", "2": "2nd", "3": "3rd", "4": "4th"
 };
 
 function normalizeQuarterLabel(q: any): string {
@@ -63,14 +60,8 @@ function determineRemarks(f: any): string {
 }
 
 function stripTags(s: any) { return String(s ?? "").replace(/[<>]/g, ""); }
-
-function normalizeEmail(s: any) {
-  return String(s || "").trim().toLowerCase();
-}
-
-function isValidEmail(s: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-}
+function normalizeEmail(s: any) { return String(s || "").trim().toLowerCase(); }
+function isValidEmail(s: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); }
 
 function json(data: any, status: number) {
   return new Response(JSON.stringify(data), {
@@ -82,7 +73,6 @@ function json(data: any, status: number) {
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
 }
-
 function hexToBytes(hex: string): Uint8Array {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
@@ -91,20 +81,15 @@ function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
-// PBKDF2-SHA256, 120k iterations, 32-byte output.
 async function hashPassword(password: string, saltHex?: string): Promise<{ hash: string; salt: string }> {
   const salt = saltHex ? hexToBytes(saltHex) : crypto.getRandomValues(new Uint8Array(16));
   const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"]
+    "raw", new TextEncoder().encode(password),
+    { name: "PBKDF2" }, false, ["deriveBits"]
   );
   const bits = await crypto.subtle.deriveBits(
     { name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" },
-    keyMaterial,
-    256
+    keyMaterial, 256
   );
   return { hash: bytesToHex(new Uint8Array(bits)), salt: bytesToHex(salt) };
 }
@@ -112,7 +97,6 @@ async function hashPassword(password: string, saltHex?: string): Promise<{ hash:
 async function verifyPassword(password: string, hash: string, salt: string): Promise<boolean> {
   try {
     const { hash: computed } = await hashPassword(password, salt);
-    // Constant-time compare
     if (computed.length !== hash.length) return false;
     let diff = 0;
     for (let i = 0; i < computed.length; i++) {
@@ -129,10 +113,7 @@ async function sha256(text: string): Promise<string> {
   return bytesToHex(new Uint8Array(buf));
 }
 
-function computeWeightedFinal(
-  q1: any, q2: any, q3: any, q4: any,
-  quarterWeights: any
-): number | "" {
+function computeWeightedFinal(q1: any, q2: any, q3: any, q4: any, quarterWeights: any): number | "" {
   const w = quarterWeights || { "1st": 25, "2nd": 25, "3rd": 25, "4th": 25 };
   const pairs: [any, number][] = [
     [q1, Number(w["1st"] || 0)],
@@ -160,29 +141,16 @@ interface AuthContext {
   legacy: boolean;
 }
 
-/**
- * Resolves the requesting identity from the request body.
- * Order:
- *   1. If sessionToken is present → validate, return that teacher.
- *   2. Else if pin is present → verify against settings.admin_pin_hash;
- *      if valid, find the super_admin (if any) and act as them. If no
- *      super admin exists yet, act as a "null teacher" (legacy mode).
- *   3. Else → null.
- */
 async function resolveAuth(sb: any, body: any): Promise<AuthContext | null> {
   const token = String(body?.sessionToken || "").trim();
   if (token) {
     const rows = await sb.from("teacher_sessions")
-      .select("teacher_id, expires_at")
-      .eq("token", token)
-      .limit(1);
+      .select("teacher_id, expires_at").eq("token", token).limit(1);
     if (rows.data && rows.data.length > 0) {
       const session = rows.data[0];
       if (new Date(session.expires_at) > new Date()) {
         const tRes = await sb.from("teachers")
-          .select("*")
-          .eq("id", session.teacher_id)
-          .limit(1);
+          .select("*").eq("id", session.teacher_id).limit(1);
         if (tRes.data && tRes.data.length > 0) {
           const teacher = tRes.data[0];
           if (teacher.is_active && teacher.status === "approved") {
@@ -191,7 +159,6 @@ async function resolveAuth(sb: any, body: any): Promise<AuthContext | null> {
         }
       }
     }
-    // Fall through to PIN if the token was invalid/expired
   }
 
   const pin = String(body?.pin || "").trim();
@@ -201,13 +168,9 @@ async function resolveAuth(sb: any, body: any): Promise<AuthContext | null> {
     if (pinRows.data && pinRows.data.length > 0) {
       const hash = await sha256(pin);
       if (hash === pinRows.data[0].value) {
-        // Find a super admin teacher to act as, if one exists.
         const saRes = await sb.from("teachers")
-          .select("*")
-          .eq("role", "super_admin")
-          .eq("status", "approved")
-          .eq("is_active", true)
-          .limit(1);
+          .select("*").eq("role", "super_admin")
+          .eq("status", "approved").eq("is_active", true).limit(1);
         const teacher = (saRes.data && saRes.data.length > 0) ? saRes.data[0] : null;
         return { teacher, legacy: true };
       }
@@ -231,9 +194,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: CORS_HEADERS });
   }
 
-  const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
-    auth: { persistSession: false }
-  });
+  const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
   try {
     const body = await req.json();
@@ -245,8 +206,6 @@ Deno.serve(async (req) => {
       case "teacherLogin":      return json(await teacherLogin(sb, body), 200);
       case "getPublicTeachers": return json(await getPublicTeachers(sb), 200);
       case "getStudent":        return json(await getStudent(sb, body), 200);
-      case "getComments":       return json(await getComments(sb), 200);
-      case "getAnnouncement":   return json(await getAnnouncement(sb, body), 200);
       case "registerStudent":   return json(await registerStudent(sb, body), 200);
       case "getTeacherName":    return json(await getTeacherName(sb, body), 200);
     }
@@ -257,7 +216,6 @@ Deno.serve(async (req) => {
       return json({ success: false, message: "Not authenticated. Please log in again." }, 200);
     }
 
-    // Super-admin-only actions
     const SUPER_ONLY = new Set([
       "listTeachers", "approveTeacher", "rejectTeacher",
       "setTeacherRole", "setTeacherActive", "resetTeacherPassword", "deleteTeacher"
@@ -284,7 +242,15 @@ Deno.serve(async (req) => {
       case "resetTeacherPassword":  result = await resetTeacherPassword(sb, body); break;
       case "deleteTeacher":         result = await deleteTeacher(sb, body, auth); break;
 
-      // Existing actions — now scoped by teacher
+      // ===== SCOPED READS =====
+      case "getAllGrades":          result = await getAllGradesScoped(sb, body, auth); break;
+      case "getSections":           result = await buildSectionsPayload(sb, auth.teacher?.id || null); break;
+      case "getPendingRegistrations": result = await getPendingRegistrationsScoped(sb, auth); break;
+      case "getComments":           result = await getCommentsScoped(sb, auth); break;
+      case "getAnnouncement":       result = await getAnnouncementScoped(sb, body, auth); break;
+      case "getClassRecord":        result = await getClassRecordScoped(sb, body, auth); break;
+
+      // ===== SCOPED WRITES / other =====
       case "adminLogin":            result = await adminLogin(sb, body); break;
       case "saveGrades":            result = await saveGrades(sb, body, auth); break;
       case "saveBreakdown":         result = await saveBreakdown(sb, body, auth, false); break;
@@ -323,6 +289,165 @@ Deno.serve(async (req) => {
 });
 
 // ============================================================
+// Scoped reads
+// ============================================================
+
+async function getAllGradesScoped(sb: any, p: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+  const subject = String(p.subject || "");
+
+  let gq = sb.from("grades").select("*").order("student_number", { ascending: true });
+  if (subject && subject !== "All") gq = gq.eq("subject_name", subject);
+  if (teacherId) gq = gq.eq("teacher_id", teacherId);
+
+  const gRows = await gq;
+  if (!gRows.data) return [];
+
+  let sq = sb.from("students").select("student_number,name,section");
+  if (teacherId) sq = sq.eq("teacher_id", teacherId);
+  const sRows = await sq;
+  const sMap: Record<string, any> = {};
+  (sRows.data || []).forEach((s: any) => { sMap[s.student_number] = s; });
+
+  return gRows.data
+    .filter((r: any) => {
+      const sNo = String(r.student_number);
+      return !(sNo.indexOf("T") !== -1 && sNo.indexOf("-") !== -1);
+    })
+    .map((r: any) => {
+      const stu = sMap[r.student_number] || {};
+      return {
+        studentNumber: String(r.student_number),
+        name: stu.name || "",
+        section: stu.section || "Section A",
+        subject: r.subject_name,
+        q1: r.q1, q2: r.q2, q3: r.q3, q4: r.q4,
+        final: r.final,
+        remarks: r.remarks || determineRemarks(r.final)
+      };
+    });
+}
+
+async function getPendingRegistrationsScoped(sb: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+  let q = sb.from("pending_registrations").select("*").order("id", { ascending: false });
+  if (teacherId) q = q.eq("teacher_id", teacherId);
+  const rows = await q;
+
+  const pending: any[] = [], history: any[] = [];
+  (rows.data || []).forEach((r: any) => {
+    const item = {
+      timestamp: r.timestamp || "",
+      studentNumber: r.student_number || "",
+      name: r.name || "",
+      section: r.section || "",
+      subjects: Array.isArray(r.enrolled_subjects) ? r.enrolled_subjects : [],
+      status: r.status || "pending",
+      reviewedAt: r.reviewed_at || "",
+      teacherId: r.teacher_id || null
+    };
+    (item.status === "pending" ? pending : history).push(item);
+  });
+  return { success: true, pending, history };
+}
+
+async function getCommentsScoped(sb: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+  let q = sb.from("comments").select("*").order("id", { ascending: true });
+  if (teacherId) q = q.eq("teacher_id", teacherId);
+  const rows = await q;
+  return {
+    success: true,
+    comments: (rows.data || []).map((r: any) => ({
+      timestamp: r.timestamp || "",
+      studentNumber: r.student_number || "",
+      studentName: r.student_name || "",
+      text: r.comment_text || ""
+    }))
+  };
+}
+
+async function getAnnouncementScoped(sb: any, p: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || String(p?.teacherId || "").trim() || null;
+  let query = sb.from("announcements").select("*")
+    .eq("is_active", true).order("id", { ascending: false }).limit(1);
+  if (teacherId) query = query.eq("teacher_id", teacherId);
+  const rows = await query;
+  if (rows.data && rows.data.length > 0) {
+    return {
+      success: true,
+      message: rows.data[0].message || "",
+      timestamp: rows.data[0].timestamp || "",
+      postedBy: rows.data[0].posted_by || ""
+    };
+  }
+  return { success: true, message: "" };
+}
+
+async function getClassRecordScoped(sb: any, p: any, auth: AuthContext) {
+  const subject = String(p.subject || "");
+  const quarter = String(p.quarter || "");
+  const teacherId = auth.teacher?.id || null;
+  if (!subject || !quarter) return { success: false, message: "Subject and quarter required." };
+
+  let catQ = sb.from("subject_categories")
+    .select("id,name,weight,position")
+    .eq("subject_name", subject)
+    .order("position", { ascending: true });
+  if (teacherId) catQ = catQ.eq("teacher_id", teacherId);
+  const catRows = await catQ;
+  const categories = Array.isArray(catRows.data) ? catRows.data : [];
+
+  let assessQ = sb.from("assessments").select("*")
+    .eq("subject_name", subject).eq("quarter", quarter)
+    .order("category_id", { ascending: true })
+    .order("position", { ascending: true });
+  if (teacherId) assessQ = assessQ.eq("teacher_id", teacherId);
+  const assessRows = await assessQ;
+  const assessments = Array.isArray(assessRows.data) ? assessRows.data : [];
+
+  let scores: any[] = [];
+  if (assessments.length > 0) {
+    const ids = assessments.map((a: any) => a.id).join(",");
+    const scoreRows = await sbGet(sb, "scores", "select=*&assessment_id=in.(" + ids + ")");
+    scores = Array.isArray(scoreRows) ? scoreRows : [];
+  }
+
+  let enrQ = sb.from("enrollments").select("student_number").eq("subject_name", subject);
+  if (teacherId) enrQ = enrQ.eq("teacher_id", teacherId);
+  const enrRows = await enrQ;
+  const studentNumbers = (Array.isArray(enrRows.data) ? enrRows.data : [])
+    .map((e: any) => String(e.student_number));
+
+  let students: any[] = [];
+  if (studentNumbers.length > 0) {
+    const inList = studentNumbers.map(s => '"' + s.replace(/"/g, '') + '"').join(",");
+    let sQ = sb.from("students")
+      .select("student_number,name,section")
+      .in("student_number", studentNumbers);
+    if (teacherId) sQ = sQ.eq("teacher_id", teacherId);
+    const sRows = await sQ;
+    students = Array.isArray(sRows.data) ? sRows.data : [];
+  }
+
+  return { success: true, categories, assessments, scores, students };
+}
+
+// Tiny helper so scoped reads don't need to re-import PostgREST
+async function sbGet(sb: any, table: string, query: string) {
+  const url = new URL(SUPABASE_URL + "/rest/v1/" + table + (query ? "?" + query : ""));
+  const res = await fetch(url.toString(), {
+    headers: {
+      "apikey": SERVICE_KEY,
+      "Authorization": "Bearer " + SERVICE_KEY,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!res.ok) return [];
+  try { return await res.json(); } catch { return []; }
+}
+
+// ============================================================
 // Teacher auth
 // ============================================================
 
@@ -335,11 +460,9 @@ async function registerTeacher(sb: any, p: any) {
   if (!displayName) return { success: false, message: "Enter your name." };
   if (password.length < 6) return { success: false, message: "Password must be at least 6 characters." };
 
-  // Has any teacher ever existed? If not, this one bootstraps as super admin.
   const countRes = await sb.from("teachers").select("id", { count: "exact", head: true });
   const isFirst = !countRes.count || countRes.count === 0;
 
-  // Check for duplicate email
   const existing = await sb.from("teachers").select("id").eq("email", email).limit(1);
   if (existing.data && existing.data.length > 0) {
     return { success: false, message: "That email is already registered." };
@@ -349,18 +472,14 @@ async function registerTeacher(sb: any, p: any) {
   const now = new Date().toISOString();
 
   const payload: any = {
-    email,
-    display_name: displayName,
-    password_hash: hash,
-    password_salt: salt,
+    email, display_name: displayName,
+    password_hash: hash, password_salt: salt,
     role: isFirst ? "super_admin" : "teacher",
     status: isFirst ? "approved" : "pending",
     is_active: true,
     created_at: now
   };
-  if (isFirst) {
-    payload.approved_at = now;
-  }
+  if (isFirst) payload.approved_at = now;
 
   const ins = await sb.from("teachers").insert(payload).select();
   if (ins.error) throw ins.error;
@@ -368,18 +487,10 @@ async function registerTeacher(sb: any, p: any) {
   const teacher = ins.data[0];
 
   if (isFirst) {
-    // Auto-login the first super admin
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    await sb.from("teacher_sessions").insert({
-      token, teacher_id: teacher.id, expires_at: expiresAt
-    });
-    return {
-      success: true,
-      firstUser: true,
-      sessionToken: token,
-      teacher: publicTeacher(teacher)
-    };
+    await sb.from("teacher_sessions").insert({ token, teacher_id: teacher.id, expires_at: expiresAt });
+    return { success: true, firstUser: true, sessionToken: token, teacher: publicTeacher(teacher) };
   }
 
   return {
@@ -413,13 +524,10 @@ async function teacherLogin(sb: any, p: any) {
     return { success: false, message: "Your account has been deactivated." };
   }
 
-  // Clean expired sessions for this teacher
   await sb.from("teacher_sessions")
-    .delete()
-    .eq("teacher_id", teacher.id)
+    .delete().eq("teacher_id", teacher.id)
     .lt("expires_at", new Date().toISOString());
 
-  // Create a fresh session
   const token = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const sess = await sb.from("teacher_sessions").insert({
@@ -427,30 +535,19 @@ async function teacherLogin(sb: any, p: any) {
   });
   if (sess.error) throw sess.error;
 
-  await sb.from("teachers").update({
-    last_login_at: new Date().toISOString()
-  }).eq("id", teacher.id);
+  await sb.from("teachers").update({ last_login_at: new Date().toISOString() }).eq("id", teacher.id);
 
-  return {
-    success: true,
-    sessionToken: token,
-    teacher: publicTeacher(teacher)
-  };
+  return { success: true, sessionToken: token, teacher: publicTeacher(teacher) };
 }
 
 async function teacherLogout(sb: any, p: any) {
   const token = String(p.sessionToken || "").trim();
-  if (token) {
-    await sb.from("teacher_sessions").delete().eq("token", token);
-  }
+  if (token) await sb.from("teacher_sessions").delete().eq("token", token);
   return { success: true };
 }
 
 async function getMe(sb: any, auth: AuthContext) {
-  if (!auth.teacher) {
-    // Legacy mode, no teacher row yet
-    return { success: true, legacy: true, teacher: null };
-  }
+  if (!auth.teacher) return { success: true, legacy: true, teacher: null };
   return { success: true, teacher: publicTeacher(auth.teacher) };
 }
 
@@ -476,21 +573,17 @@ function publicTeacher(t: any) {
 }
 
 // ============================================================
-// Public teachers list (for student registration dropdown)
+// Public teachers list
 // ============================================================
 
 async function getPublicTeachers(sb: any) {
   const rows = await sb.from("teachers")
     .select("id, display_name")
-    .eq("status", "approved")
-    .eq("is_active", true)
+    .eq("status", "approved").eq("is_active", true)
     .order("display_name", { ascending: true });
   return {
     success: true,
-    teachers: (rows.data || []).map((r: any) => ({
-      id: r.id,
-      displayName: r.display_name
-    }))
+    teachers: (rows.data || []).map((r: any) => ({ id: r.id, displayName: r.display_name }))
   };
 }
 
@@ -499,21 +592,13 @@ async function getPublicTeachers(sb: any) {
 // ============================================================
 
 async function listTeachers(sb: any) {
-  const rows = await sb.from("teachers")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const rows = await sb.from("teachers").select("*").order("created_at", { ascending: false });
   return {
     success: true,
     teachers: (rows.data || []).map((t: any) => ({
-      id: t.id,
-      email: t.email,
-      displayName: t.display_name,
-      role: t.role,
-      status: t.status,
-      isActive: t.is_active,
-      createdAt: t.created_at,
-      approvedAt: t.approved_at,
-      lastLoginAt: t.last_login_at
+      id: t.id, email: t.email, displayName: t.display_name,
+      role: t.role, status: t.status, isActive: t.is_active,
+      createdAt: t.created_at, approvedAt: t.approved_at, lastLoginAt: t.last_login_at
     }))
   };
 }
@@ -526,8 +611,7 @@ async function approveTeacher(sb: any, p: any, auth: AuthContext) {
     return { success: false, message: "Invalid role." };
   }
   const { error } = await sb.from("teachers").update({
-    status: "approved",
-    role,
+    status: "approved", role,
     approved_at: new Date().toISOString(),
     approved_by: auth.teacher.id
   }).eq("id", id);
@@ -538,9 +622,7 @@ async function approveTeacher(sb: any, p: any, auth: AuthContext) {
 async function rejectTeacher(sb: any, p: any) {
   const id = String(p.teacherId || "");
   if (!id) return { success: false, message: "Missing teacher id." };
-  const { error } = await sb.from("teachers").update({
-    status: "rejected"
-  }).eq("id", id);
+  const { error } = await sb.from("teachers").update({ status: "rejected" }).eq("id", id);
   if (error) throw error;
   return { success: true };
 }
@@ -552,14 +634,12 @@ async function setTeacherRole(sb: any, p: any) {
   if (role !== "teacher" && role !== "super_admin") {
     return { success: false, message: "Invalid role." };
   }
-  // If demoting a super admin, ensure at least one remains.
   if (role === "teacher") {
     const current = await sb.from("teachers").select("role").eq("id", id).limit(1);
     if (current.data && current.data.length > 0 && current.data[0].role === "super_admin") {
       const others = await sb.from("teachers")
         .select("id", { count: "exact", head: true })
-        .eq("role", "super_admin")
-        .neq("id", id);
+        .eq("role", "super_admin").neq("id", id);
       if (!others.count || others.count === 0) {
         return { success: false, message: "Cannot demote the last super admin." };
       }
@@ -576,10 +656,7 @@ async function setTeacherActive(sb: any, p: any) {
   if (!id) return { success: false, message: "Missing teacher id." };
   const { error } = await sb.from("teachers").update({ is_active: active }).eq("id", id);
   if (error) throw error;
-  if (!active) {
-    // Revoke any active sessions
-    await sb.from("teacher_sessions").delete().eq("teacher_id", id);
-  }
+  if (!active) await sb.from("teacher_sessions").delete().eq("teacher_id", id);
   return { success: true };
 }
 
@@ -590,11 +667,9 @@ async function resetTeacherPassword(sb: any, p: any) {
   if (password.length < 6) return { success: false, message: "Password must be at least 6 characters." };
   const { hash, salt } = await hashPassword(password);
   const { error } = await sb.from("teachers").update({
-    password_hash: hash,
-    password_salt: salt
+    password_hash: hash, password_salt: salt
   }).eq("id", id);
   if (error) throw error;
-  // Force re-login everywhere
   await sb.from("teacher_sessions").delete().eq("teacher_id", id);
   return { success: true };
 }
@@ -611,7 +686,7 @@ async function deleteTeacher(sb: any, p: any, auth: AuthContext) {
 }
 
 // ============================================================
-// Legacy admin login (kept during migration)
+// Legacy admin login
 // ============================================================
 
 async function adminLogin(sb: any, p: any) {
@@ -716,8 +791,9 @@ async function saveBreakdown(sb: any, p: any, auth: AuthContext, isBulk: boolean
   const qNum = String(p.quarter || "").replace(/\D/g, "");
   const qKey = "q" + qNum;
 
-  const catRows = await sb.from("subject_categories")
-    .select("id,name,weight").eq("subject_name", subj);
+  let catQ = sb.from("subject_categories").select("id,name,weight").eq("subject_name", subj);
+  if (auth.teacher) catQ = catQ.eq("teacher_id", auth.teacher.id);
+  const catRows = await catQ;
   const cats: any[] = catRows.data || [];
   if (cats.length === 0) {
     return { success: false, message: "No categories configured for this subject." };
@@ -730,7 +806,9 @@ async function saveBreakdown(sb: any, p: any, auth: AuthContext, isBulk: boolean
     : [{ studentNumber: p.studentNumber, entries: p.entries, breakdown: p.breakdown }];
   if (items.length === 0) return { success: true, newTotal: "", processed: 0 };
 
-  const rows = await sb.from("grades").select("*").eq("subject_name", subj);
+  let gq = sb.from("grades").select("*").eq("subject_name", subj);
+  if (auth.teacher) gq = gq.eq("teacher_id", auth.teacher.id);
+  const rows = await gq;
   const byStudent: Record<string, any> = {};
   (rows.data || []).forEach((r: any) => { byStudent[r.student_number] = r; });
 
@@ -786,17 +864,14 @@ async function saveBreakdown(sb: any, p: any, auth: AuthContext, isBulk: boolean
         break;
       }
     }
-    if (!matched) {
-      bds.push({ quarter: targetLabel, categories: valuesById, total: qScore });
-    }
+    if (!matched) bds.push({ quarter: targetLabel, categories: valuesById, total: qScore });
 
     const updated: any = { q1: row.q1, q2: row.q2, q3: row.q3, q4: row.q4 };
     updated[qKey] = qScore;
     const final = computeWeightedFinal(updated.q1, updated.q2, updated.q3, updated.q4, qw);
 
     const payload: any = {
-      student_number: sNo,
-      subject_name: subj,
+      student_number: sNo, subject_name: subj,
       q1: String(updated.q1 === "" ? "" : updated.q1),
       q2: String(updated.q2 === "" ? "" : updated.q2),
       q3: String(updated.q3 === "" ? "" : updated.q3),
@@ -810,9 +885,7 @@ async function saveBreakdown(sb: any, p: any, auth: AuthContext, isBulk: boolean
     processed++;
   }
 
-  if (updates.length === 0) {
-    return { success: true, newTotal: lastNewTotal, processed: 0 };
-  }
+  if (updates.length === 0) return { success: true, newTotal: lastNewTotal, processed: 0 };
 
   const { error } = await sb.from("grades").upsert(updates, {
     onConflict: "student_number,subject_name"
@@ -929,8 +1002,12 @@ async function getStudent(sb: any, p: any) {
       .select("*").eq("student_number", sNo).order("id", { ascending: false }).limit(1);
     if (pRows.data && pRows.data.length > 0) {
       const pr = pRows.data[0];
-      if (pr.status === "pending") return { success: false, pending: true, message: "Your registration is awaiting teacher approval.", submittedName: pr.name };
-      if (pr.status === "rejected") return { success: false, rejected: true, message: "Your registration was not approved. Please contact your teacher." };
+      if (pr.status === "pending") {
+        return { success: false, pending: true, message: "Your registration is awaiting teacher approval.", submittedName: pr.name };
+      }
+      if (pr.status === "rejected") {
+        return { success: false, rejected: true, message: "Your registration was not approved. Please contact your teacher." };
+      }
     }
     return { success: false, message: "Student not found." };
   }
@@ -952,7 +1029,7 @@ async function getStudent(sb: any, p: any) {
 }
 
 // ============================================================
-// Student registration (public)
+// Student registration
 // ============================================================
 
 async function registerStudent(sb: any, p: any) {
@@ -963,7 +1040,6 @@ async function registerStudent(sb: any, p: any) {
   if (!sNo || !name) return { success: false, message: "Please enter your name and student number." };
   if (!teacherId) return { success: false, message: "Please select a teacher." };
 
-  // Confirm the teacher exists and is approved.
   const teacherRes = await sb.from("teachers").select("id, status, is_active").eq("id", teacherId).limit(1);
   if (!teacherRes.data || teacherRes.data.length === 0) {
     return { success: false, message: "Selected teacher not found." };
@@ -984,13 +1060,9 @@ async function registerStudent(sb: any, p: any) {
 
   const ins = await sb.from("pending_registrations").insert({
     timestamp: new Date().toISOString(),
-    student_number: sNo,
-    name,
-    section: '',
-    enrolled_subjects: [],
-    status: 'pending',
-    reviewed_at: '',
-    teacher_id: teacherId
+    student_number: sNo, name, section: '',
+    enrolled_subjects: [], status: 'pending',
+    reviewed_at: '', teacher_id: teacherId
   });
   if (ins.error) throw ins.error;
 
@@ -998,19 +1070,8 @@ async function registerStudent(sb: any, p: any) {
 }
 
 // ============================================================
-// Comments (read is public, write requires auth)
+// Comments
 // ============================================================
-
-async function getComments(sb: any) {
-  const rows = await sb.from("comments").select("*").order("id", { ascending: true });
-  return {
-    success: true,
-    comments: (rows.data || []).map((r: any) => ({
-      timestamp: r.timestamp || "", studentNumber: r.student_number || "",
-      studentName: r.student_name || "", text: r.comment_text || ""
-    }))
-  };
-}
 
 async function postComment(sb: any, p: any, auth: AuthContext) {
   const sNo = String(p.studentNumber || "UNKNOWN");
@@ -1049,22 +1110,10 @@ async function clearComments(sb: any, auth: AuthContext) {
 // Announcements
 // ============================================================
 
-async function getAnnouncement(sb: any, p: any) {
-  let query = sb.from("announcements").select("*").eq("is_active", true).order("id", { ascending: false }).limit(1);
-  const teacherId = String(p?.teacherId || "").trim();
-  if (teacherId) query = query.eq("teacher_id", teacherId);
-  const rows = await query;
-  if (rows.data && rows.data.length > 0) {
-    return { success: true, message: rows.data[0].message || "", timestamp: rows.data[0].timestamp || "", postedBy: rows.data[0].posted_by || "" };
-  }
-  return { success: true, message: "" };
-}
-
 async function saveAnnouncement(sb: any, p: any, auth: AuthContext) {
   const msg = stripTags(String(p.message || "").trim());
   if (!msg) return { success: false, message: "Announcement cannot be empty." };
 
-  // Deactivate this teacher's previous active announcement.
   let deactivate = sb.from("announcements").update({ is_active: false }).eq("is_active", true);
   if (auth.teacher) deactivate = deactivate.eq("teacher_id", auth.teacher.id);
   await deactivate;
@@ -1091,7 +1140,6 @@ async function deleteAnnouncement(sb: any, p: any, auth: AuthContext) {
 }
 
 async function getTeacherName(sb: any, p: any) {
-  // Prefer the teacher row's display_name when teacherId is provided.
   const teacherId = String(p?.teacherId || "").trim();
   if (teacherId) {
     const rows = await sb.from("teachers").select("display_name").eq("id", teacherId).limit(1);
@@ -1099,7 +1147,6 @@ async function getTeacherName(sb: any, p: any) {
       return { success: true, name: rows.data[0].display_name || "" };
     }
   }
-  // Fallback to legacy settings key.
   const rows = await sb.from("settings").select("value").eq("key", "teacher_display_name").limit(1);
   const name = (rows.data && rows.data[0]) ? String(rows.data[0].value || "") : "";
   return { success: true, name };
@@ -1115,10 +1162,8 @@ async function saveTeacherName(sb: any, p: any, auth: AuthContext) {
     return { success: true, name };
   }
 
-  // Legacy fallback
   const { error } = await sb.from("settings").upsert(
-    { key: "teacher_display_name", value: name },
-    { onConflict: "key" }
+    { key: "teacher_display_name", value: name }, { onConflict: "key" }
   );
   if (error) throw error;
   return { success: true, name };
@@ -1155,10 +1200,8 @@ async function buildSubjectsResponse(sb: any, teacherId: string | null) {
     quarterWeights[r.subject_name] = r.quarter_weights || { "1st": 25, "2nd": 25, "3rd": 25, "4th": 25 };
     categories[r.subject_name] = [];
     weights[r.subject_name] = {
-      quizzes: r.weight_quizzes || 35,
-      participation: r.weight_participation || 15,
-      attendance: r.weight_attendance || 10,
-      exams: r.weight_exams || 40
+      quizzes: r.weight_quizzes || 35, participation: r.weight_participation || 15,
+      attendance: r.weight_attendance || 10, exams: r.weight_exams || 40
     };
   });
 
@@ -1225,8 +1268,7 @@ async function manageSubject(sb: any, p: any, auth: AuthContext) {
 
     if (toDelete.length > 0 && !p.confirmDelete) {
       const deleting: any[] = [];
-      let totalAssessments = 0;
-      let totalScores = 0;
+      let totalAssessments = 0, totalScores = 0;
 
       for (const c of toDelete) {
         const assessRows = await sb.from("assessments").select("id").eq("category_id", c.id);
@@ -1235,8 +1277,7 @@ async function manageSubject(sb: any, p: any, auth: AuthContext) {
         let scores = 0;
         if (aIds.length > 0) {
           const scoreRows = await sb.from("scores")
-            .select("id", { count: "exact", head: true })
-            .in("assessment_id", aIds);
+            .select("id", { count: "exact", head: true }).in("assessment_id", aIds);
           scores = Number(scoreRows.count) || 0;
         }
 
@@ -1247,12 +1288,9 @@ async function manageSubject(sb: any, p: any, auth: AuthContext) {
 
       if (totalAssessments > 0) {
         return {
-          success: false,
-          needsConfirm: true,
+          success: false, needsConfirm: true,
           message: "Some categories being removed still contain assessments and scores.",
-          deleting,
-          totalAssessments,
-          totalScores
+          deleting, totalAssessments, totalScores
         };
       }
     }
@@ -1307,9 +1345,7 @@ async function manageSubject(sb: any, p: any, auth: AuthContext) {
         name: c.name, weight: c.weight, position: c.position
       }).eq("id", c.id);
     }
-    if (toInsert.length > 0) {
-      await sb.from("subject_categories").insert(toInsert);
-    }
+    if (toInsert.length > 0) await sb.from("subject_categories").insert(toInsert);
 
     const keepNamesFinal = new Set(categories.map((c: any) => String(c.name).toLowerCase()));
     for (const c of catsUnderFinalName) {
@@ -1415,9 +1451,7 @@ async function approveRegistration(sb: any, p: any, auth: AuthContext) {
   const studentPayload: any = { student_number: sNo, name: pr.name, section };
   if (teacherId) studentPayload.teacher_id = teacherId;
   const sRes = await sb.from("students").upsert(studentPayload, { onConflict: "student_number" });
-  if (sRes.error) {
-    return { success: false, message: "Could not create student: " + sRes.error.message };
-  }
+  if (sRes.error) return { success: false, message: "Could not create student: " + sRes.error.message };
 
   const existingEnroll = await sb.from("enrollments")
     .select("subject_name").eq("student_number", sNo).in("subject_name", subjects);
@@ -1450,22 +1484,15 @@ async function approveRegistration(sb: any, p: any, auth: AuthContext) {
   });
 
   const gr = await sb.from("grades").upsert(gradeRows, {
-    onConflict: "student_number,subject_name",
-    ignoreDuplicates: false
+    onConflict: "student_number,subject_name", ignoreDuplicates: false
   });
-  if (gr.error) {
-    return { success: false, message: "Could not prepare grade sheet: " + gr.error.message };
-  }
+  if (gr.error) return { success: false, message: "Could not prepare grade sheet: " + gr.error.message };
 
   const { error: upErr } = await sb.from("pending_registrations").update({
-    section,
-    enrolled_subjects: subjects,
-    status: "approved",
-    reviewed_at: new Date().toISOString()
+    section, enrolled_subjects: subjects,
+    status: "approved", reviewed_at: new Date().toISOString()
   }).eq("id", pr.id);
-  if (upErr) {
-    return { success: false, message: "Could not finalize approval: " + upErr.message };
-  }
+  if (upErr) return { success: false, message: "Could not finalize approval: " + upErr.message };
 
   return { success: true, studentNumber: sNo, message: pr.name + " approved and enrolled." };
 }
@@ -1763,9 +1790,7 @@ async function applyClassRecordToGrades(sb: any, p: any, auth: AuthContext) {
         break;
       }
     }
-    if (!matched) {
-      bds.push({ quarter: targetLabel, categories: catVals, total: qScore });
-    }
+    if (!matched) bds.push({ quarter: targetLabel, categories: catVals, total: qScore });
 
     const updated2: any = { q1: g.q1, q2: g.q2, q3: g.q3, q4: g.q4 };
     updated2[qKey] = qScore;
@@ -1872,7 +1897,6 @@ async function restoreAll(sb: any, p: any, auth: AuthContext) {
 
   const teacherId = auth.teacher?.id || null;
 
-  // When a teacher restores, only wipe THEIR data, not the whole school.
   const wipe = async (table: string, filterCol: string) => {
     try {
       let q = sb.from(table).delete().not(filterCol, "is", null);
@@ -1918,4 +1942,18 @@ async function restoreAll(sb: any, p: any, auth: AuthContext) {
     }
   }
   return { success: true, message: "Restored " + restoredRows + " rows." };
+}
+
+async function getAnnouncementHistoryScoped(sb: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+  let q = sb.from("announcements").select("*").order("id", { ascending: false });
+  if (teacherId) q = q.eq("teacher_id", teacherId);
+  const rows = await q;
+  return {
+    success: true,
+    history: (rows.data || []).map((r: any) => ({
+      rowIndex: r.id, timestamp: r.timestamp || "", message: r.message || "",
+      postedBy: r.posted_by || "", active: !!r.is_active
+    }))
+  };
 }

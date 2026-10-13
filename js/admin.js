@@ -86,6 +86,9 @@
     if (tabName === 'sections') {
       if (App.renderSectionsList) App.renderSectionsList();
     }
+    if (tabName === 'teachers') {
+      if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
+}
   };
 
   // ---------- Refresh ----------

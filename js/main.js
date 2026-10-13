@@ -94,6 +94,10 @@
     document.getElementById('role-tab-student').addEventListener('click', () => App.setLoginRole('student'));
     document.getElementById('role-tab-teacher').addEventListener('click', () => App.setLoginRole('teacher'));
     document.getElementById('login-show-toggle').addEventListener('click', App.toggleLoginVisibility);
+    document.getElementById('legacy-pin-toggle').addEventListener('click', App.toggleLegacyPin);
+    document.getElementById('open-teacher-register-btn').addEventListener('click', App.openTeacherRegisterModal);
+    document.getElementById('register-teacher-cancel-btn').addEventListener('click', App.closeTeacherRegisterModal);
+    document.getElementById('submit-teacher-reg-btn').addEventListener('click', App.submitTeacherRegistration);
     document.getElementById('login-btn').addEventListener('click', App.handleLogin);
     document.getElementById('login-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') App.handleLogin();
@@ -148,7 +152,25 @@
     document.querySelectorAll('.quarter-pill').forEach(pill => {
       pill.addEventListener('click', () => App.filterByQuarter(pill.dataset.quarter));
     });
+    // ---- Teachers (super admin only) ----
+    const refreshTeachersBtn = document.getElementById('refresh-teachers-btn');
+    if (refreshTeachersBtn) {
+      refreshTeachersBtn.addEventListener('click', () => {
+        App.renderTeacherManagementTab();
+        App.showToast('Refreshed.');
+      });
+    }
 
+    const pendingTeachersList = document.getElementById('pending-teachers-list');
+    const allTeachersList = document.getElementById('teachers-list');
+    [pendingTeachersList, allTeachersList].forEach(el => {
+      if (!el) return;
+      el.addEventListener('click', e => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        App.handleTeacherAction(btn.dataset.action, btn.dataset);
+      });
+    });
     const handleRowClick = e => {
       const tr = e.target.closest('[data-id][data-subject]');
       if (!tr) return;

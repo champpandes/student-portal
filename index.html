@@ -65,26 +65,53 @@
         </button>
       </div>
 
-      <div class="space-y-4">
-        <label for="login-input" class="sr-only">Credentials</label>
-        <div class="relative">
+      <div class="space-y-3">
+        <!-- Student number (student tab; also reused for legacy PIN) -->
+        <div id="login-input-wrapper" class="relative">
+          <label for="login-input" class="sr-only">Student Number</label>
           <input id="login-input" type="text" inputmode="numeric" autocomplete="username"
                  placeholder="e.g. 11-05075"
-                 class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-center text-lg font-bold tracking-widest outline-none focus:border-indigo-600 focus:bg-white transition-all pr-12">
-          <button id="login-show-toggle" type="button" aria-label="Show or hide password"
-                  class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-slate-500 hover:bg-slate-100 flex items-center justify-center">👁</button>
+                 class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-center text-lg font-bold tracking-widest outline-none focus:border-indigo-600 focus:bg-white transition-all">
         </div>
+
+        <!-- Email (teacher tab) -->
+        <div id="login-email-wrapper" class="hidden-screen">
+          <label for="login-email" class="sr-only">Email</label>
+          <input id="login-email" type="email" autocomplete="username" placeholder="you@example.com"
+                 class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-center text-base font-bold outline-none focus:border-indigo-600 focus:bg-white transition-all">
+        </div>
+
+        <!-- Password (teacher tab) -->
+        <div id="login-password-wrapper" class="hidden-screen relative">
+          <label for="login-password" class="sr-only">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" placeholder="Password"
+                 class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3.5 text-center text-base font-bold outline-none focus:border-indigo-600 focus:bg-white transition-all pr-12">
+          <button id="login-show-toggle" type="button" aria-label="Show or hide password"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-slate-500 hover:bg-slate-100 flex items-center justify-center">👁</button>
+        </div>
+
         <button id="login-btn"
                 class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all">
           Log In
+        </button>
+
+        <button id="legacy-pin-toggle" type="button"
+                class="hidden-screen w-full text-[11px] text-slate-400 hover:text-slate-600 font-bold pt-1">
+          Use legacy PIN instead
         </button>
       </div>
 
       <div id="login-error" class="hidden-screen mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
 
-      <div class="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400 font-medium">
-        Not in the system yet?
-        <button id="open-register-btn" class="text-indigo-600 font-bold hover:underline">Register as a new student</button>
+      <div class="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400 font-medium space-y-2">
+        <div id="student-register-row">
+          Not in the system yet?
+          <button id="open-register-btn" class="text-indigo-600 font-bold hover:underline">Register as a new student</button>
+        </div>
+        <div id="teacher-register-row" class="hidden-screen">
+          Want to teach?
+          <button id="open-teacher-register-btn" class="text-indigo-600 font-bold hover:underline">Register as a teacher</button>
+        </div>
       </div>
     </div>
   </div>
@@ -155,6 +182,10 @@
             <button data-tab="registrations" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📝</span> <span class="sidebar-text">Registrations</span>
               <span id="pending-badge" class="hidden ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md"></span>
+            </button>
+            <button data-tab="teachers" id="tab-btn-teachers" class="admin-tab-btn hidden-screen w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+              <span>👨‍🏫</span> <span class="sidebar-text">Teachers</span>
+              <span id="pending-teacher-badge" class="hidden ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md"></span>
             </button>
             <button data-tab="announcements" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📢</span> <span class="sidebar-text">Announcements</span>
@@ -621,6 +652,36 @@
         </div>
       </div>
 
+      <!-- ===== TAB: Teachers (super admin only) ===== -->
+      <div id="tab-teachers" class="admin-tab-content hidden-screen space-y-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+          <div>
+            <h3 class="text-base font-black text-slate-900 mb-1">Manage Teachers</h3>
+            <p class="text-xs text-slate-500 font-medium">Approve new teachers, set roles, reset passwords, deactivate accounts.</p>
+          </div>
+          <button id="refresh-teachers-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition-all">
+            🔄 Refresh
+          </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider">Pending Teacher Registrations</h4>
+            <span id="pending-teacher-count" class="text-xs font-bold text-amber-600"></span>
+          </div>
+          <div id="pending-teachers-list" class="space-y-3">
+            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h4 class="text-sm font-black text-slate-800 uppercase tracking-wider mb-4">All Teachers</h4>
+          <div id="teachers-list" class="space-y-3">
+            <div class="text-xs text-slate-400 italic text-center py-6">Loading…</div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== TAB: Announcements ===== -->
       <div id="tab-announcements" class="admin-tab-content hidden-screen space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -681,6 +742,7 @@
             </button>
           </div>
         </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
             <div>
@@ -745,7 +807,7 @@
         <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
           <h3 class="text-base font-black text-slate-900 mb-1">Restore Warning</h3>
           <p class="text-xs text-slate-500 font-medium">
-            Restoring from a backup will <b class="text-rose-600">completely wipe</b> all current subject sheets and replace them with the backup's contents.
+            Restoring from a backup will <b class="text-rose-600">completely wipe</b> all your current subject sheets and replace them with the backup's contents.
             Download a fresh backup first if you're not sure.
           </p>
         </div>
@@ -947,7 +1009,7 @@
     </div>
   </div>
 
-  <!-- ==================== REGISTRATION MODAL ==================== -->
+  <!-- ==================== REGISTRATION MODAL (STUDENT) ==================== -->
   <div id="register-modal" role="dialog" aria-modal="true" aria-labelledby="register-title"
        class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4">
@@ -965,11 +1027,54 @@
                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
           <p class="text-[11px] text-slate-500 font-medium mt-1.5">Suggested format: <b>Last Name, First Name M.I.</b></p>
         </div>
+        <div>
+          <label for="reg-teacher-select" class="sr-only">Select teacher</label>
+          <select id="reg-teacher-select"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+            <option value="">Select your teacher...</option>
+          </select>
+        </div>
       </div>
       <div id="reg-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
       <div class="flex gap-2 pt-2">
         <button id="register-cancel-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
         <button id="submit-reg-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Submit Registration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TEACHER REGISTRATION MODAL ==================== -->
+  <div id="register-teacher-modal" role="dialog" aria-modal="true" aria-labelledby="register-teacher-title"
+       class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4">
+      <h3 id="register-teacher-title" class="text-lg font-black text-slate-900">Teacher Registration</h3>
+      <p class="text-xs text-slate-500 font-medium">Enter your details. A super admin will review your registration and set your access level.</p>
+      <div class="space-y-3">
+        <div>
+          <label for="reg-teacher-name" class="sr-only">Full name</label>
+          <input type="text" id="reg-teacher-name" placeholder="Full Name (e.g. Juan Dela Cruz)"
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        </div>
+        <div>
+          <label for="reg-teacher-email" class="sr-only">Email</label>
+          <input type="email" id="reg-teacher-email" placeholder="you@example.com"
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        </div>
+        <div>
+          <label for="reg-teacher-password" class="sr-only">Password</label>
+          <input type="password" id="reg-teacher-password" placeholder="Password (min 6 characters)"
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        </div>
+        <div>
+          <label for="reg-teacher-password2" class="sr-only">Confirm password</label>
+          <input type="password" id="reg-teacher-password2" placeholder="Confirm password"
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+        </div>
+      </div>
+      <div id="reg-teacher-error" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold"></div>
+      <div class="flex gap-2 pt-2">
+        <button id="register-teacher-cancel-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs transition-colors">Cancel</button>
+        <button id="submit-teacher-reg-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-xs shadow-md shadow-indigo-600/20 transition-all">Register</button>
       </div>
     </div>
   </div>
@@ -1155,11 +1260,11 @@
         </div>
 
         <div id="preview-section" class="hidden space-y-2">
-  <div class="flex items-center justify-between">
-    <div class="text-xs font-bold text-slate-700">Preview Parsed Data:</div>
-    <div id="import-delim-banner" class="hidden text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"></div>
-  </div>
-  <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-bold text-slate-700">Preview Parsed Data:</div>
+            <div id="import-delim-banner" class="hidden text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"></div>
+          </div>
+          <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
             <table class="w-full text-left text-xs">
               <thead id="preview-thead" class="bg-slate-100 text-slate-600"></thead>
               <tbody id="preview-table-body" class="divide-y divide-slate-100"></tbody>
@@ -1208,6 +1313,6 @@
   <script src="js/analytics.js"></script>
   <script src="js/backup.js"></script>
   <script src="js/registrations.js"></script>
+  <script src="js/teachers.js"></script>
   <script src="js/main.js"></script>
-</body>
 </html>

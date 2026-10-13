@@ -1,6 +1,6 @@
 // ============================================================
 // api.js — Direct Supabase client + edge function wrapper
-// Multi-teacher version (Phase 1C)
+// Multi-teacher version (Phase 1C — scoped reads)
 // ============================================================
 (function (App) {
   'use strict';
@@ -9,36 +9,7 @@
   const SB_KEY = App.SUPABASE_ANON_KEY;
   const state = App.state;
 
-  // ------------------------------------------------------------
-  // Low-level REST helpers
-  // ------------------------------------------------------------
-  async function sbFetch(method, path, payload, extra) {
-    const url = SB_URL + '/rest/v1/' + path;
-    const headers = {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
-      'Content-Type': 'application/json'
-    };
-    if (extra) Object.assign(headers, extra);
-    const opts = { method, headers };
-    if (payload !== null && payload !== undefined) opts.body = JSON.stringify(payload);
-    const res = await fetch(url, opts);
-    const text = await res.text();
-    if (!res.ok) {
-      console.error('[Supabase]', method, path, res.status, text);
-      throw new Error('Supabase ' + res.status + ': ' + text);
-    }
-    if (!text) return null;
-    try { return JSON.parse(text); } catch (e) { return null; }
-  }
-  function sbGet(t, q)              { return sbFetch('GET',    t + (q ? '?' + q : '')); }
-  function sbInsert(t, d)           { return sbFetch('POST',   t, d, { 'Prefer': 'return=representation' }); }
-  function sbUpsert(t, d, conflict) {
-    const p = t + (conflict ? '?on_conflict=' + conflict : '');
-    return sbFetch('POST', p, d, { 'Prefer': 'resolution=merge-duplicates,return=representation' });
-  }
   function enc(v) { return encodeURIComponent(String(v == null ? '' : v)); }
-  function stripTags(s) { return String(s == null ? '' : s).replace(/[<>]/g, ''); }
 
   // ------------------------------------------------------------
   // Admin Edge Function caller
@@ -59,7 +30,8 @@
       console.error('[callAdmin]', res.status, text);
       throw new Error('Admin function ' + res.status + ': ' + text);
     }
-    try { return JSON.parse(text); } catch (e) { return { success: false, message: 'Bad response from admin function.' }; }
+    try { return JSON.parse(text); }
+    catch (e) { return { success: false, message: 'Bad response from admin function.' }; }
   }
 
   function determineRemarks(f) {
@@ -78,31 +50,23 @@
 
     registerTeacher: async (p) => callAdmin({
       action: 'registerTeacher',
-      email: p.email,
-      displayName: p.displayName,
-      password: p.password
+      email: p.email, displayName: p.displayName, password: p.password
     }),
 
     teacherLogin: async (p) => callAdmin({
-      action: 'teacherLogin',
-      email: p.email,
-      password: p.password
+      action: 'teacherLogin', email: p.email, password: p.password
     }),
 
     teacherLogout: async (p) => callAdmin({
-      action: 'teacherLogout',
-      sessionToken: p.sessionToken
+      action: 'teacherLogout', sessionToken: p.sessionToken
     }),
 
     getMe: async () => callAdmin({ action: 'getMe' }),
 
     markWalkthroughSeen: async () => callAdmin({ action: 'markWalkthroughSeen' }),
 
-    // Legacy PIN login (still works during migration)
     adminLogin: async (p) => callAdmin({
-      action: 'adminLogin',
-      pin: p.pin,
-      deviceId: p.deviceId
+      action: 'adminLogin', pin: p.pin, deviceId: p.deviceId
     }),
 
     // ============================================================
@@ -112,41 +76,31 @@
     listTeachers: async () => callAdmin({ action: 'listTeachers' }),
 
     approveTeacher: async (p) => callAdmin({
-      action: 'approveTeacher',
-      teacherId: p.teacherId,
-      role: p.role
+      action: 'approveTeacher', teacherId: p.teacherId, role: p.role
     }),
 
     rejectTeacher: async (p) => callAdmin({
-      action: 'rejectTeacher',
-      teacherId: p.teacherId
+      action: 'rejectTeacher', teacherId: p.teacherId
     }),
 
     setTeacherRole: async (p) => callAdmin({
-      action: 'setTeacherRole',
-      teacherId: p.teacherId,
-      role: p.role
+      action: 'setTeacherRole', teacherId: p.teacherId, role: p.role
     }),
 
     setTeacherActive: async (p) => callAdmin({
-      action: 'setTeacherActive',
-      teacherId: p.teacherId,
-      isActive: p.isActive
+      action: 'setTeacherActive', teacherId: p.teacherId, isActive: p.isActive
     }),
 
     resetTeacherPassword: async (p) => callAdmin({
-      action: 'resetTeacherPassword',
-      teacherId: p.teacherId,
-      password: p.password
+      action: 'resetTeacherPassword', teacherId: p.teacherId, password: p.password
     }),
 
     deleteTeacher: async (p) => callAdmin({
-      action: 'deleteTeacher',
-      teacherId: p.teacherId
+      action: 'deleteTeacher', teacherId: p.teacherId
     }),
 
     // ============================================================
-    // PUBLIC — teacher list for student registration
+    // PUBLIC
     // ============================================================
 
     getPublicTeachers: async () => callAdmin({ action: 'getPublicTeachers' }),
@@ -156,8 +110,15 @@
     // ============================================================
 
     getSubjects: async () => {
-      const subjRows = await sbGet('subjects', 'select=*&order=subject_name.asc');
-      const catRows  = await sbGet('subject_categories', 'select=*&order=subject_name.asc&order=position.asc');
+      // Direct Supabase read — subjects are shared across teachers, no scoping needed
+      const subjRes = await fetch(SB_URL + '/rest/v1/subjects?select=*&order=subject_name.asc', {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+      const catRes = await fetch(SB_URL + '/rest/v1/subject_categories?select=*&order=subject_name.asc&order=position.asc', {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+      const subjRows = subjRes.ok ? await subjRes.json() : [];
+      const catRows = catRes.ok ? await catRes.json() : [];
 
       const subjects = [], descriptions = {}, weights = {};
       const categories = {}, quarterWeights = {};
@@ -185,31 +146,24 @@
 
     manageSubject: async (p) => callAdmin({
       action: 'manageSubject',
-      subAction: p.subAction,
-      oldName: p.oldName,
-      newName: p.newName,
-      subjectName: p.subjectName,
-      description: p.description,
-      categories: p.categories,
-      quarterWeights: p.quarterWeights,
+      subAction: p.subAction, oldName: p.oldName, newName: p.newName,
+      subjectName: p.subjectName, description: p.description,
+      categories: p.categories, quarterWeights: p.quarterWeights,
       confirmDelete: p.confirmDelete
     }),
 
     // ============================================================
-    // SECTIONS
+    // SECTIONS — scoped via edge function
     // ============================================================
 
     getSections: async () => {
-      const rows = await sbGet('sections', 'select=name&order=name.asc');
-      const list = (Array.isArray(rows) ? rows : []).map(r => String(r.name));
-      return { success: true, sections: list };
+      const res = await callAdmin({ action: 'getSections' });
+      return { success: true, sections: (res && res.sections) || [] };
     },
 
     manageSection: async (p) => callAdmin({
-      action: 'manageSection',
-      subAction: p.subAction,
-      name: p.name,
-      oldName: p.oldName
+      action: 'manageSection', subAction: p.subAction,
+      name: p.name, oldName: p.oldName
     }),
 
     // ============================================================
@@ -217,124 +171,57 @@
     // ============================================================
 
     getStudent: async (p) => {
-      const sNo = String(p.studentNumber || '');
-      if (!sNo) return { success: false, message: 'No student number.' };
-      const sRows = await sbGet('students', 'select=*&student_number=eq.' + enc(sNo));
-      if (!Array.isArray(sRows) || sRows.length === 0) {
-        const pRows = await sbGet('pending_registrations',
-          'select=*&student_number=eq.' + enc(sNo) + '&order=id.desc&limit=1');
-        if (Array.isArray(pRows) && pRows.length > 0) {
-          const pr = pRows[0];
-          if (pr.status === 'pending') return { success: false, pending: true, message: 'Your registration is awaiting teacher approval.', submittedName: pr.name };
-          if (pr.status === 'rejected') return { success: false, rejected: true, message: 'Your registration was not approved. Please contact your teacher.' };
-        }
-        return { success: false, message: 'Student not found.' };
-      }
-      const s = sRows[0];
-      const gRows = await sbGet('grades', 'select=*&student_number=eq.' + enc(sNo));
-      const subjects = {};
-      (Array.isArray(gRows) ? gRows : []).forEach(g => {
-        const q1 = g.q1 === '' ? null : Number(g.q1);
-        const q2 = g.q2 === '' ? null : Number(g.q2);
-        const q3 = g.q3 === '' ? null : Number(g.q3);
-        const q4 = g.q4 === '' ? null : Number(g.q4);
-        const fin = (g.final !== '' && g.final !== null && g.final !== undefined) ? Number(g.final) : '';
-        subjects[g.subject_name] = {
-          grades: { q1, q2, q3, q4, final: fin, remarks: g.remarks || determineRemarks(fin) },
-          breakdowns: Array.isArray(g.breakdowns) ? g.breakdowns : []
-        };
+      const res = await callAdmin({
+        action: 'getStudent', studentNumber: p.studentNumber
       });
-      return {
-        success: true,
-        studentNumber: s.student_number,
-        name: s.name,
-        section: s.section,
-        teacherId: s.teacher_id || null,
-        subjects
-      };
+      return res;
     },
 
     registerStudent: async (p) => callAdmin({
-      action: 'registerStudent',
-      studentData: p.studentData
+      action: 'registerStudent', studentData: p.studentData
     }),
 
     getPendingRegistrations: async () => {
-      const rows = await sbGet('pending_registrations', 'select=*&order=id.desc');
-      const pending = [], history = [];
-      (Array.isArray(rows) ? rows : []).forEach(r => {
-        const item = {
-          timestamp: r.timestamp || '', studentNumber: r.student_number || '',
-          name: r.name || '', section: r.section || '',
-          subjects: Array.isArray(r.enrolled_subjects) ? r.enrolled_subjects : [],
-          status: r.status || 'pending', reviewedAt: r.reviewed_at || '',
-          teacherId: r.teacher_id || null
-        };
-        if (item.status === 'pending') pending.push(item); else history.push(item);
-      });
-      return { success: true, pending, history };
+      const res = await callAdmin({ action: 'getPendingRegistrations' });
+      return res && res.success ? res : { success: false, pending: [], history: [] };
     },
 
     approveRegistration: async (p) => callAdmin({
       action: 'approveRegistration',
-      studentNumber: p.studentNumber,
-      section: p.section,
-      subjects: p.subjects
+      studentNumber: p.studentNumber, section: p.section, subjects: p.subjects
     }),
 
     rejectRegistration: async (p) => callAdmin({
-      action: 'rejectRegistration',
-      studentNumber: p.studentNumber
+      action: 'rejectRegistration', studentNumber: p.studentNumber
     }),
 
     // ============================================================
-    // GRADES
+    // GRADES — scoped via edge function
     // ============================================================
 
     getAllGrades: async (p) => {
-      let query = 'select=*&order=student_number.asc';
-      if (p.subject && p.subject !== 'All') query += '&subject_name=eq.' + enc(p.subject);
-      const rows = await sbGet('grades', query);
-      if (!Array.isArray(rows)) return [];
-      const allS = await sbGet('students', 'select=student_number,name,section');
-      const sMap = {};
-      (Array.isArray(allS) ? allS : []).forEach(s => { sMap[s.student_number] = s; });
-      return rows.filter(r => {
-        const sNo = String(r.student_number);
-        return !(sNo.indexOf('T') !== -1 && sNo.indexOf('-') !== -1);
-      }).map(r => {
-        const stu = sMap[r.student_number] || {};
-        return {
-          studentNumber: String(r.student_number),
-          name: stu.name || '',
-          section: stu.section || 'Section A',
-          subject: r.subject_name,
-          q1: r.q1, q2: r.q2, q3: r.q3, q4: r.q4,
-          final: r.final, remarks: r.remarks || determineRemarks(r.final)
-        };
+      const res = await callAdmin({
+        action: 'getAllGrades', subject: p.subject || 'All'
       });
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.grades)) return res.grades;
+      return [];
     },
 
     saveGrades: async (p) => callAdmin({
       action: 'saveGrades',
-      studentNumber: p.studentNumber,
-      subject: p.subject,
-      grades: p.grades
+      studentNumber: p.studentNumber, subject: p.subject, grades: p.grades
     }),
 
     saveBreakdown: async (p) => callAdmin({
       action: 'saveBreakdown',
-      studentNumber: p.studentNumber,
-      subject: p.subject,
-      quarter: p.quarter,
-      entries: p.entries
+      studentNumber: p.studentNumber, subject: p.subject,
+      quarter: p.quarter, entries: p.entries
     }),
 
     bulkSaveBreakdown: async (p) => callAdmin({
       action: 'bulkSaveBreakdown',
-      subject: p.subject,
-      quarter: p.quarter,
-      items: p.items
+      subject: p.subject, quarter: p.quarter, items: p.items
     }),
 
     // ============================================================
@@ -342,25 +229,20 @@
     // ============================================================
 
     addStudent: async (p) => callAdmin({
-      action: 'addStudent',
-      studentData: p.studentData
+      action: 'addStudent', studentData: p.studentData
     }),
 
     bulkAddStudents: async (p) => callAdmin({
-      action: 'bulkAddStudents',
-      studentsArray: p.studentsArray
+      action: 'bulkAddStudents', studentsArray: p.studentsArray
     }),
 
     updateStudentInfo: async (p) => callAdmin({
       action: 'updateStudentInfo',
-      oldStudentNumber: p.oldStudentNumber,
-      oldSubject: p.oldSubject,
-      newData: p.newData
+      oldStudentNumber: p.oldStudentNumber, oldSubject: p.oldSubject, newData: p.newData
     }),
 
     deleteStudent: async (p) => callAdmin({
-      action: 'deleteStudent',
-      studentNumber: p.studentNumber
+      action: 'deleteStudent', studentNumber: p.studentNumber
     }),
 
     // ============================================================
@@ -368,20 +250,12 @@
     // ============================================================
 
     getComments: async () => {
-      const rows = await sbGet('comments', 'select=*&order=id.asc');
-      return {
-        success: true,
-        comments: (Array.isArray(rows) ? rows : []).map(r => ({
-          timestamp: r.timestamp || '', studentNumber: r.student_number || '',
-          studentName: r.student_name || '', text: r.comment_text || ''
-        }))
-      };
+      const res = await callAdmin({ action: 'getComments' });
+      return res && res.success ? res : { success: false, comments: [] };
     },
 
     postComment: async (p) => callAdmin({
-      action: 'postComment',
-      studentNumber: p.studentNumber,
-      commentText: p.commentText
+      action: 'postComment', studentNumber: p.studentNumber, commentText: p.commentText
     }),
 
     clearComments: async () => callAdmin({ action: 'clearComments' }),
@@ -391,49 +265,33 @@
     // ============================================================
 
     getAnnouncement: async (p) => {
-      let q = 'select=*&is_active=eq.true&order=id.desc&limit=1';
-      const teacherId = p && p.teacherId ? String(p.teacherId) : '';
-      if (teacherId) q += '&teacher_id=eq.' + enc(teacherId);
-      const rows = await sbGet('announcements', q);
-      if (Array.isArray(rows) && rows.length > 0) {
-        return { success: true, message: rows[0].message || '', timestamp: rows[0].timestamp || '', postedBy: rows[0].posted_by || '' };
-      }
-      const last = await sbGet('announcements', 'select=*&order=id.desc&limit=1');
-      if (Array.isArray(last) && last.length > 0) {
-        return { success: true, message: '', latest: { message: last[0].message || '', timestamp: last[0].timestamp || '', postedBy: last[0].posted_by || '' } };
-      }
-      return { success: true, message: '' };
+      const res = await callAdmin({
+        action: 'getAnnouncement',
+        teacherId: (p && p.teacherId) || ''
+      });
+      return res && res.success ? res : { success: true, message: '' };
     },
 
     saveAnnouncement: async (p) => callAdmin({
-      action: 'saveAnnouncement',
-      message: p.message
+      action: 'saveAnnouncement', message: p.message
     }),
 
     getAnnouncementHistory: async () => {
-      const rows = await sbGet('announcements', 'select=*&order=id.desc');
-      return {
-        success: true,
-        history: (Array.isArray(rows) ? rows : []).map(r => ({
-          rowIndex: r.id, timestamp: r.timestamp || '', message: r.message || '',
-          postedBy: r.posted_by || '', active: !!r.is_active
-        }))
-      };
+      const res = await callAdmin({ action: 'getAnnouncementHistory' });
+      return res && res.success ? res : { success: true, history: [] };
     },
 
     deleteAnnouncement: async (p) => callAdmin({
-      action: 'deleteAnnouncement',
-      rowIndex: p.rowIndex
+      action: 'deleteAnnouncement', rowIndex: p.rowIndex
     }),
 
     getTeacherName: async (p) => {
-      const teacherId = p && p.teacherId ? String(p.teacherId) : '';
+      const teacherId = (p && p.teacherId) || '';
       return callAdmin({ action: 'getTeacherName', teacherId });
     },
 
     saveTeacherName: async (p) => callAdmin({
-      action: 'saveTeacherName',
-      name: p.name
+      action: 'saveTeacherName', name: p.name
     }),
 
     // ============================================================
@@ -442,11 +300,11 @@
 
     backupAll: async () => {
       const [subjects, students, enrollments, grades, comments, announcements, pending, assessments, scores] = await Promise.all([
-        sbGet('subjects', 'select=*'), sbGet('students', 'select=*'),
-        sbGet('enrollments', 'select=*'), sbGet('grades', 'select=*'),
-        sbGet('comments', 'select=*'), sbGet('announcements', 'select=*'),
-        sbGet('pending_registrations', 'select=*'),
-        sbGet('assessments', 'select=*'), sbGet('scores', 'select=*')
+        sbGetTable('subjects'), sbGetTable('students'),
+        sbGetTable('enrollments'), sbGetTable('grades'),
+        sbGetTable('comments'), sbGetTable('announcements'),
+        sbGetTable('pending_registrations'),
+        sbGetTable('assessments'), sbGetTable('scores')
       ]);
       return {
         success: true,
@@ -459,99 +317,64 @@
     },
 
     restoreAll: async (p) => callAdmin({
-      action: 'restoreAll',
-      backup: p.backup
+      action: 'restoreAll', backup: p.backup
     }),
 
     recomputeAllGrades: async () => callAdmin({ action: 'recomputeAllGrades' }),
 
     // ============================================================
-    // CLASS RECORD
+    // CLASS RECORD — scoped via edge function
     // ============================================================
 
     getClassRecord: async (p) => {
-      const subject = String(p.subject || '');
-      const quarter = String(p.quarter || '');
-      if (!subject || !quarter) return { success: false, message: 'Subject and quarter required.' };
-
-      const catRows = await sbGet('subject_categories',
-        'select=id,name,weight,position&subject_name=eq.' + enc(subject) + '&order=position.asc');
-      const categories = Array.isArray(catRows) ? catRows : [];
-
-      const assessRows = await sbGet('assessments',
-        'select=*&subject_name=eq.' + enc(subject) + '&quarter=eq.' + enc(quarter) + '&order=category_id.asc&order=position.asc');
-      const assessments = Array.isArray(assessRows) ? assessRows : [];
-
-      let scores = [];
-      if (assessments.length > 0) {
-        const ids = assessments.map(a => a.id).join(',');
-        const scoreRows = await sbGet('scores', 'select=*&assessment_id=in.(' + ids + ')');
-        scores = Array.isArray(scoreRows) ? scoreRows : [];
-      }
-
-      const enrRows = await sbGet('enrollments',
-        'select=student_number&subject_name=eq.' + enc(subject));
-      const studentNumbers = (Array.isArray(enrRows) ? enrRows : []).map(e => String(e.student_number));
-
-      let students = [];
-      if (studentNumbers.length > 0) {
-        const inList = studentNumbers.map(s => '"' + s.replace(/"/g, '') + '"').join(',');
-        const sRows = await sbGet('students',
-          'select=student_number,name,section&student_number=in.(' + inList + ')');
-        students = Array.isArray(sRows) ? sRows : [];
-      }
-
-      return { success: true, categories, assessments, scores, students };
+      const res = await callAdmin({
+        action: 'getClassRecord',
+        subject: p.subject, quarter: p.quarter
+      });
+      return res && res.success ? res : { success: false, message: (res && res.message) || 'Failed.' };
     },
 
     addAssessment: async (p) => callAdmin({
-      action: 'addAssessment',
-      subject: p.subject,
-      quarter: p.quarter,
-      categoryId: p.categoryId,
-      name: p.name,
-      totalPoints: p.totalPoints
+      action: 'addAssessment', subject: p.subject, quarter: p.quarter,
+      categoryId: p.categoryId, name: p.name, totalPoints: p.totalPoints
     }),
 
     renameAssessment: async (p) => callAdmin({
-      action: 'renameAssessment',
-      id: p.id,
-      name: p.name,
-      totalPoints: p.totalPoints
+      action: 'renameAssessment', id: p.id, name: p.name, totalPoints: p.totalPoints
     }),
 
     deleteAssessment: async (p) => callAdmin({
-      action: 'deleteAssessment',
-      id: p.id
+      action: 'deleteAssessment', id: p.id
     }),
 
     saveScore: async (p) => callAdmin({
-      action: 'saveScore',
-      assessmentId: p.assessmentId,
-      studentNumber: p.studentNumber,
-      score: p.score
+      action: 'saveScore', assessmentId: p.assessmentId,
+      studentNumber: p.studentNumber, score: p.score
     }),
 
     saveScoresBatch: async (p) => callAdmin({
-      action: 'saveScoresBatch',
-      items: p.items
+      action: 'saveScoresBatch', items: p.items
     }),
 
     applyClassRecordToGrades: async (p) => callAdmin({
-      action: 'applyClassRecordToGrades',
-      subject: p.subject,
-      quarter: p.quarter
+      action: 'applyClassRecordToGrades', subject: p.subject, quarter: p.quarter
     })
   };
+
+  // Backup helper — direct REST reads (backup is a local download, not a UI read)
+  async function sbGetTable(table) {
+    const res = await fetch(SB_URL + '/rest/v1/' + table + '?select=*', {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    if (!res.ok) return [];
+    try { return await res.json(); } catch { return []; }
+  }
 
   // ============================================================
   // apiCall — auto-attaches sessionToken / pin
   // ============================================================
   App.apiCall = async function (payload, opts) {
     const merged = Object.assign({}, payload || {});
-
-    // Auto-attach credentials. sessionToken takes priority; edge function
-    // prefers it over PIN anyway when both are present.
     if (state.sessionToken && !merged.sessionToken) merged.sessionToken = state.sessionToken;
     if (state.adminPin && !merged.pin) merged.pin = state.adminPin;
 
