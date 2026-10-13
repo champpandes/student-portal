@@ -107,40 +107,10 @@ async function callAdmin(payload) {
     // SUBJECTS
     // ============================================================
 
-    getSubjects: async () => {
-      // Direct Supabase read — subjects are shared across teachers, no scoping needed
-      const subjRes = await fetch(SB_URL + '/rest/v1/subjects?select=*&order=subject_name.asc', {
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-      });
-      const catRes = await fetch(SB_URL + '/rest/v1/subject_categories?select=*&order=subject_name.asc&order=position.asc', {
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-      });
-      const subjRows = subjRes.ok ? await subjRes.json() : [];
-      const catRows = catRes.ok ? await catRes.json() : [];
-
-      const subjects = [], descriptions = {}, weights = {};
-      const categories = {}, quarterWeights = {};
-
-      (Array.isArray(subjRows) ? subjRows : []).forEach(r => {
-        subjects.push(r.subject_name);
-        descriptions[r.subject_name] = r.description || '';
-        weights[r.subject_name] = {
-          quizzes: r.weight_quizzes || 35, participation: r.weight_participation || 15,
-          attendance: r.weight_attendance || 10, exams: r.weight_exams || 40
-        };
-        quarterWeights[r.subject_name] = r.quarter_weights || { '1st': 25, '2nd': 25, '3rd': 25, '4th': 25 };
-        categories[r.subject_name] = [];
-      });
-
-      (Array.isArray(catRows) ? catRows : []).forEach(c => {
-        if (!categories[c.subject_name]) categories[c.subject_name] = [];
-        categories[c.subject_name].push({
-          id: c.id, name: c.name, weight: Number(c.weight), position: c.position
-        });
-      });
-
-      return { success: true, subjects, descriptions, weights, categories, quarterWeights };
-    },
+getSubjects: async () => {
+  const res = await callAdmin({ action: 'getSubjects' });
+  return res && res.success ? res : { success: false, subjects: [], descriptions: {}, weights: {}, categories: {}, quarterWeights: {} };
+},
 
     manageSubject: async (p) => callAdmin({
       action: 'manageSubject',
