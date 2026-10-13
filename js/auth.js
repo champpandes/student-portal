@@ -266,6 +266,9 @@ App.afterTeacherLogin = function () {
     state.pendingImportData = [];
     App.invalidateAllCache();
 
+    sessionStorage.removeItem('sp_subjects_cache');
+    sessionStorage.removeItem('sp_sections_cache');
+
     const loginInput = document.getElementById('login-input');
     if (loginInput) loginInput.value = '';
     const emailInput = document.getElementById('login-email');
