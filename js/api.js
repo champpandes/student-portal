@@ -81,11 +81,6 @@
     }
     return 60;
   }
-  function calculateFinal(g) {
-    const v = g.filter(x => x !== null && x !== undefined && x !== '' && !isNaN(x));
-    if (v.length === 0) return '';
-    return Math.round(v.reduce((a, b) => a + Number(b), 0) / v.length);
-  }
   function determineRemarks(f) {
     if (f === '' || f === null || isNaN(f)) return '';
     return Number(f) >= 75 ? 'Passed' : 'Failed';
@@ -138,7 +133,8 @@
       subjectName: p.subjectName,
       description: p.description,
       categories: p.categories,
-      quarterWeights: p.quarterWeights
+      quarterWeights: p.quarterWeights,
+      confirmDelete: p.confirmDelete
     }),
 
     getSections: async () => {
@@ -177,7 +173,9 @@
         const q2 = g.q2 === '' ? null : Number(g.q2);
         const q3 = g.q3 === '' ? null : Number(g.q3);
         const q4 = g.q4 === '' ? null : Number(g.q4);
-        const fin = g.final !== '' ? Number(g.final) : calculateFinal([q1, q2, q3, q4]);
+        const fin = (g.final !== '' && g.final !== null && g.final !== undefined)
+          ? Number(g.final)
+          : '';
         subjects[g.subject_name] = {
           grades: { q1, q2, q3, q4, final: fin, remarks: g.remarks || determineRemarks(fin) },
           breakdowns: Array.isArray(g.breakdowns) ? g.breakdowns : []
@@ -429,7 +427,7 @@
       if (studentNumbers.length > 0) {
         const inList = studentNumbers.map(s => '"' + s.replace(/"/g, '') + '"').join(',');
         const sRows = await sbGet('students',
-          'select=student_number,name,section&student_number=in.(' + inList + ')&order=name.asc');
+          'select=student_number,name,section&student_number=in.(' + inList + ')');
         students = Array.isArray(sRows) ? sRows : [];
       }
 

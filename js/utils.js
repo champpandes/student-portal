@@ -301,6 +301,8 @@
     Object.keys(sessionStorage).forEach(k => {
       if (k.indexOf('sp_adminData_') === 0) sessionStorage.removeItem(k);
     });
+    // Clear in-memory analytics cache too — same semantic as "fresh data".
+    App._analyticsCache = {};
   };
 
 })(window.App);

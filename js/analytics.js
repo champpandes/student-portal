@@ -3,27 +3,32 @@
 
   const state = App.state;
 
-  App.refreshAnalytics = async function () {
+  App.refreshAnalytics = async function (force) {
     const subjectFilter = document.getElementById('analytics-subject-filter').value;
     const sectionFilter = document.getElementById('analytics-section-filter').value;
-
     const subjectToFetch = subjectFilter === 'All' ? 'All' : subjectFilter;
+    const cacheKey = subjectToFetch;
 
     let data;
-    try {
-      const res = await App.apiCall({
-        action: "getAllGrades",
-        pin: state.adminPin,
-        subject: subjectToFetch
-      }, { retries: 1, timeout: 30000 });
-      data = Array.isArray(res) ? res : [];
-    } catch (e) {
-      console.error(e);
-      App.showToast("Could not load analytics data.", "error");
-      return;
+    if (!force && App._analyticsCache && App._analyticsCache[cacheKey]) {
+      data = App._analyticsCache[cacheKey];
+    } else {
+      try {
+        const res = await App.apiCall({
+          action: "getAllGrades",
+          pin: state.adminPin,
+          subject: subjectToFetch
+        }, { retries: 1, timeout: 30000 });
+        data = Array.isArray(res) ? res : [];
+        if (!App._analyticsCache) App._analyticsCache = {};
+        App._analyticsCache[cacheKey] = data;
+      } catch (e) {
+        console.error(e);
+        App.showToast("Could not load analytics data.", "error");
+        return;
+      }
     }
 
-    // Filter
     const filtered = data.filter(s =>
       (subjectFilter === 'All' || s.subject === subjectFilter) &&
       (sectionFilter === 'All' || s.section === sectionFilter)
@@ -68,7 +73,6 @@
       return;
     }
 
-    // Buckets: 0-59, 60-69, 70-74, 75-79, 80-84, 85-89, 90-94, 95-100
     const buckets = [
       { label: '95-100', min: 95, max: 100, color: 'bg-emerald-500' },
       { label: '90-94',  min: 90, max: 94,  color: 'bg-emerald-400' },
