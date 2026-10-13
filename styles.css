@@ -137,8 +137,12 @@
   }
 }
 
-/* Fix PWA banner position — tailwind.css is missing .bottom-20 */
+/* PWA install banner — anchored bottom-right, clear of the sidebar.
+   tailwind.css is missing .bottom-20, so we set the position manually. */
 #pwa-install-banner {
   top: auto !important;
   bottom: 5rem !important;
+  left: auto !important;
+  right: 1.5rem !important;
+  max-width: 24rem !important;
 }
