@@ -1,6 +1,6 @@
 {
-  "name": "Teacher Portal & Student Record System",
-  "short_name": "Teacher Portal",
+  "name": "Champ Class Portal",
+  "short_name": "Champ Portal",
   "description": "Grade management and student record system for Pili Capital College, Inc.",
   "start_url": "./index.html",
   "scope": "./",
