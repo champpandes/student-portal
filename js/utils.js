@@ -167,7 +167,16 @@
       const el = map[k];
       if (el) el.classList.add('hidden-screen');
     });
-    if (map[name]) map[name].classList.remove('hidden-screen');
+    if (!map[name]) return;
+
+    map[name].classList.remove('hidden-screen');
+
+    // Reset scroll: the window plus any independently-scrolling
+    // containers inside the screen we just revealed (admin's <main>).
+    window.scrollTo(0, 0);
+    map[name].querySelectorAll('.overflow-y-auto').forEach(el => {
+      el.scrollTop = 0;
+    });
   };
 
   // ---------- Accessible Modal ----------
