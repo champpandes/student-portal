@@ -304,6 +304,7 @@ async function saveBreakdown(sb: any, p: any, isBulk: boolean) {
   const qw = (subjRow.data && subjRow.data[0]) ? subjRow.data[0].quarter_weights : null;
 
   let processed = 0, lastNewTotal: any = "";
+  const updates: any[] = [];
 
   for (const item of items) {
     const sNo = String(item.studentNumber);
@@ -359,20 +360,29 @@ async function saveBreakdown(sb: any, p: any, isBulk: boolean) {
     updated[qKey] = qScore;
     const final = computeWeightedFinal(updated.q1, updated.q2, updated.q3, updated.q4, qw);
 
-    const { error } = await sb.from("grades")
-      .update({
-        q1: String(updated.q1 === "" ? "" : updated.q1),
-        q2: String(updated.q2 === "" ? "" : updated.q2),
-        q3: String(updated.q3 === "" ? "" : updated.q3),
-        q4: String(updated.q4 === "" ? "" : updated.q4),
-        final: String(final === "" ? "" : final),
-        remarks: determineRemarks(final),
-        breakdowns: bds
-      })
-      .eq("student_number", sNo).eq("subject_name", subj);
-    if (error) throw error;
+    updates.push({
+      student_number: sNo,
+      subject_name: subj,
+      q1: String(updated.q1 === "" ? "" : updated.q1),
+      q2: String(updated.q2 === "" ? "" : updated.q2),
+      q3: String(updated.q3 === "" ? "" : updated.q3),
+      q4: String(updated.q4 === "" ? "" : updated.q4),
+      final: String(final === "" ? "" : final),
+      remarks: determineRemarks(final),
+      breakdowns: bds
+    });
     processed++;
   }
+
+  if (updates.length === 0) {
+    return { success: true, newTotal: lastNewTotal, processed: 0 };
+  }
+
+  const { error } = await sb.from("grades").upsert(updates, {
+    onConflict: "student_number,subject_name"
+  });
+  if (error) throw error;
+
   return { success: true, newTotal: lastNewTotal, processed };
 }
 
