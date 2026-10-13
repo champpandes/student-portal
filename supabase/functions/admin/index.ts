@@ -2,7 +2,7 @@
 // Edge Function: admin
 // Handles all privileged operations for the Teacher Portal.
 // Runs server-side with the service_role key.
-// Multi-teacher version (Phase 1C — scoped reads).
+// Multi-teacher version (Phase 1C — scoped reads, legacy-safe).
 // ============================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -38,6 +38,16 @@ function normalizeQuarterLabel(q: any): string {
   if (!s) return "";
   const m = s.match(/^([1-4])/);
   return m ? QUARTER_ORDINAL[m[1]] : s;
+}
+
+// ============================================================
+// Legacy rows created before the multi-teacher upgrade have NULL
+// teacher_id. We still want the first teacher to see them, so
+// the filter is: "mine OR unassigned".
+// ============================================================
+function scopeByTeacher(query: any, teacherId: string | null) {
+  if (!teacherId) return query;
+  return query.or(`teacher_id.eq.${teacherId},teacher_id.is.null`);
 }
 
 // ============================================================
@@ -248,6 +258,7 @@ Deno.serve(async (req) => {
       case "getPendingRegistrations": result = await getPendingRegistrationsScoped(sb, auth); break;
       case "getComments":           result = await getCommentsScoped(sb, auth); break;
       case "getAnnouncement":       result = await getAnnouncementScoped(sb, body, auth); break;
+      case "getAnnouncementHistory": result = await getAnnouncementHistoryScoped(sb, auth); break;
       case "getClassRecord":        result = await getClassRecordScoped(sb, body, auth); break;
 
       // ===== SCOPED WRITES / other =====
@@ -298,13 +309,13 @@ async function getAllGradesScoped(sb: any, p: any, auth: AuthContext) {
 
   let gq = sb.from("grades").select("*").order("student_number", { ascending: true });
   if (subject && subject !== "All") gq = gq.eq("subject_name", subject);
-  if (teacherId) gq = gq.eq("teacher_id", teacherId);
+  gq = scopeByTeacher(gq, teacherId);
 
   const gRows = await gq;
   if (!gRows.data) return [];
 
   let sq = sb.from("students").select("student_number,name,section");
-  if (teacherId) sq = sq.eq("teacher_id", teacherId);
+  sq = scopeByTeacher(sq, teacherId);
   const sRows = await sq;
   const sMap: Record<string, any> = {};
   (sRows.data || []).forEach((s: any) => { sMap[s.student_number] = s; });
@@ -331,7 +342,7 @@ async function getAllGradesScoped(sb: any, p: any, auth: AuthContext) {
 async function getPendingRegistrationsScoped(sb: any, auth: AuthContext) {
   const teacherId = auth.teacher?.id || null;
   let q = sb.from("pending_registrations").select("*").order("id", { ascending: false });
-  if (teacherId) q = q.eq("teacher_id", teacherId);
+  q = scopeByTeacher(q, teacherId);
   const rows = await q;
 
   const pending: any[] = [], history: any[] = [];
@@ -354,7 +365,7 @@ async function getPendingRegistrationsScoped(sb: any, auth: AuthContext) {
 async function getCommentsScoped(sb: any, auth: AuthContext) {
   const teacherId = auth.teacher?.id || null;
   let q = sb.from("comments").select("*").order("id", { ascending: true });
-  if (teacherId) q = q.eq("teacher_id", teacherId);
+  q = scopeByTeacher(q, teacherId);
   const rows = await q;
   return {
     success: true,
@@ -371,7 +382,7 @@ async function getAnnouncementScoped(sb: any, p: any, auth: AuthContext) {
   const teacherId = auth.teacher?.id || String(p?.teacherId || "").trim() || null;
   let query = sb.from("announcements").select("*")
     .eq("is_active", true).order("id", { ascending: false }).limit(1);
-  if (teacherId) query = query.eq("teacher_id", teacherId);
+  query = scopeByTeacher(query, teacherId);
   const rows = await query;
   if (rows.data && rows.data.length > 0) {
     return {
@@ -384,6 +395,23 @@ async function getAnnouncementScoped(sb: any, p: any, auth: AuthContext) {
   return { success: true, message: "" };
 }
 
+async function getAnnouncementHistoryScoped(sb: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+  let q = sb.from("announcements").select("*").order("id", { ascending: false });
+  q = scopeByTeacher(q, teacherId);
+  const rows = await q;
+  return {
+    success: true,
+    history: (rows.data || []).map((r: any) => ({
+      rowIndex: r.id,
+      timestamp: r.timestamp || "",
+      message: r.message || "",
+      postedBy: r.posted_by || "",
+      active: !!r.is_active
+    }))
+  };
+}
+
 async function getClassRecordScoped(sb: any, p: any, auth: AuthContext) {
   const subject = String(p.subject || "");
   const quarter = String(p.quarter || "");
@@ -391,41 +419,36 @@ async function getClassRecordScoped(sb: any, p: any, auth: AuthContext) {
   if (!subject || !quarter) return { success: false, message: "Subject and quarter required." };
 
   let catQ = sb.from("subject_categories")
-    .select("id,name,weight,position")
-    .eq("subject_name", subject)
+    .select("id,name,weight,position").eq("subject_name", subject)
     .order("position", { ascending: true });
-  if (teacherId) catQ = catQ.eq("teacher_id", teacherId);
+  catQ = scopeByTeacher(catQ, teacherId);
   const catRows = await catQ;
   const categories = Array.isArray(catRows.data) ? catRows.data : [];
 
   let assessQ = sb.from("assessments").select("*")
     .eq("subject_name", subject).eq("quarter", quarter)
-    .order("category_id", { ascending: true })
-    .order("position", { ascending: true });
-  if (teacherId) assessQ = assessQ.eq("teacher_id", teacherId);
+    .order("category_id", { ascending: true }).order("position", { ascending: true });
+  assessQ = scopeByTeacher(assessQ, teacherId);
   const assessRows = await assessQ;
   const assessments = Array.isArray(assessRows.data) ? assessRows.data : [];
 
   let scores: any[] = [];
   if (assessments.length > 0) {
     const ids = assessments.map((a: any) => a.id).join(",");
-    const scoreRows = await sbGet(sb, "scores", "select=*&assessment_id=in.(" + ids + ")");
-    scores = Array.isArray(scoreRows) ? scoreRows : [];
+    scores = await sbGet(sb, "scores", "select=*&assessment_id=in.(" + ids + ")");
   }
 
   let enrQ = sb.from("enrollments").select("student_number").eq("subject_name", subject);
-  if (teacherId) enrQ = enrQ.eq("teacher_id", teacherId);
+  enrQ = scopeByTeacher(enrQ, teacherId);
   const enrRows = await enrQ;
   const studentNumbers = (Array.isArray(enrRows.data) ? enrRows.data : [])
     .map((e: any) => String(e.student_number));
 
   let students: any[] = [];
   if (studentNumbers.length > 0) {
-    const inList = studentNumbers.map(s => '"' + s.replace(/"/g, '') + '"').join(",");
     let sQ = sb.from("students")
-      .select("student_number,name,section")
-      .in("student_number", studentNumbers);
-    if (teacherId) sQ = sQ.eq("teacher_id", teacherId);
+      .select("student_number,name,section").in("student_number", studentNumbers);
+    sQ = scopeByTeacher(sQ, teacherId);
     const sRows = await sQ;
     students = Array.isArray(sRows.data) ? sRows.data : [];
   }
@@ -1942,18 +1965,4 @@ async function restoreAll(sb: any, p: any, auth: AuthContext) {
     }
   }
   return { success: true, message: "Restored " + restoredRows + " rows." };
-}
-
-async function getAnnouncementHistoryScoped(sb: any, auth: AuthContext) {
-  const teacherId = auth.teacher?.id || null;
-  let q = sb.from("announcements").select("*").order("id", { ascending: false });
-  if (teacherId) q = q.eq("teacher_id", teacherId);
-  const rows = await q;
-  return {
-    success: true,
-    history: (rows.data || []).map((r: any) => ({
-      rowIndex: r.id, timestamp: r.timestamp || "", message: r.message || "",
-      postedBy: r.posted_by || "", active: !!r.is_active
-    }))
-  };
 }
