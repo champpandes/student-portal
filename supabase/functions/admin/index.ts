@@ -840,9 +840,18 @@ async function recomputeAllGrades(sb: any) {
   const allGrades = await sb.from("grades").select("*");
   if (!allGrades.data) return { success: true, totalFixed: 0, report: [] };
 
+  // Quarter weights per subject
   const subjRows = await sb.from("subjects").select("subject_name,quarter_weights");
   const qwMap: Record<string, any> = {};
   (subjRows.data || []).forEach((r: any) => { qwMap[r.subject_name] = r.quarter_weights; });
+
+  // Categories per subject (with weights)
+  const catRows = await sb.from("subject_categories").select("id,subject_name,weight");
+  const catsBySubject: Record<string, any[]> = {};
+  (catRows.data || []).forEach((c: any) => {
+    if (!catsBySubject[c.subject_name]) catsBySubject[c.subject_name] = [];
+    catsBySubject[c.subject_name].push(c);
+  });
 
   let totalFixed = 0;
   const report: any[] = [];
@@ -853,20 +862,111 @@ async function recomputeAllGrades(sb: any) {
   });
 
   for (const subjName of Object.keys(bySubject)) {
-    let fixed = 0;
     const qw = qwMap[subjName];
+    const cats = catsBySubject[subjName] || [];
+    let fixed = 0;
+
     for (const row of bySubject[subjName]) {
-      const newFinal = computeWeightedFinal(row.q1, row.q2, row.q3, row.q4, qw);
+      const updates: any = {};
+      let rowChanged = false;
+
+      // ---- 1. Clamp quarter grades below 60 up to 60 ----
+      const clamped: Record<string, any> = {};
+      ["q1", "q2", "q3", "q4"].forEach(k => {
+        const v = row[k];
+        if (v === "" || v === null || v === undefined || isNaN(v)) {
+          clamped[k] = v;
+          return;
+        }
+        const n = Number(v);
+        if (n > 0 && n < 60) {
+          clamped[k] = 60;
+          rowChanged = true;
+        } else {
+          clamped[k] = n;
+        }
+      });
+
+      // ---- 2. Normalize + recompute breakdowns ----
+      if (Array.isArray(row.breakdowns) && row.breakdowns.length > 0) {
+        const newBds: any[] = [];
+        let bdsChanged = false;
+
+        for (const bd of row.breakdowns) {
+          const qNum = String(bd.quarter || "").replace(/\D/g, "");
+          const normalized = QUARTER_ORDINAL[qNum] || bd.quarter;
+
+          // Recompute the total from category values using current weights
+          let total = bd.total;
+          if (cats.length > 0 && bd.categories && typeof bd.categories === "object") {
+            let raw = 0, anyValue = false;
+            cats.forEach((c: any) => {
+              const v = bd.categories[String(c.id)];
+              if (v !== "" && v !== null && v !== undefined && !isNaN(v)) {
+                raw += Number(v) * (Number(c.weight) / 100);
+                anyValue = true;
+              }
+            });
+            if (anyValue) {
+              const newTotal = transmuteGrade(raw);
+              if (String(newTotal) !== String(total)) {
+                total = newTotal;
+                bdsChanged = true;
+              }
+            }
+          }
+
+          if (normalized !== bd.quarter) bdsChanged = true;
+
+          newBds.push({
+            ...bd,
+            quarter: normalized,
+            total
+          });
+        }
+
+        if (bdsChanged) {
+          updates.breakdowns = newBds;
+          rowChanged = true;
+        }
+      }
+
+      // ---- 3. Apply clamped quarter grades ----
+      ["q1", "q2", "q3", "q4"].forEach(k => {
+        if (String(row[k]) !== String(clamped[k])) {
+          updates[k] = String(clamped[k] === "" ? "" : clamped[k]);
+          rowChanged = true;
+        }
+      });
+
+      // ---- 4. Recompute final + remarks (using clamped values) ----
+      const newFinal = computeWeightedFinal(
+        clamped.q1, clamped.q2, clamped.q3, clamped.q4, qw
+      );
       const newRemarks = determineRemarks(newFinal);
-      if (String(row.final) !== String(newFinal) || row.remarks !== newRemarks) {
-        await sb.from("grades").update({
-          final: String(newFinal === "" ? "" : newFinal), remarks: newRemarks
-        }).eq("id", row.id);
+
+      if (String(row.final) !== String(newFinal)) {
+        updates.final = String(newFinal === "" ? "" : newFinal);
+        rowChanged = true;
+      }
+      if (row.remarks !== newRemarks) {
+        updates.remarks = newRemarks;
+        rowChanged = true;
+      }
+
+      if (rowChanged) {
+        const { error } = await sb.from("grades").update(updates).eq("id", row.id);
+        if (error) throw error;
         fixed++;
       }
     }
-    if (fixed > 0) { report.push({ subject: subjName, fixed }); totalFixed += fixed; }
+
+    if (fixed > 0) {
+      report.push({ subject: subjName, fixed });
+      totalFixed += fixed;
+    }
   }
+
   return { success: true, totalFixed, report };
 }
 
