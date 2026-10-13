@@ -83,9 +83,16 @@
       if (App.loadPendingRegistrations) App.loadPendingRegistrations();
     }
 
-    if (tabName === 'sections') {
+if (tabName === 'sections') {
+  sessionStorage.removeItem('sp_sections_cache');
+  if (App.fetchAllSectionsForDropdowns) {
+    App.fetchAllSectionsForDropdowns().then(() => {
       if (App.renderSectionsList) App.renderSectionsList();
-    }
+    });
+  } else if (App.renderSectionsList) {
+    App.renderSectionsList();
+  }
+}
     if (tabName === 'profile') {
       if (App.loadProfileTab) App.loadProfileTab();
     }
