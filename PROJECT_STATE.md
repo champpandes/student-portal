@@ -27,6 +27,11 @@ Multi-teacher upgrade: COMPLETE & WORKING
 - [x] All legacy rows migrated to super admin
 - [x] Teachers tab: super admin can approve/reject/manage teachers
 - [x] PWA install banner positioned bottom-right
+- [x] Profile page (display name + change password + account stats)
+- [x] "Admin Panel" → "Teacher Panel" text
+- [x] sw.js syntax fix (STATIC_ASSETS list was malformed)
+- [x] Sections tab refetches on open (was stale sessionStorage cache)
+- [x] getMyStats uses student_number (not id) for students count
 
 ## Deploy commands
 - Frontend:  `git add . && git commit -m "..." && git push`
@@ -40,6 +45,9 @@ Multi-teacher upgrade: COMPLETE & WORKING
 - Tailwind `tailwind.css` is precompiled — arbitrary classes like `z-[150]`, `bottom-20` silently no-op. Add overrides to styles.css
 - Server-side and client-side changes must both deploy, or you get "Unknown action" or stale behavior
 - sessionStorage caches subjects/sections for 5 min — clear on debug
+- `students` uses student_number as PK — no `id` column
+- `sw.js` STATIC_ASSETS is a plain array — a missing `];` or comma breaks the whole worker silently
+- Sections dropdowns cache in sessionStorage for 5 min — refetch on tab open
 
 ## New teacher onboarding flow
 1. Teacher registers at login → Teacher tab → "Register as a teacher"
