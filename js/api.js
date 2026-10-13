@@ -334,7 +334,7 @@
         return { success: false, message: 'You already have a pending registration. Please wait for teacher approval.' };
       }
       await sbInsert('pending_registrations', {
-        timestamp: new Date().toLocaleString(), student_number: sNo, name,
+        timestamp: new Date().toISOString(), student_number: sNo, name,
         section: '', enrolled_subjects: [], status: 'pending', reviewed_at: ''
       });
       return { success: true, pending: true, message: 'Registration submitted. Awaiting teacher approval.' };

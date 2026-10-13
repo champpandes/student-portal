@@ -220,7 +220,30 @@
     if (lastFocused && document.contains(lastFocused)) lastFocused.focus();
     lastFocused = null;
   };
-
+  // ---------- Timestamp formatting ----------
+  // Server stores ISO UTC strings (e.g. "2026-10-13T01:23:45.000Z").
+  // Older records may be legacy toLocaleString() strings.
+  // If input looks ISO, format to the browser's local timezone.
+  // Otherwise, show as-is so we don't misinterpret legacy records.
+  App.formatTimestamp = function (input) {
+    if (!input) return '';
+    const s = String(input);
+    // ISO 8601 pattern: starts with YYYY-MM-DDTHH:MM
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) {
+      try {
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return s;
+        return d.toLocaleString('en-PH', {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+      } catch (e) {
+        return s;
+      }
+    }
+    // Legacy string — return unchanged.
+    return s;
+  };
   // ---------- Cache ----------
   App.cacheKey = function (subject) {
     return 'sp_adminData_' + App.state.sessionToken + '_' + subject;

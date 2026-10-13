@@ -497,7 +497,7 @@ async function postComment(sb: any, p: any) {
   }
 
   const { error } = await sb.from("comments").insert({
-    timestamp: new Date().toLocaleString(),
+    timestamp: new Date().toISOString(),
     student_number: sNo,
     student_name: stripTags(name),
     comment_text: text
@@ -514,7 +514,7 @@ async function saveAnnouncement(sb: any, p: any) {
   const msg = stripTags(String(p.message || "").trim());
   if (!msg) return { success: false, message: "Announcement cannot be empty." };
   await sb.from("announcements").update({ is_active: false }).eq("is_active", true);
-  const ts = new Date().toLocaleString();
+  const ts = new Date().toISOString();
   const { error } = await sb.from("announcements").insert({
     timestamp: ts, message: msg, posted_by: "TEACHER_ADMIN", is_active: true
   });
@@ -844,7 +844,7 @@ async function approveRegistration(sb: any, p: any) {
     section,
     enrolled_subjects: subjects,
     status: "approved",
-    reviewed_at: new Date().toLocaleString()
+    reviewed_at: new Date().toISOString()
   }).eq("id", pr.id);
 
   if (upRes.error) {
@@ -862,7 +862,7 @@ async function rejectRegistration(sb: any, p: any) {
     return { success: false, message: "Pending registration not found." };
   }
   const { error } = await sb.from("pending_registrations").update({
-    status: "rejected", reviewed_at: new Date().toLocaleString()
+    status: "rejected", reviewed_at: new Date().toISOString()
   }).eq("id", rows.data[0].id);
   if (error) throw error;
   return { success: true };

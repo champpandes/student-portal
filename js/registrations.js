@@ -36,7 +36,6 @@
 
       if (pendingCount) pendingCount.textContent = pending.length + ' waiting';
 
-      // Pending list
       if (pending.length === 0) {
         pendingList.innerHTML = '<div class="text-xs text-emerald-600 font-bold text-center py-6">🎉 No pending registrations.</div>';
       } else {
@@ -48,7 +47,7 @@
                 '<span class="text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-800 px-2 py-0.5 rounded-md">Pending</span>' +
               '</div>' +
               '<div class="text-[11px] font-semibold text-slate-500">Student No: ' + App.esc(item.studentNumber) + '</div>' +
-              '<div class="text-[10px] text-slate-400 mt-1">Submitted: ' + App.esc(item.timestamp) + '</div>' +
+              '<div class="text-[10px] text-slate-400 mt-1">Submitted: ' + App.esc(App.formatTimestamp(item.timestamp)) + '</div>' +
             '</div>' +
             '<div class="flex gap-2 shrink-0">' +
               '<button type="button" data-action="approve" data-student="' + App.esc(item.studentNumber) + '" ' +
@@ -64,7 +63,6 @@
         ).join('');
       }
 
-      // History
       if (history.length === 0) {
         historyList.innerHTML = '<div class="text-xs text-slate-400 italic text-center py-4">No history yet.</div>';
       } else {
@@ -92,8 +90,8 @@
             '</div>' +
             subjLine +
             '<div class="text-[10px] text-slate-400 mt-0.5">' +
-              'Submitted: ' + App.esc(item.timestamp) +
-              (item.reviewedAt ? ' &bull; Reviewed: ' + App.esc(item.reviewedAt) : '') +
+              'Submitted: ' + App.esc(App.formatTimestamp(item.timestamp)) +
+              (item.reviewedAt ? ' &bull; Reviewed: ' + App.esc(App.formatTimestamp(item.reviewedAt)) : '') +
             '</div>' +
           '</div>';
         }).join('');
@@ -189,7 +187,6 @@
   App.rejectRegistration = async function (studentNumber) {
     if (!confirm("Reject this registration? The student will not be enrolled.")) return;
 
-    // Lock all reject buttons on screen
     const allRejectBtns = document.querySelectorAll('button[data-action="reject"]');
     allRejectBtns.forEach(b => {
       b.disabled = true;
@@ -212,8 +209,6 @@
     } catch (e) {
       App.showToast(e.message || "Rejection failed.", "error");
     } finally {
-      // After reloadPendingRegistrations re-renders, buttons are new anyway.
-      // This is defensive in case of error.
       allRejectBtns.forEach(b => {
         if (document.contains(b)) {
           b.disabled = false;

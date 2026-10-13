@@ -19,7 +19,7 @@
         if (sBanner && sText) {
           sText.textContent = res.message;
           if (sMeta) {
-            sMeta.textContent = res.timestamp ? 'Posted: ' + res.timestamp : '';
+            sMeta.textContent = res.timestamp ? 'Posted: ' + App.formatTimestamp(res.timestamp) : '';
           }
           sBanner.classList.remove('hidden');
           sBanner.classList.add('flex');
@@ -92,7 +92,7 @@
           '</div>' +
           '<p class="text-sm text-slate-800 font-medium whitespace-pre-wrap break-words mb-1">' + App.esc(item.message) + '</p>' +
           '<div class="text-[10px] text-slate-400 font-semibold">' +
-            App.esc(item.timestamp) +
+            App.esc(App.formatTimestamp(item.timestamp)) +
             (item.postedBy ? ' &bull; ' + App.esc(item.postedBy) : '') +
           '</div>' +
         '</div>';
@@ -138,7 +138,7 @@
         return '<div class="bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs shadow-sm">' +
           '<div class="flex justify-between items-center mb-1">' +
             '<span class="font-bold text-indigo-900">' + name + '</span>' +
-            '<span class="text-[10px] text-slate-400">' + App.esc(c.timestamp) + '</span>' +
+            '<span class="text-[10px] text-slate-400">' + App.esc(App.formatTimestamp(c.timestamp)) + '</span>' +
           '</div>' +
           '<p class="text-slate-700 font-medium">' + App.esc(c.text) + '</p>' +
         '</div>';
@@ -151,7 +151,7 @@
         return '<div class="bg-white border border-slate-200/80 p-2.5 rounded-xl text-xs shadow-sm">' +
           '<div class="flex justify-between items-center mb-1">' +
             '<span class="font-bold text-indigo-900">' + name + '</span>' +
-            '<span class="text-[10px] text-slate-400">' + App.esc(c.timestamp) + '</span>' +
+            '<span class="text-[10px] text-slate-400">' + App.esc(App.formatTimestamp(c.timestamp)) + '</span>' +
           '</div>' +
           '<p class="text-slate-700 font-medium">' + App.esc(c.text) + '</p>' +
         '</div>';
