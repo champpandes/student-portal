@@ -4,53 +4,45 @@
 2026-10-13
 
 ## Status
-Multi-teacher upgrade: DEPLOYED & WORKING (with minor fixes remaining)
+Multi-teacher upgrade: COMPLETE & WORKING
+- Super admin (chmppnds@gmail.com) sees own data
+- Regular teachers see only their own data
+- Legacy rows migrated to super admin's teacher_id
+- All admin actions route through edge function
+
+## Super admin
+- Email: chmppnds@gmail.com
+- UUID: 86e5eac4-4dd4-44e1-b73d-78659067a9c1
+
+## Regular teacher (test account)
+- Email: chmp.edu@gmail.com
+- UUID: b5d1239b-a634-4bd0-97a1-0dfd766222b2
 
 ## Done
 - [x] Edge function `admin` deployed with teacher-scoped reads
-- [x] `api.js` — `callAdmin` auto-attaches `sessionToken` and `pin`
-- [x] `teachers.js` — super admin teacher management tab
-- [x] Super admin registered (UUID: 3d3faad8-aef1-43fd-9176-65e50bda850f)
-- [x] Legacy data bridge: `scopeByTeacher` uses `.or("teacher_id.eq.X,teacher_id.is.null")`
-- [x] All legacy rows migrated to super admin's teacher_id
-- [x] Class Record categories visible (subject_categories.teacher_id added)
-
-## Remaining / known issues
-- [ ] PWA install banner peeking at top-left (`ne scr` fragment) — CSS fix in progress
-- [ ] PWA banner CSS: add `#pwa-install-banner { top: auto; bottom: 5rem; }` to styles.css
+- [x] `api.js` callAdmin auto-attaches sessionToken + pin
+- [x] `getSubjects` routed through edge function (teacher-scoped)
+- [x] `scopeByTeacher` helper: strict `.eq("teacher_id", X)` filter
+- [x] `subject_categories.teacher_id` column added + migrated
+- [x] All legacy rows migrated to super admin
+- [x] Teachers tab: super admin can approve/reject/manage teachers
+- [x] PWA install banner positioned bottom-right
 
 ## Deploy commands
 - Frontend:  `git add . && git commit -m "..." && git push`
 - Edge fn:   `supabase functions deploy admin --project-ref frrxbthgjawmptlgfjco`
 
-## Gotchas (learned the hard way)
-- `git add` fails ALL-OR-NOTHING on bad paths — check output carefully
+## Gotchas
+- `git add` fails ALL-OR-NOTHING on bad paths — check output
 - `sw.js` is at repo root, NOT in `js/`
-- After any JS change: bump CACHE_VERSION in sw.js, then Ctrl+Shift+R
-- After JS changes, may need: DevTools → Application → Unregister SW → Clear site data
-- `git push` and `supabase functions deploy` are SEPARATE actions — neither affects the other
-- Legacy rows have `teacher_id = NULL` — that's why `scopeByTeacher` uses `.is.null`
-- Tailwind `tailwind.css` is compiled — missing utility classes silently do nothing
+- After JS change: bump CACHE_VERSION in sw.js, then Ctrl+Shift+R
+- `git push` and `supabase functions deploy` are SEPARATE
+- Tailwind `tailwind.css` is precompiled — arbitrary classes like `z-[150]`, `bottom-20` silently no-op. Add overrides to styles.css
+- Server-side and client-side changes must both deploy, or you get "Unknown action" or stale behavior
+- sessionStorage caches subjects/sections for 5 min — clear on debug
 
-## File map
-- `index.html`               — SPA shell, all screens & modals
-- `js/config.js`             — Supabase URL/key, App.state
-- `js/utils.js`              — esc, debounce, toasts, modals, sessions
-- `js/api.js`                — all backend calls (callAdmin + apiCall)
-- `js/auth.js`               — login, register, session restore
-- `js/main.js`               — boot, event wiring
-- `js/admin.js`              — dashboard, table, panel, filters
-- `js/teachers.js`           — super admin teacher management
-- `js/student.js`            — student dashboard, breakdown
-- `js/subjects.js`           — subjects & weights
-- `js/sections.js`           — sections
-- `js/class-record.js`       — class record & assessments
-- `js/grading-sheet.js`      — printable grading sheets
-- `js/analytics.js`          — analytics tab
-- `js/registrations.js`      — student registration approval
-- `js/comments.js`           — announcements & comments
-- `js/import.js`             — CSV/Excel import & export
-- `js/backup.js`             — full backup & restore
-- `js/grades.js`             — grading helpers
-- `sw.js`                    — service worker (at repo root)
-- `supabase/functions/admin/index.ts` — edge function
+## New teacher onboarding flow
+1. Teacher registers at login → Teacher tab → "Register as a teacher"
+2. Row appears as `pending` in super admin's Teachers tab
+3. Super admin approves → teacher can log in
+4. Teacher sees their own empty workspace (no cross-teacher data)
