@@ -334,81 +334,116 @@
   // ============================================================
   // Save
   // ============================================================
-  App.handleSaveSubject = async function () {
-    const btn = document.getElementById('subject-submit-btn');
-    const newName = document.getElementById('new-subject-input').value.trim();
-    const descVal = document.getElementById('new-subject-desc-input').value.trim();
-    const oldName = document.getElementById('editing-original-subject').value;
+App.handleSaveSubject = async function () {
+  const btn = document.getElementById('subject-submit-btn');
+  const newName = document.getElementById('new-subject-input').value.trim();
+  const descVal = document.getElementById('new-subject-desc-input').value.trim();
+  const oldName = document.getElementById('editing-original-subject').value;
 
-    if (!newName) { App.showToast("Please enter a subject name.", "error"); return; }
+  if (!newName) { App.showToast("Please enter a subject name.", "error"); return; }
 
-    const categories = App.getCategoriesFromForm();
-    if (categories.length === 0) {
-      App.showToast("Add at least one category.", "error");
-      return;
-    }
-    const catSum = categories.reduce((a, c) => a + c.weight, 0);
-    if (catSum !== 100) {
-      App.showToast("Category weights must total 100% (currently " + catSum + "%).", "error");
-      return;
-    }
+  const categories = App.getCategoriesFromForm();
+  if (categories.length === 0) {
+    App.showToast("Add at least one category.", "error");
+    return;
+  }
+  const catSum = categories.reduce((a, c) => a + c.weight, 0);
+  if (catSum !== 100) {
+    App.showToast("Category weights must total 100% (currently " + catSum + "%).", "error");
+    return;
+  }
 
-    const qw = App.getQuarterWeightsFromForm();
-    const qwSum = qw['1st'] + qw['2nd'] + qw['3rd'] + qw['4th'];
-    if (qwSum !== 100) {
-      App.showToast("Quarter weights must total 100% (currently " + qwSum + "%).", "error");
-      return;
-    }
+  const qw = App.getQuarterWeightsFromForm();
+  const qwSum = qw['1st'] + qw['2nd'] + qw['3rd'] + qw['4th'];
+  if (qwSum !== 100) {
+    App.showToast("Quarter weights must total 100% (currently " + qwSum + "%).", "error");
+    return;
+  }
 
-    let succeeded = false;
+  const legacyWeights = {
+    quizzes: (categories.find(c => c.name.toLowerCase() === 'quizzes') || {}).weight || 0,
+    participation: (categories.find(c => c.name.toLowerCase() === 'participation') || {}).weight || 0,
+    attendance: (categories.find(c => c.name.toLowerCase() === 'attendance') || {}).weight || 0,
+    exams: (categories.find(c => c.name.toLowerCase() === 'exams') || {}).weight || 0
+  };
 
-    await App.withButtonLoading(btn, async () => {
-      const legacyWeights = {
-        quizzes: (categories.find(c => c.name.toLowerCase() === 'quizzes') || {}).weight || 0,
-        participation: (categories.find(c => c.name.toLowerCase() === 'participation') || {}).weight || 0,
-        attendance: (categories.find(c => c.name.toLowerCase() === 'attendance') || {}).weight || 0,
-        exams: (categories.find(c => c.name.toLowerCase() === 'exams') || {}).weight || 0
-      };
+  const basePayload = {
+    action: "manageSubject",
+    pin: state.adminPin,
+    subAction: oldName ? "update" : "add",
+    oldName: oldName,
+    newName: newName,
+    subjectName: newName,
+    description: descVal,
+    weights: legacyWeights,
+    categories: categories,
+    quarterWeights: qw
+  };
 
-      const res = await App.apiCall({
-        action: "manageSubject",
-        pin: state.adminPin,
-        subAction: oldName ? "update" : "add",
-        oldName: oldName,
-        newName: newName,
-        subjectName: newName,
-        description: descVal,
-        weights: legacyWeights,
-        categories: categories,
-        quarterWeights: qw
-      }, { retries: 1 });
+  let succeeded = false;
 
-      if (!res.success) {
-        App.showToast(res.message || "Failed to save subject.", "error");
+  await App.withButtonLoading(btn, async () => {
+    // First attempt — ask server to check for orphaned data.
+    let res = await App.apiCall(
+      Object.assign({}, basePayload, { confirmDelete: false }),
+      { retries: 1 }
+    );
+
+    // Server replied "some categories you removed still have data".
+    if (res && res.needsConfirm) {
+      const lines = res.deleting
+        .filter(d => d.assessments > 0)
+        .map(d =>
+          '  • ' + d.name + ' — ' +
+          d.assessments + ' assessment' + (d.assessments === 1 ? '' : 's') +
+          ', ' + d.scores + ' score' + (d.scores === 1 ? '' : 's')
+        )
+        .join('\n');
+
+      const msg =
+        'WARNING: You are removing categories that still contain data.\n\n' +
+        lines + '\n\n' +
+        'Total: ' + res.totalAssessments + ' assessment(s) and ' +
+        res.totalScores + ' score(s) will be permanently deleted.\n\n' +
+        'This cannot be undone. Continue?';
+
+      if (!confirm(msg)) {
+        App.showToast("Cancelled — nothing was changed.");
         return;
       }
 
-      if (res.subjects) state.availableSubjects = res.subjects;
-      if (res.descriptions) state.subjectDescriptions = res.descriptions;
-      if (res.weights) state.subjectWeights = res.weights;
-      if (res.categories) state.subjectCategories = res.categories;
-      if (res.quarterWeights) state.subjectQuarterWeights = res.quarterWeights;
-
-      App.populateSubjectUIs();
-      App.renderSubjectsListUI();
-      App.invalidateAllCache();
-      sessionStorage.removeItem('sp_subjects_cache');
-      await App.loadAdminDashboard();
-
-      App.showToast(oldName ? "Subject '" + newName + "' updated!" : "Subject '" + newName + "' added!");
-      succeeded = true;
-    }, { text: 'Saving...' });
-
-    // Reset only after withButtonLoading finishes restoring the button
-    if (succeeded) {
-      App.resetSubjectForm();
+      // Second attempt — user confirmed.
+      res = await App.apiCall(
+        Object.assign({}, basePayload, { confirmDelete: true }),
+        { retries: 1 }
+      );
     }
-  };
+
+    if (!res.success) {
+      App.showToast(res.message || "Failed to save subject.", "error");
+      return;
+    }
+
+    if (res.subjects) state.availableSubjects = res.subjects;
+    if (res.descriptions) state.subjectDescriptions = res.descriptions;
+    if (res.weights) state.subjectWeights = res.weights;
+    if (res.categories) state.subjectCategories = res.categories;
+    if (res.quarterWeights) state.subjectQuarterWeights = res.quarterWeights;
+
+    App.populateSubjectUIs();
+    App.renderSubjectsListUI();
+    App.invalidateAllCache();
+    sessionStorage.removeItem('sp_subjects_cache');
+    await App.loadAdminDashboard();
+
+    App.showToast(oldName ? "Subject '" + newName + "' updated!" : "Subject '" + newName + "' added!");
+    succeeded = true;
+  }, { text: 'Saving...' });
+
+  if (succeeded) {
+    App.resetSubjectForm();
+  }
+};
 
   // ============================================================
   // Delete

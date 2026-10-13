@@ -565,7 +565,7 @@ async function buildSubjectsResponse(sb: any) {
   return { success: true, subjects, descriptions, weights, categories, quarterWeights };
 }
 
-async function manageSubject(sb: any, p: any) {
+aasync function manageSubject(sb: any, p: any) {
   const subAction = String(p.subAction || "add");
 
   if (subAction === "delete") {
@@ -605,6 +605,56 @@ async function manageSubject(sb: any, p: any) {
   const finalName = subAction === "update" ? String(p.newName) : String(p.subjectName);
   const desc = stripTags(p.description || "");
 
+  // ---- Pre-check: warn if any category being removed still has assessments ----
+  // (Uses the pre-rename name, since the rename happens later.)
+  const lookupName = String(p.oldName || finalName);
+  const existingCatsResult = await sb.from("subject_categories")
+    .select("id,name").eq("subject_name", lookupName);
+  const existingCats: any[] = existingCatsResult.data || [];
+
+  if (categories && categories.length > 0 && existingCats.length > 0) {
+    const keepNames = new Set(categories.map((c: any) => String(c.name).toLowerCase()));
+    const toDelete = existingCats.filter(
+      (c: any) => !keepNames.has(String(c.name).toLowerCase())
+    );
+
+    if (toDelete.length > 0 && !p.confirmDelete) {
+      const deleting: any[] = [];
+      let totalAssessments = 0;
+      let totalScores = 0;
+
+      for (const c of toDelete) {
+        const assessRows = await sb.from("assessments")
+          .select("id").eq("category_id", c.id);
+        const aIds = (assessRows.data || []).map((a: any) => a.id);
+
+        let scores = 0;
+        if (aIds.length > 0) {
+          const scoreRows = await sb.from("scores")
+            .select("id", { count: "exact", head: true })
+            .in("assessment_id", aIds);
+          scores = Number(scoreRows.count) || 0;
+        }
+
+        deleting.push({ name: c.name, assessments: aIds.length, scores });
+        totalAssessments += aIds.length;
+        totalScores += scores;
+      }
+
+      if (totalAssessments > 0) {
+        return {
+          success: false,
+          needsConfirm: true,
+          message: "Some categories being removed still contain assessments and scores.",
+          deleting,
+          totalAssessments,
+          totalScores
+        };
+      }
+    }
+  }
+
+  // ---- Proceed with rename + upsert + category changes ----
   if (subAction === "update" && p.oldName && p.oldName !== finalName) {
     await sb.from("subjects").update({ subject_name: finalName }).eq("subject_name", p.oldName);
     await sb.from("subject_categories").update({ subject_name: finalName }).eq("subject_name", p.oldName);
@@ -626,10 +676,13 @@ async function manageSubject(sb: any, p: any) {
   if (subjErr) throw subjErr;
 
   if (categories && categories.length > 0) {
-    const existingCats = await sb.from("subject_categories")
+    // Refetch under finalName (post-rename) — this is the authoritative list.
+    const afterRename = await sb.from("subject_categories")
       .select("id,name").eq("subject_name", finalName);
+    const catsUnderFinalName: any[] = afterRename.data || [];
+
     const byName: Record<string, any> = {};
-    (existingCats.data || []).forEach((c: any) => { byName[String(c.name).toLowerCase()] = c; });
+    catsUnderFinalName.forEach((c: any) => { byName[String(c.name).toLowerCase()] = c; });
 
     const toInsert: any[] = [];
     const toUpdate: any[] = [];
@@ -652,9 +705,10 @@ async function manageSubject(sb: any, p: any) {
       await sb.from("subject_categories").insert(toInsert);
     }
 
-    const keepNames = new Set(categories.map((c: any) => String(c.name).toLowerCase()));
-    for (const c of (existingCats.data || [])) {
-      if (!keepNames.has(String(c.name).toLowerCase())) {
+    // Delete categories that were removed in this edit.
+    const keepNamesFinal = new Set(categories.map((c: any) => String(c.name).toLowerCase()));
+    for (const c of catsUnderFinalName) {
+      if (!keepNamesFinal.has(String(c.name).toLowerCase())) {
         await sb.from("subject_categories").delete().eq("id", c.id);
       }
     }
