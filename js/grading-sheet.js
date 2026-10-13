@@ -2,7 +2,7 @@
   'use strict';
 
   const state = App.state;
-  const ROWS_PER_PREVIEW_PAGE = 30;
+  const ROWS_PER_PREVIEW_PAGE = 35;
 
   async function getGradesFor(subject) {
     if (!state.adminPin) return [];
