@@ -40,10 +40,11 @@
 
   // ---------- Tabs ----------
   App.switchAdminTab = function (tabName, btnElement) {
-    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.add('hidden-screen'));
     document.querySelectorAll('.admin-tab-btn').forEach(btn => {
-      btn.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white";
-    });
+  const base = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white";
+  const shouldHide = btn.classList.contains('hidden-screen');
+  btn.className = base + (shouldHide ? ' hidden-screen' : '');
+});
 
     const active = document.getElementById('tab-' + tabName);
     if (active) active.classList.remove('hidden-screen');
@@ -95,9 +96,14 @@ if (tabName === 'sections') {
 }
     if (tabName === 'profile') {
       if (App.loadProfileTab) App.loadProfileTab();
-    }
     if (tabName === 'teachers') {
-      if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
+  if (!state.currentTeacher || state.currentTeacher.role !== 'super_admin') {
+    // Non-super-admins can't see this tab — bail silently.
+    App.showToast('Super admin access required.', 'error');
+    App.switchAdminTab('students', document.querySelector('[data-tab="students"]'));
+    return;
+  }
+  if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
 }
   };
 
