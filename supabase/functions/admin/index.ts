@@ -26,7 +26,6 @@ const TRANSMUTATION: [number, number][] = [
   [16.00, 64], [12.00, 63], [8.00, 62],  [4.00, 61],  [0.00, 60]
 ];
 
-// Quarter label helpers (fixes "2st", "3st", "4st" bug)
 const QUARTER_ORDINAL: Record<string, string> = {
   "1": "1st",
   "2": "2nd",
@@ -80,7 +79,6 @@ function json(data: any, status: number) {
   });
 }
 
-// Weighted-quarter final computation
 function computeWeightedFinal(
   q1: any, q2: any, q3: any, q4: any,
   quarterWeights: any
@@ -439,7 +437,6 @@ async function updateStudentInfo(sb: any, p: any) {
     await sb.from("pending_registrations").update({ student_number: newId }).eq("student_number", oldId);
   }
 
-  // Keep comments in sync: renumber (if ID changed) and refresh the displayed name
   const commentUpdate: any = {};
   if (oldId !== newId) commentUpdate.student_number = newId;
   if (newName) commentUpdate.student_name = newName;
@@ -565,7 +562,7 @@ async function buildSubjectsResponse(sb: any) {
   return { success: true, subjects, descriptions, weights, categories, quarterWeights };
 }
 
-aasync function manageSubject(sb: any, p: any) {
+async function manageSubject(sb: any, p: any) {
   const subAction = String(p.subAction || "add");
 
   if (subAction === "delete") {
@@ -605,8 +602,6 @@ aasync function manageSubject(sb: any, p: any) {
   const finalName = subAction === "update" ? String(p.newName) : String(p.subjectName);
   const desc = stripTags(p.description || "");
 
-  // ---- Pre-check: warn if any category being removed still has assessments ----
-  // (Uses the pre-rename name, since the rename happens later.)
   const lookupName = String(p.oldName || finalName);
   const existingCatsResult = await sb.from("subject_categories")
     .select("id,name").eq("subject_name", lookupName);
@@ -654,7 +649,6 @@ aasync function manageSubject(sb: any, p: any) {
     }
   }
 
-  // ---- Proceed with rename + upsert + category changes ----
   if (subAction === "update" && p.oldName && p.oldName !== finalName) {
     await sb.from("subjects").update({ subject_name: finalName }).eq("subject_name", p.oldName);
     await sb.from("subject_categories").update({ subject_name: finalName }).eq("subject_name", p.oldName);
@@ -676,7 +670,6 @@ aasync function manageSubject(sb: any, p: any) {
   if (subjErr) throw subjErr;
 
   if (categories && categories.length > 0) {
-    // Refetch under finalName (post-rename) — this is the authoritative list.
     const afterRename = await sb.from("subject_categories")
       .select("id,name").eq("subject_name", finalName);
     const catsUnderFinalName: any[] = afterRename.data || [];
@@ -705,7 +698,6 @@ aasync function manageSubject(sb: any, p: any) {
       await sb.from("subject_categories").insert(toInsert);
     }
 
-    // Delete categories that were removed in this edit.
     const keepNamesFinal = new Set(categories.map((c: any) => String(c.name).toLowerCase()));
     for (const c of catsUnderFinalName) {
       if (!keepNamesFinal.has(String(c.name).toLowerCase())) {
@@ -779,9 +771,10 @@ async function manageSection(sb: any, p: any) {
 async function approveRegistration(sb: any, p: any) {
   const sNo = String(p.studentNumber || "");
   const section = stripTags(String(p.section || "").trim());
-  const subjects = p.subjects || [];
+  const subjects: string[] = (p.subjects || []).map((s: any) => String(s));
+
   if (!section) return { success: false, message: "Section is required." };
-  if (!subjects || subjects.length === 0) return { success: false, message: "Select at least one subject." };
+  if (subjects.length === 0) return { success: false, message: "Select at least one subject." };
 
   const pRows = await sb.from("pending_registrations").select("*")
     .eq("student_number", sNo).eq("status", "pending");
@@ -790,30 +783,63 @@ async function approveRegistration(sb: any, p: any) {
   }
   const pr = pRows.data[0];
 
-  const s = await sb.from("students").upsert(
+  const sRes = await sb.from("students").upsert(
     { student_number: sNo, name: pr.name, section },
     { onConflict: "student_number" }
   );
-  if (s.error) throw s.error;
-
-  for (const sub of subjects) {
-    const subName = String(sub);
-    const ex = await sb.from("enrollments").select("id")
-      .eq("student_number", sNo).eq("subject_name", subName);
-    if (!ex.data || ex.data.length === 0) {
-      await sb.from("enrollments").insert({ student_number: sNo, subject_name: subName });
-    }
-    await sb.from("grades").upsert({
-      student_number: sNo, subject_name: subName,
-      q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: []
-    }, { onConflict: "student_number,subject_name" });
+  if (sRes.error) {
+    return { success: false, message: "Could not create student: " + sRes.error.message };
   }
 
-  const { error } = await sb.from("pending_registrations").update({
-    section, enrolled_subjects: subjects,
-    status: "approved", reviewed_at: new Date().toLocaleString()
+  const existingEnroll = await sb.from("enrollments")
+    .select("subject_name")
+    .eq("student_number", sNo)
+    .in("subject_name", subjects);
+
+  if (existingEnroll.error) {
+    return { success: false, message: "Could not check enrollments: " + existingEnroll.error.message };
+  }
+
+  const have = new Set((existingEnroll.data || []).map((e: any) => String(e.subject_name)));
+  const missing = subjects.filter(s => !have.has(s));
+
+  if (missing.length > 0) {
+    const ins = await sb.from("enrollments").insert(
+      missing.map(s => ({ student_number: sNo, subject_name: s }))
+    );
+    if (ins.error) {
+      return {
+        success: false,
+        message: "Could not enroll in " + missing.join(", ") + ": " + ins.error.message
+      };
+    }
+  }
+
+  const gradeRows = subjects.map(s => ({
+    student_number: sNo,
+    subject_name: s,
+    q1: "", q2: "", q3: "", q4: "",
+    final: "", remarks: "", breakdowns: []
+  }));
+
+  const gr = await sb.from("grades").upsert(gradeRows, {
+    onConflict: "student_number,subject_name",
+    ignoreDuplicates: false
+  });
+  if (gr.error) {
+    return { success: false, message: "Could not prepare grade sheet: " + gr.error.message };
+  }
+
+  const upRes = await sb.from("pending_registrations").update({
+    section,
+    enrolled_subjects: subjects,
+    status: "approved",
+    reviewed_at: new Date().toLocaleString()
   }).eq("id", pr.id);
-  if (error) throw error;
+
+  if (upRes.error) {
+    return { success: false, message: "Could not finalize approval: " + upRes.error.message };
+  }
 
   return { success: true, studentNumber: sNo, message: pr.name + " approved and enrolled." };
 }
@@ -840,12 +866,10 @@ async function recomputeAllGrades(sb: any) {
   const allGrades = await sb.from("grades").select("*");
   if (!allGrades.data) return { success: true, totalFixed: 0, report: [] };
 
-  // Quarter weights per subject
   const subjRows = await sb.from("subjects").select("subject_name,quarter_weights");
   const qwMap: Record<string, any> = {};
   (subjRows.data || []).forEach((r: any) => { qwMap[r.subject_name] = r.quarter_weights; });
 
-  // Categories per subject (with weights)
   const catRows = await sb.from("subject_categories").select("id,subject_name,weight");
   const catsBySubject: Record<string, any[]> = {};
   (catRows.data || []).forEach((c: any) => {
@@ -870,7 +894,6 @@ async function recomputeAllGrades(sb: any) {
       const updates: any = {};
       let rowChanged = false;
 
-      // ---- 1. Clamp quarter grades below 60 up to 60 ----
       const clamped: Record<string, any> = {};
       ["q1", "q2", "q3", "q4"].forEach(k => {
         const v = row[k];
@@ -887,7 +910,6 @@ async function recomputeAllGrades(sb: any) {
         }
       });
 
-      // ---- 2. Normalize + recompute breakdowns ----
       if (Array.isArray(row.breakdowns) && row.breakdowns.length > 0) {
         const newBds: any[] = [];
         let bdsChanged = false;
@@ -896,7 +918,6 @@ async function recomputeAllGrades(sb: any) {
           const qNum = String(bd.quarter || "").replace(/\D/g, "");
           const normalized = QUARTER_ORDINAL[qNum] || bd.quarter;
 
-          // Recompute the total from category values using current weights
           let total = bd.total;
           if (cats.length > 0 && bd.categories && typeof bd.categories === "object") {
             let raw = 0, anyValue = false;
@@ -931,7 +952,6 @@ async function recomputeAllGrades(sb: any) {
         }
       }
 
-      // ---- 3. Apply clamped quarter grades ----
       ["q1", "q2", "q3", "q4"].forEach(k => {
         if (String(row[k]) !== String(clamped[k])) {
           updates[k] = String(clamped[k] === "" ? "" : clamped[k]);
@@ -939,7 +959,6 @@ async function recomputeAllGrades(sb: any) {
         }
       });
 
-      // ---- 4. Recompute final + remarks (using clamped values) ----
       const newFinal = computeWeightedFinal(
         clamped.q1, clamped.q2, clamped.q3, clamped.q4, qw
       );
