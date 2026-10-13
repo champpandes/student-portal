@@ -57,13 +57,11 @@
       return;
     }
 
-    // Preserve existing input values by category ID
     const existing = {};
     container.querySelectorAll('[data-category-id]').forEach(inp => {
       existing[inp.dataset.categoryId] = inp.value;
     });
 
-    // Render one row per category
     container.innerHTML = cats
       .sort((a, b) => (a.position || 0) - (b.position || 0))
       .map((cat, idx) => {
@@ -96,18 +94,54 @@
     });
   }
 
-  function parseCSV(str) {
-    const result = [];
-    let cell = '', inQuotes = false;
-    for (let i = 0; i < str.length; i++) {
-      const c = str[i];
-      if (c === '"' && str[i + 1] === '"') { cell += '"'; i++; }
-      else if (c === '"') inQuotes = !inQuotes;
-      else if (c === ',' && !inQuotes) { result.push(cell.trim()); cell = ''; }
-      else cell += c;
+  // Sniff the delimiter from the first few non-empty lines.
+  // Candidates: tab, comma, semicolon, pipe.
+  // Falls back to tab if nothing is found.
+  function detectDelimiter(text) {
+    const candidates = ['\t', ',', ';', '|'];
+    const lines = String(text || '')
+      .split('\n')
+      .filter(l => l.trim())
+      .slice(0, 5);
+    if (lines.length === 0) return '\t';
+
+    let best = '\t';
+    let bestCount = 0;
+    candidates.forEach(d => {
+      const count = lines.reduce((sum, line) => {
+        // Simple count — doesn't respect quotes, but good enough for sniffing.
+        let c = 0;
+        for (let i = 0; i < line.length; i++) if (line[i] === d) c++;
+        return sum + c;
+      }, 0);
+      if (count > bestCount) { best = d; bestCount = count; }
+    });
+    return bestCount > 0 ? best : '\t';
+  }
+
+  // Parse one row, honoring quoted fields and doubled quotes.
+  function parseDelimitedRow(line, delimiter) {
+    const out = [];
+    let cell = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"' && line[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') { inQuotes = !inQuotes; }
+      else if (c === delimiter && !inQuotes) { out.push(cell.trim()); cell = ''; }
+      else { cell += c; }
     }
-    result.push(cell.trim());
-    return result;
+    out.push(cell.trim());
+    return out;
+  }
+
+  // Human-readable name for the preview banner.
+  function delimiterLabel(d) {
+    return d === '\t' ? 'TAB'
+         : d === ','  ? 'comma'
+         : d === ';'  ? 'semicolon'
+         : d === '|'  ? 'pipe'
+         : 'unknown';
   }
 
   // Convert "A" → 0, "B" → 1, "AA" → 26, etc.
@@ -155,17 +189,33 @@
       try {
         const subj = document.getElementById('import-subject').value;
         let rawRows = [];
-        let isPaste = false;
+        let delimiter = '\t';
+        let source = 'file';
 
         if (pasteInput.trim()) {
-          rawRows = pasteInput.trim().split('\n');
-          isPaste = true;
+          const text = pasteInput.trim();
+          rawRows = text.split('\n');
+          delimiter = detectDelimiter(text);
+          source = 'paste';
         } else {
-          rawRows = (await readCSVFile(fileInput.files[0])).split('\n');
+          const text = await readCSVFile(fileInput.files[0]);
+          rawRows = text.split('\n');
+          delimiter = detectDelimiter(text);
+          source = 'file';
         }
 
         tbody.innerHTML = '';
-        const startRow = isPaste ? 0 : 1;
+
+        // We skip the header row only for files. Pastes usually have no header.
+        const startRow = source === 'file' ? 1 : 0;
+        const delimName = delimiterLabel(delimiter);
+
+        // Show a small banner so the user knows what we detected.
+        const banner = document.getElementById('import-delim-banner');
+        if (banner) {
+          banner.textContent = 'Detected delimiter: ' + delimName;
+          banner.classList.remove('hidden');
+        }
 
         if (action === 'register') {
           const cId = getInputColIndex('col-id-reg');
@@ -181,9 +231,7 @@
 
           for (let i = startRow; i < rawRows.length; i++) {
             if (!rawRows[i].trim()) continue;
-            const cols = isPaste
-              ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, ''))
-              : parseCSV(rawRows[i]);
+            const cols = parseDelimitedRow(rawRows[i], delimiter);
             if (!cols[cId] || !cols[cName]) continue;
             if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
 
@@ -226,9 +274,7 @@
 
           for (let i = startRow; i < rawRows.length; i++) {
             if (!rawRows[i].trim()) continue;
-            const cols = isPaste
-              ? rawRows[i].split('\t').map(c => c.trim().replace(/^"|"$/g, ''))
-              : parseCSV(rawRows[i]);
+            const cols = parseDelimitedRow(rawRows[i], delimiter);
             if (!cols[cId]) continue;
             if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
 
@@ -259,7 +305,7 @@
         }
 
         if (state.pendingImportData.length > 0) {
-          status.textContent = 'Found ' + state.pendingImportData.length + ' valid entries to process.';
+          status.textContent = 'Found ' + state.pendingImportData.length + ' valid entries (' + delimName + '-delimited).';
           status.className = "bg-emerald-50 border border-emerald-200 text-emerald-700 mt-4 p-3 rounded-xl font-bold text-sm text-center";
           status.classList.remove('hidden');
           previewSection.classList.remove('hidden');

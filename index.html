@@ -1142,8 +1142,11 @@
         </div>
 
         <div id="preview-section" class="hidden space-y-2">
-          <div class="text-xs font-bold text-slate-700">Preview Parsed Data:</div>
-          <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
+  <div class="flex items-center justify-between">
+    <div class="text-xs font-bold text-slate-700">Preview Parsed Data:</div>
+    <div id="import-delim-banner" class="hidden text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"></div>
+  </div>
+  <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
             <table class="w-full text-left text-xs">
               <thead id="preview-thead" class="bg-slate-100 text-slate-600"></thead>
               <tbody id="preview-table-body" class="divide-y divide-slate-100"></tbody>
