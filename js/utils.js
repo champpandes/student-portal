@@ -76,6 +76,8 @@
   };
   // ---------- Button loading state ----------
   // Usage: await App.withButtonLoading(btnElement, async () => { ... }, { text: 'Saving...' });
+  // ---------- Button loading state ----------
+  // Usage: await App.withButtonLoading(btnElement, async () => { ... }, { text: 'Saving...' });
   App.withButtonLoading = async function (btn, fn, opts) {
     opts = opts || {};
     if (!btn || btn.disabled) return;
@@ -84,23 +86,38 @@
     const originalClass = btn.className;
     const loadingText = opts.text || 'Loading...';
 
-    btn.disabled = true;
-    btn.classList.add('opacity-60', 'cursor-wait');
-    btn.innerHTML =
+    const loadingHTML =
       '<span class="inline-flex items-center gap-2">' +
         '<span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>' +
         '<span>' + App.esc(loadingText) + '</span>' +
       '</span>';
 
+    btn.disabled = true;
+    btn.classList.add('opacity-60', 'cursor-wait');
+    btn.innerHTML = loadingHTML;
+    const loadingClass = btn.className;
+
+    let result;
     try {
-      return await fn();
+      result = await fn();
     } finally {
-      // Restore even if the callback throws
       btn.disabled = false;
-      btn.classList.remove('opacity-60', 'cursor-wait');
-      btn.innerHTML = originalHTML;
-      btn.className = originalClass;
+
+      // If the callback didn't change the button's HTML, restore the original.
+      // If it did (e.g., "Save" → "Update"), respect its change.
+      if (btn.innerHTML === loadingHTML) {
+        btn.innerHTML = originalHTML;
+      }
+
+      // Same for className. If it still matches what we set, restore original.
+      // Otherwise, the callback changed classes — just strip our loading ones.
+      if (btn.className === loadingClass) {
+        btn.className = originalClass;
+      } else {
+        btn.classList.remove('opacity-60', 'cursor-wait');
+      }
     }
+    return result;
   };
   // ---------- Toast ----------
   App.showToast = function (message, type) {
