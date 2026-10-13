@@ -218,7 +218,9 @@
   };
 
   App.closeRegisterModal = function () {
-    App.closeModal(document.getElementById('register-modal'));
+    const modal = document.getElementById('register-modal');
+    if (!App.confirmDiscard(modal, "You have unsaved registration details. Discard them?")) return;
+    App.closeModal(modal);
   };
 
     App.submitRegistration = async function () {
@@ -244,7 +246,7 @@
         }, { retries: 1 });
 
         if (res.success && res.pending) {
-          App.closeRegisterModal();
+          App.closeModal(document.getElementById('register-modal'));
           App.showToast("Registration submitted for approval.");
           if (App.showPendingModal) {
             App.showPendingModal({

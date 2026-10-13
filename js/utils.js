@@ -178,7 +178,40 @@
       el.scrollTop = 0;
     });
   };
+  // ---------- Unsaved-changes tracking ----------
+  App._modalBaselines = new WeakMap();
 
+  App.snapshotModal = function (el) {
+    if (!el) return;
+    const values = {};
+    el.querySelectorAll('input, textarea, select').forEach(node => {
+      if (node.type === 'file' || node.type === 'submit' || node.type === 'button') return;
+      const key = node.id || node.name;
+      if (!key) return;
+      values[key] = (node.type === 'checkbox' || node.type === 'radio') ? node.checked : node.value;
+    });
+    App._modalBaselines.set(el, values);
+  };
+
+  App.isModalDirty = function (el) {
+    if (!el) return false;
+    const baseline = App._modalBaselines.get(el);
+    if (!baseline) return false;
+    const nodes = el.querySelectorAll('input, textarea, select');
+    for (const node of nodes) {
+      if (node.type === 'file' || node.type === 'submit' || node.type === 'button') continue;
+      const key = node.id || node.name;
+      if (!key) continue;
+      const now = (node.type === 'checkbox' || node.type === 'radio') ? node.checked : node.value;
+      if (String(baseline[key]) !== String(now)) return true;
+    }
+    return false;
+  };
+
+  App.confirmDiscard = function (el, message) {
+    if (!App.isModalDirty(el)) return true;
+    return confirm(message || "You have unsaved changes. Discard them?");
+  };
   // ---------- Accessible Modal ----------
   const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
   let activeModal = null;
@@ -217,6 +250,8 @@
     requestAnimationFrame(() => {
       const first = getFocusable(el)[0];
       if (first) first.focus();
+      // Snapshot AFTER fields are populated so this becomes the baseline.
+      App.snapshotModal(el);
     });
   };
 

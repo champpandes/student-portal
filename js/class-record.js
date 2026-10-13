@@ -370,7 +370,9 @@
   };
 
   App.closeAssessmentModal = function () {
-    App.closeModal(document.getElementById('assessment-modal'));
+    const modal = document.getElementById('assessment-modal');
+    if (!App.confirmDiscard(modal, "You have unsaved assessment details. Discard them?")) return;
+    App.closeModal(modal);
   };
 
   App.saveAssessment = async function () {
@@ -395,7 +397,7 @@
         res = await App.apiCall({ action: 'addAssessment', pin: state.adminPin, subject, quarter, categoryId, name, totalPoints }, { retries: 1 });
       }
       if (!res.success) { err.textContent = res.message || 'Failed to save.'; err.classList.remove('hidden'); return; }
-      App.closeAssessmentModal();
+      App.closeModal(document.getElementById('assessment-modal'));
       App.showToast(editId ? 'Assessment updated.' : 'Assessment added.');
       await App.loadClassRecord();
     }, { text: 'Saving...' });

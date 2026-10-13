@@ -459,10 +459,11 @@
       p.classList.remove('translate-x-full');
     }, 10);
     p.focus();
+    App.snapshotModal(p);
   };
-
   App.closeSlidePanel = function () {
     const p = document.getElementById('slide-panel');
+    if (!App.confirmDiscard(p, "You have unsaved changes in this panel. Discard them?")) return;
     const b = document.getElementById('slide-panel-backdrop');
     p.classList.add('translate-x-full');
     b.classList.add('opacity-0');
@@ -567,7 +568,9 @@
   };
 
   App.closeAddStudentModal = function () {
-    App.closeModal(document.getElementById('add-student-modal'));
+    const modal = document.getElementById('add-student-modal');
+    if (!App.confirmDiscard(modal, "You have unsaved student details. Discard them?")) return;
+    App.closeModal(modal);
   };
 
   App.saveNewStudent = async function () {
@@ -594,7 +597,7 @@
 
       if (res.success) {
         App.showToast("Student " + name + " enrolled.");
-        App.closeAddStudentModal();
+        App.closeModal(document.getElementById('add-student-modal'));
         App.invalidateActiveCache();
         await App.loadAdminDashboard();
         App.updateLastSavedTimestamp();

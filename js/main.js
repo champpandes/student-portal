@@ -226,7 +226,9 @@
     });
 
     document.getElementById('approve-cancel-btn').addEventListener('click', () => {
-      App.closeModal(document.getElementById('approve-modal'));
+      const modal = document.getElementById('approve-modal');
+      if (!App.confirmDiscard(modal, "Discard this approval? Any changes you made will be lost.")) return;
+      App.closeModal(modal);
     });
     document.getElementById('confirm-approve-btn').addEventListener('click', App.confirmApproval);
     document.getElementById('approve-select-all-btn').addEventListener('click', App.approveSelectAll);
