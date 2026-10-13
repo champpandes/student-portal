@@ -31,15 +31,15 @@ App.state = {
   availableSubjects: [],
   subjectDescriptions: {},
   subjectWeights: {},
-  subjectCategories: {},        // { subjectName: [{ id, name, weight, position }, ...] }
-  subjectQuarterWeights: {},    // { subjectName: { "1st": 25, "2nd": 25, "3rd": 25, "4th": 25 } }
+  subjectCategories: {},
+  subjectQuarterWeights: {},
 
   // Sections
-  sectionsCache: [],            // ["BSC 1A", "BSC 1B", ...]
+  sectionsCache: [],
 
   // Data
   currentAdminData: [],
-  allAdminGradesCache: {},      // subject -> array of grade rows
+  allAdminGradesCache: {},     // subject -> array of grade rows
   currentStudentData: null,
 
   // Session (transient, per-tab)
