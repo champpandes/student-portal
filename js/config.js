@@ -7,6 +7,7 @@ window.App = window.App || {};
 // ============================================================
 App.SUPABASE_URL = 'https://frrxbthgjawmptlgfjco.supabase.co';
 App.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZycnhidGhnamF3bXB0bGdmamNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4MzcwMTMsImV4cCI6MjEwNjQxMzAxM30.rJHKn8bzx7EUkEwiICV8VWRdZud4q9cZOnU6Oi1MTKw';
+
 // ============================================================
 // Credits
 // ============================================================
@@ -30,12 +31,15 @@ App.state = {
   availableSubjects: [],
   subjectDescriptions: {},
   subjectWeights: {},
-  subjectCategories: {},      // subject -> [{id, name, weight, position}]
-  subjectQuarterWeights: {},  // subject -> {"1st":25, "2nd":25, ...}
+  subjectCategories: {},        // { subjectName: [{ id, name, weight, position }, ...] }
+  subjectQuarterWeights: {},    // { subjectName: { "1st": 25, "2nd": 25, "3rd": 25, "4th": 25 } }
+
+  // Sections
+  sectionsCache: [],            // ["BSC 1A", "BSC 1B", ...]
 
   // Data
   currentAdminData: [],
-  allAdminGradesCache: {},     // subject -> array of grade rows
+  allAdminGradesCache: {},      // subject -> array of grade rows
   currentStudentData: null,
 
   // Session (transient, per-tab)
