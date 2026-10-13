@@ -136,3 +136,9 @@
     break-inside: avoid;
   }
 }
+
+/* Fix PWA banner position — tailwind.css is missing .bottom-20 */
+#pwa-install-banner {
+  top: auto !important;
+  bottom: 5rem !important;
+}
