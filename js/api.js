@@ -16,29 +16,27 @@
   // ------------------------------------------------------------
   const ADMIN_FN_URL = SB_URL + '/functions/v1/admin';
 
-  async function callAdmin(payload) {
-    const res = await fetch(ADMIN_FN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SB_KEY
-      },
-      body: JSON.stringify(payload)
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      console.error('[callAdmin]', res.status, text);
-      throw new Error('Admin function ' + res.status + ': ' + text);
-    }
-    try { return JSON.parse(text); }
-    catch (e) { return { success: false, message: 'Bad response from admin function.' }; }
-  }
+async function callAdmin(payload) {
+  const body = Object.assign({}, payload || {});
+  if (state.sessionToken && !body.sessionToken) body.sessionToken = state.sessionToken;
+  if (state.adminPin && !body.pin) body.pin = state.adminPin;
 
-  function determineRemarks(f) {
-    if (f === '' || f === null || isNaN(f)) return '';
-    return Number(f) >= 75 ? 'Passed' : 'Failed';
+  const res = await fetch(ADMIN_FN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SB_KEY
+    },
+    body: JSON.stringify(body)
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    console.error('[callAdmin]', res.status, text);
+    throw new Error('Admin function ' + res.status + ': ' + text);
   }
-
+  try { return JSON.parse(text); }
+  catch (e) { return { success: false, message: 'Bad response from admin function.' }; }
+}
   // ------------------------------------------------------------
   // Action handlers
   // ------------------------------------------------------------

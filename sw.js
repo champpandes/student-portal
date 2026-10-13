@@ -2,7 +2,7 @@
 // Service Worker — Teacher Portal PWA
 // ============================================================
 
-const CACHE_VERSION = 'v2.8.0';
+const CACHE_VERSION = 'v2.9.0';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
