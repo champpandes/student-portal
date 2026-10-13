@@ -1,11 +1,13 @@
 // ============================================================
-// api.js — Direct Supabase client
+// api.js — Direct Supabase client + edge function wrapper
+// Multi-teacher version (Phase 1C)
 // ============================================================
 (function (App) {
   'use strict';
 
   const SB_URL = App.SUPABASE_URL;
   const SB_KEY = App.SUPABASE_ANON_KEY;
+  const state = App.state;
 
   // ------------------------------------------------------------
   // Low-level REST helpers
@@ -29,11 +31,9 @@
     if (!text) return null;
     try { return JSON.parse(text); } catch (e) { return null; }
   }
-  function sbGet(t, q)                   { return sbFetch('GET',    t + (q ? '?' + q : '')); }
-  function sbInsert(t, d)                { return sbFetch('POST',   t, d, { 'Prefer': 'return=representation' }); }
-  function sbUpdate(t, f, d)             { return sbFetch('PATCH',  t + '?' + f, d, { 'Prefer': 'return=representation' }); }
-  function sbDelete(t, f)                { return sbFetch('DELETE', t + '?' + f); }
-  function sbUpsert(t, d, conflict)      {
+  function sbGet(t, q)              { return sbFetch('GET',    t + (q ? '?' + q : '')); }
+  function sbInsert(t, d)           { return sbFetch('POST',   t, d, { 'Prefer': 'return=representation' }); }
+  function sbUpsert(t, d, conflict) {
     const p = t + (conflict ? '?on_conflict=' + conflict : '');
     return sbFetch('POST', p, d, { 'Prefer': 'resolution=merge-duplicates,return=representation' });
   }
@@ -62,25 +62,6 @@
     try { return JSON.parse(text); } catch (e) { return { success: false, message: 'Bad response from admin function.' }; }
   }
 
-  const TRANSMUTATION = [
-    [98.40, 99], [96.80, 98], [95.20, 97], [93.60, 96], [92.00, 95],
-    [90.40, 94], [88.80, 93], [87.20, 92], [85.60, 91], [84.00, 90],
-    [82.40, 89], [80.80, 88], [79.20, 87], [77.60, 86], [76.00, 85],
-    [74.40, 84], [72.80, 83], [71.20, 82], [69.60, 81], [68.00, 80],
-    [66.40, 79], [64.80, 78], [63.20, 77], [61.60, 76], [60.00, 75],
-    [56.00, 74], [52.00, 73], [48.00, 72], [44.00, 71], [40.00, 70],
-    [36.00, 69], [32.00, 68], [28.00, 67], [24.00, 66], [20.00, 65],
-    [16.00, 64], [12.00, 63], [8.00, 62],  [4.00, 61],  [0.00, 60]
-  ];
-  function transmuteGrade(score) {
-    if (score === '' || score === null || isNaN(score)) return '';
-    const s = Number(score);
-    if (s >= 100) return 100;
-    for (let i = 0; i < TRANSMUTATION.length; i++) {
-      if (s >= TRANSMUTATION[i][0]) return TRANSMUTATION[i][1];
-    }
-    return 60;
-  }
   function determineRemarks(f) {
     if (f === '' || f === null || isNaN(f)) return '';
     return Number(f) >= 75 ? 'Passed' : 'Failed';
@@ -90,11 +71,89 @@
   // Action handlers
   // ------------------------------------------------------------
   const handlers = {
+
+    // ============================================================
+    // TEACHER AUTH
+    // ============================================================
+
+    registerTeacher: async (p) => callAdmin({
+      action: 'registerTeacher',
+      email: p.email,
+      displayName: p.displayName,
+      password: p.password
+    }),
+
+    teacherLogin: async (p) => callAdmin({
+      action: 'teacherLogin',
+      email: p.email,
+      password: p.password
+    }),
+
+    teacherLogout: async (p) => callAdmin({
+      action: 'teacherLogout',
+      sessionToken: p.sessionToken
+    }),
+
+    getMe: async () => callAdmin({ action: 'getMe' }),
+
+    markWalkthroughSeen: async () => callAdmin({ action: 'markWalkthroughSeen' }),
+
+    // Legacy PIN login (still works during migration)
     adminLogin: async (p) => callAdmin({
       action: 'adminLogin',
       pin: p.pin,
       deviceId: p.deviceId
     }),
+
+    // ============================================================
+    // SUPER ADMIN — TEACHER MANAGEMENT
+    // ============================================================
+
+    listTeachers: async () => callAdmin({ action: 'listTeachers' }),
+
+    approveTeacher: async (p) => callAdmin({
+      action: 'approveTeacher',
+      teacherId: p.teacherId,
+      role: p.role
+    }),
+
+    rejectTeacher: async (p) => callAdmin({
+      action: 'rejectTeacher',
+      teacherId: p.teacherId
+    }),
+
+    setTeacherRole: async (p) => callAdmin({
+      action: 'setTeacherRole',
+      teacherId: p.teacherId,
+      role: p.role
+    }),
+
+    setTeacherActive: async (p) => callAdmin({
+      action: 'setTeacherActive',
+      teacherId: p.teacherId,
+      isActive: p.isActive
+    }),
+
+    resetTeacherPassword: async (p) => callAdmin({
+      action: 'resetTeacherPassword',
+      teacherId: p.teacherId,
+      password: p.password
+    }),
+
+    deleteTeacher: async (p) => callAdmin({
+      action: 'deleteTeacher',
+      teacherId: p.teacherId
+    }),
+
+    // ============================================================
+    // PUBLIC — teacher list for student registration
+    // ============================================================
+
+    getPublicTeachers: async () => callAdmin({ action: 'getPublicTeachers' }),
+
+    // ============================================================
+    // SUBJECTS
+    // ============================================================
 
     getSubjects: async () => {
       const subjRows = await sbGet('subjects', 'select=*&order=subject_name.asc');
@@ -126,7 +185,6 @@
 
     manageSubject: async (p) => callAdmin({
       action: 'manageSubject',
-      pin: p.pin,
       subAction: p.subAction,
       oldName: p.oldName,
       newName: p.newName,
@@ -137,6 +195,10 @@
       confirmDelete: p.confirmDelete
     }),
 
+    // ============================================================
+    // SECTIONS
+    // ============================================================
+
     getSections: async () => {
       const rows = await sbGet('sections', 'select=name&order=name.asc');
       const list = (Array.isArray(rows) ? rows : []).map(r => String(r.name));
@@ -145,11 +207,14 @@
 
     manageSection: async (p) => callAdmin({
       action: 'manageSection',
-      pin: p.pin,
       subAction: p.subAction,
       name: p.name,
       oldName: p.oldName
     }),
+
+    // ============================================================
+    // STUDENT LOOKUP / REGISTRATION
+    // ============================================================
 
     getStudent: async (p) => {
       const sNo = String(p.studentNumber || '');
@@ -173,16 +238,58 @@
         const q2 = g.q2 === '' ? null : Number(g.q2);
         const q3 = g.q3 === '' ? null : Number(g.q3);
         const q4 = g.q4 === '' ? null : Number(g.q4);
-        const fin = (g.final !== '' && g.final !== null && g.final !== undefined)
-          ? Number(g.final)
-          : '';
+        const fin = (g.final !== '' && g.final !== null && g.final !== undefined) ? Number(g.final) : '';
         subjects[g.subject_name] = {
           grades: { q1, q2, q3, q4, final: fin, remarks: g.remarks || determineRemarks(fin) },
           breakdowns: Array.isArray(g.breakdowns) ? g.breakdowns : []
         };
       });
-      return { success: true, studentNumber: s.student_number, name: s.name, section: s.section, subjects };
+      return {
+        success: true,
+        studentNumber: s.student_number,
+        name: s.name,
+        section: s.section,
+        teacherId: s.teacher_id || null,
+        subjects
+      };
     },
+
+    registerStudent: async (p) => callAdmin({
+      action: 'registerStudent',
+      studentData: p.studentData
+    }),
+
+    getPendingRegistrations: async () => {
+      const rows = await sbGet('pending_registrations', 'select=*&order=id.desc');
+      const pending = [], history = [];
+      (Array.isArray(rows) ? rows : []).forEach(r => {
+        const item = {
+          timestamp: r.timestamp || '', studentNumber: r.student_number || '',
+          name: r.name || '', section: r.section || '',
+          subjects: Array.isArray(r.enrolled_subjects) ? r.enrolled_subjects : [],
+          status: r.status || 'pending', reviewedAt: r.reviewed_at || '',
+          teacherId: r.teacher_id || null
+        };
+        if (item.status === 'pending') pending.push(item); else history.push(item);
+      });
+      return { success: true, pending, history };
+    },
+
+    approveRegistration: async (p) => callAdmin({
+      action: 'approveRegistration',
+      studentNumber: p.studentNumber,
+      section: p.section,
+      subjects: p.subjects
+    }),
+
+    rejectRegistration: async (p) => callAdmin({
+      action: 'rejectRegistration',
+      studentNumber: p.studentNumber
+    }),
+
+    // ============================================================
+    // GRADES
+    // ============================================================
 
     getAllGrades: async (p) => {
       let query = 'select=*&order=student_number.asc';
@@ -210,7 +317,6 @@
 
     saveGrades: async (p) => callAdmin({
       action: 'saveGrades',
-      pin: p.pin,
       studentNumber: p.studentNumber,
       subject: p.subject,
       grades: p.grades
@@ -218,7 +324,6 @@
 
     saveBreakdown: async (p) => callAdmin({
       action: 'saveBreakdown',
-      pin: p.pin,
       studentNumber: p.studentNumber,
       subject: p.subject,
       quarter: p.quarter,
@@ -227,27 +332,27 @@
 
     bulkSaveBreakdown: async (p) => callAdmin({
       action: 'bulkSaveBreakdown',
-      pin: p.pin,
       subject: p.subject,
       quarter: p.quarter,
       items: p.items
     }),
 
+    // ============================================================
+    // STUDENTS — CRUD
+    // ============================================================
+
     addStudent: async (p) => callAdmin({
       action: 'addStudent',
-      pin: p.pin,
       studentData: p.studentData
     }),
 
     bulkAddStudents: async (p) => callAdmin({
       action: 'bulkAddStudents',
-      pin: p.pin,
       studentsArray: p.studentsArray
     }),
 
     updateStudentInfo: async (p) => callAdmin({
       action: 'updateStudentInfo',
-      pin: p.pin,
       oldStudentNumber: p.oldStudentNumber,
       oldSubject: p.oldSubject,
       newData: p.newData
@@ -255,9 +360,12 @@
 
     deleteStudent: async (p) => callAdmin({
       action: 'deleteStudent',
-      pin: p.pin,
       studentNumber: p.studentNumber
     }),
+
+    // ============================================================
+    // COMMENTS
+    // ============================================================
 
     getComments: async () => {
       const rows = await sbGet('comments', 'select=*&order=id.asc');
@@ -272,18 +380,21 @@
 
     postComment: async (p) => callAdmin({
       action: 'postComment',
-      pin: p.pin,
       studentNumber: p.studentNumber,
       commentText: p.commentText
     }),
 
-    clearComments: async (p) => callAdmin({
-      action: 'clearComments',
-      pin: p.pin
-    }),
+    clearComments: async () => callAdmin({ action: 'clearComments' }),
 
-    getAnnouncement: async () => {
-      const rows = await sbGet('announcements', 'select=*&is_active=eq.true&order=id.desc&limit=1');
+    // ============================================================
+    // ANNOUNCEMENTS
+    // ============================================================
+
+    getAnnouncement: async (p) => {
+      let q = 'select=*&is_active=eq.true&order=id.desc&limit=1';
+      const teacherId = p && p.teacherId ? String(p.teacherId) : '';
+      if (teacherId) q += '&teacher_id=eq.' + enc(teacherId);
+      const rows = await sbGet('announcements', q);
       if (Array.isArray(rows) && rows.length > 0) {
         return { success: true, message: rows[0].message || '', timestamp: rows[0].timestamp || '', postedBy: rows[0].posted_by || '' };
       }
@@ -296,7 +407,6 @@
 
     saveAnnouncement: async (p) => callAdmin({
       action: 'saveAnnouncement',
-      pin: p.pin,
       message: p.message
     }),
 
@@ -313,70 +423,22 @@
 
     deleteAnnouncement: async (p) => callAdmin({
       action: 'deleteAnnouncement',
-      pin: p.pin,
       rowIndex: p.rowIndex
     }),
 
-    registerStudent: async (p) => {
-      const sData = p.studentData || {};
-      const sNo = String(sData.studentNumber || '').trim();
-      const name = stripTags(String(sData.name || '').trim());
-      if (!sNo || !name) return { success: false, message: 'Please enter your name and student number.' };
-      const enrolled = await sbGet('students', 'select=student_number&student_number=eq.' + enc(sNo));
-      if (Array.isArray(enrolled) && enrolled.length > 0) {
-        return { success: false, message: 'You are already enrolled. Please log in instead.' };
-      }
-      const pend = await sbGet('pending_registrations',
-        'select=id&student_number=eq.' + enc(sNo) + '&status=eq.pending');
-      if (Array.isArray(pend) && pend.length > 0) {
-        return { success: false, message: 'You already have a pending registration. Please wait for teacher approval.' };
-      }
-      await sbInsert('pending_registrations', {
-        timestamp: new Date().toISOString(), student_number: sNo, name,
-        section: '', enrolled_subjects: [], status: 'pending', reviewed_at: ''
-      });
-      return { success: true, pending: true, message: 'Registration submitted. Awaiting teacher approval.' };
-    },
-
-    getPendingRegistrations: async () => {
-      const rows = await sbGet('pending_registrations', 'select=*&order=id.desc');
-      const pending = [], history = [];
-      (Array.isArray(rows) ? rows : []).forEach(r => {
-        const item = {
-          timestamp: r.timestamp || '', studentNumber: r.student_number || '',
-          name: r.name || '', section: r.section || '',
-          subjects: Array.isArray(r.enrolled_subjects) ? r.enrolled_subjects : [],
-          status: r.status || 'pending', reviewedAt: r.reviewed_at || ''
-        };
-        if (item.status === 'pending') pending.push(item); else history.push(item);
-      });
-      return { success: true, pending, history };
-    },
-
-    approveRegistration: async (p) => callAdmin({
-      action: 'approveRegistration',
-      pin: p.pin,
-      studentNumber: p.studentNumber,
-      section: p.section,
-      subjects: p.subjects
-    }),
-
-    rejectRegistration: async (p) => callAdmin({
-      action: 'rejectRegistration',
-      pin: p.pin,
-      studentNumber: p.studentNumber
-    }),
-
-    getTeacherName: async () => {
-      const res = await callAdmin({ action: 'getTeacherName' });
-      return res;
+    getTeacherName: async (p) => {
+      const teacherId = p && p.teacherId ? String(p.teacherId) : '';
+      return callAdmin({ action: 'getTeacherName', teacherId });
     },
 
     saveTeacherName: async (p) => callAdmin({
       action: 'saveTeacherName',
-      pin: p.pin,
       name: p.name
     }),
+
+    // ============================================================
+    // BACKUP
+    // ============================================================
 
     backupAll: async () => {
       const [subjects, students, enrollments, grades, comments, announcements, pending, assessments, scores] = await Promise.all([
@@ -389,7 +451,7 @@
       return {
         success: true,
         backup: {
-          version: '2.1', exportedAt: new Date().toISOString(), source: 'supabase',
+          version: '2.2', exportedAt: new Date().toISOString(), source: 'supabase',
           subjects, students, enrollments, grades, comments, announcements,
           pending_registrations: pending, assessments, scores
         }
@@ -398,16 +460,14 @@
 
     restoreAll: async (p) => callAdmin({
       action: 'restoreAll',
-      pin: p.pin,
       backup: p.backup
     }),
 
-    recomputeAllGrades: async (p) => callAdmin({
-      action: 'recomputeAllGrades',
-      pin: p.pin
-    }),
+    recomputeAllGrades: async () => callAdmin({ action: 'recomputeAllGrades' }),
 
-    // ---- Class Recorder ----
+    // ============================================================
+    // CLASS RECORD
+    // ============================================================
 
     getClassRecord: async (p) => {
       const subject = String(p.subject || '');
@@ -429,7 +489,6 @@
         scores = Array.isArray(scoreRows) ? scoreRows : [];
       }
 
-      // Students enrolled in this subject
       const enrRows = await sbGet('enrollments',
         'select=student_number&subject_name=eq.' + enc(subject));
       const studentNumbers = (Array.isArray(enrRows) ? enrRows : []).map(e => String(e.student_number));
@@ -442,18 +501,11 @@
         students = Array.isArray(sRows) ? sRows : [];
       }
 
-      return {
-        success: true,
-        categories,
-        assessments,
-        scores,
-        students
-      };
+      return { success: true, categories, assessments, scores, students };
     },
 
     addAssessment: async (p) => callAdmin({
       action: 'addAssessment',
-      pin: p.pin,
       subject: p.subject,
       quarter: p.quarter,
       categoryId: p.categoryId,
@@ -463,7 +515,6 @@
 
     renameAssessment: async (p) => callAdmin({
       action: 'renameAssessment',
-      pin: p.pin,
       id: p.id,
       name: p.name,
       totalPoints: p.totalPoints
@@ -471,13 +522,11 @@
 
     deleteAssessment: async (p) => callAdmin({
       action: 'deleteAssessment',
-      pin: p.pin,
       id: p.id
     }),
 
     saveScore: async (p) => callAdmin({
       action: 'saveScore',
-      pin: p.pin,
       assessmentId: p.assessmentId,
       studentNumber: p.studentNumber,
       score: p.score
@@ -485,27 +534,35 @@
 
     saveScoresBatch: async (p) => callAdmin({
       action: 'saveScoresBatch',
-      pin: p.pin,
       items: p.items
     }),
 
     applyClassRecordToGrades: async (p) => callAdmin({
       action: 'applyClassRecordToGrades',
-      pin: p.pin,
       subject: p.subject,
       quarter: p.quarter
     })
   };
 
+  // ============================================================
+  // apiCall — auto-attaches sessionToken / pin
+  // ============================================================
   App.apiCall = async function (payload, opts) {
-    const action = String((payload && payload.action) || '');
+    const merged = Object.assign({}, payload || {});
+
+    // Auto-attach credentials. sessionToken takes priority; edge function
+    // prefers it over PIN anyway when both are present.
+    if (state.sessionToken && !merged.sessionToken) merged.sessionToken = state.sessionToken;
+    if (state.adminPin && !merged.pin) merged.pin = state.adminPin;
+
+    const action = String(merged.action || '');
     const handler = handlers[action];
     if (!handler) {
       console.warn('[apiCall] Unknown action:', action);
       return { success: false, message: 'Unknown action: ' + action };
     }
     try {
-      return await handler(payload);
+      return await handler(merged);
     } catch (err) {
       console.error('[apiCall]', action, err);
       return { success: false, message: err.message || String(err) };
