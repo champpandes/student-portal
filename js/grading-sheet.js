@@ -13,28 +13,22 @@
     return res;
   }
 
-  // Auto-fill the editable detail fields when subject changes
+  // Auto-fill the editable detail fields from the current subject.
   App.gsPrefillDetails = function () {
     const subjEl = document.getElementById('gs-subject');
     if (!subjEl) return;
     const subject = subjEl.value;
     if (!subject) return;
 
-    const cleanSubject = subject.replace(/\s*\(SY.*?\)/i, '').trim();
-    const description = state.subjectDescriptions[subject] || '';
+    const subjInput = document.getElementById('gs-display-subject');
+    const descInput = document.getElementById('gs-display-desc');
+    const syInput = document.getElementById('gs-display-sy');
+    if (!subjInput || !descInput || !syInput) return;
 
-    document.getElementById('gs-display-subject').value = cleanSubject;
-
-    // Auto-fill SY from subject name if it contains one
+    subjInput.value = subject.replace(/\s*\(SY.*?\)/i, '').trim();
+    descInput.value = state.subjectDescriptions[subject] || '';
     const syMatch = subject.match(/\(SY\s*([\d-]+)/i);
-    if (syMatch) {
-      document.getElementById('gs-display-sy').value = syMatch[1];
-    } else {
-      document.getElementById('gs-display-sy').value = '';
-    }
-
-    // Auto-fill description if not set yet
-    document.getElementById('gs-display-desc').value = description;
+    syInput.value = syMatch ? syMatch[1] : '';
   };
 
   function sortStudents(students, sortKey) {
@@ -132,7 +126,7 @@
     const sortKey = sortEl ? sortEl.value : 'name-asc';
     students = sortStudents(students, sortKey);
 
-    // Read editable details (fall back to auto-derived values)
+    // Read editable details
     const subjOverrideEl = document.getElementById('gs-display-subject');
     const descOverrideEl = document.getElementById('gs-display-desc');
     const syOverrideEl = document.getElementById('gs-display-sy');
@@ -147,21 +141,16 @@
     const syFallback = syMatch ? syMatch[1] : '';
     const schoolYear = (syOverrideEl && syOverrideEl.value.trim()) || syFallback;
 
-    if (mode === 'print') {
-      const rows = students.map((s, i) => studentRow(i + 1, s)).join('');
-      return '<div class="gs-print-doc">' +
-        docHeader(cleanSubject, description, semester, schoolYear) +
-        tableStart() + rows + '</tbody></table>' +
-        docFooter() +
-      '</div>';
-    }
-
+    // Chunked output — same structure for preview and print
+    const pageClass = mode === 'print' ? 'gs-print-page' : 'gs-preview-page';
     let html = '';
     for (let i = 0; i < students.length; i += ROWS_PER_PREVIEW_PAGE) {
       const chunk = students.slice(i, i + ROWS_PER_PREVIEW_PAGE);
       let rows = '';
-      for (let k = 0; k < ROWS_PER_PREVIEW_PAGE; k++) rows += studentRow(i + k + 1, chunk[k]);
-      html += '<div class="gs-preview-page">' +
+      for (let k = 0; k < ROWS_PER_PREVIEW_PAGE; k++) {
+        rows += studentRow(i + k + 1, chunk[k]);
+      }
+      html += '<div class="' + pageClass + '">' +
         docHeader(cleanSubject, description, semester, schoolYear) +
         tableStart() + rows + '</tbody></table>' +
         docFooter() +
@@ -182,6 +171,12 @@
     if (!state.adminPin) {
       container.innerHTML = '<div class="text-center text-slate-400 py-12">Log in as teacher to preview.</div>';
       return;
+    }
+
+    // Auto-fill detail fields if empty (first time on this tab)
+    const subjInput = document.getElementById('gs-display-subject');
+    if (subjInput && !subjInput.value.trim()) {
+      App.gsPrefillDetails();
     }
 
     container.innerHTML = '<div class="text-center text-slate-400 py-12">Loading preview…</div>';

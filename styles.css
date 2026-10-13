@@ -78,7 +78,7 @@
 }
 
 /* ============================================================
-   PRINT — A4 with tighter margins, header repeat
+   PRINT — A4, one page per chunk, header repeats per page
    ============================================================ */
 @media print {
   @page {
@@ -116,6 +116,18 @@
     padding: 0;
   }
 
+  /* Each print page = one physical sheet */
+  .gs-print-page {
+    width: 100%;
+    page-break-after: always;
+    break-after: page;
+  }
+  .gs-print-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* Legacy class — kept for safety */
   .gs-print-doc { width: 100%; }
   .gs-print-doc .gs-table { width: 100%; page-break-inside: auto; }
   .gs-print-doc .gs-table thead { display: table-header-group; }
