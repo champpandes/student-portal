@@ -262,6 +262,14 @@ getSubjects: async () => {
       action: 'saveTeacherName', name: p.name
     }),
 
+    getMyStats: async () => callAdmin({ action: 'getMyStats' }),
+
+    changeMyPassword: async (p) => callAdmin({
+      action: 'changeMyPassword',
+      currentPassword: p.currentPassword,
+      newPassword: p.newPassword
+    }),
+
     // ============================================================
     // BACKUP
     // ============================================================

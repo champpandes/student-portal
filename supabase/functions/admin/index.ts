@@ -45,9 +45,9 @@ function normalizeQuarterLabel(q: any): string {
 // teacher_id. We still want the first teacher to see them, so
 // the filter is: "mine OR unassigned".
 // ============================================================
-function scopeByTeacher(query: any, teacherId: string | null) {
+function scopeByTeacher(query, teacherId) {
   if (!teacherId) return query;
-  return query.or(`teacher_id.eq.${teacherId},teacher_id.is.null`);
+  return query.eq("teacher_id", teacherId);   // strict — no .is.null fallback
 }
 
 // ============================================================
@@ -256,6 +256,7 @@ Deno.serve(async (req) => {
       case "getAllGrades":          result = await getAllGradesScoped(sb, body, auth); break;
       case "getSections":           result = await buildSectionsPayload(sb, auth.teacher?.id || null); break;
       case "getPendingRegistrations": result = await getPendingRegistrationsScoped(sb, auth); break;
+      case "getSubjects":           result = await buildSubjectsResponse(sb, auth.teacher?.id || null); break;
       case "getComments":           result = await getCommentsScoped(sb, auth); break;
       case "getAnnouncement":       result = await getAnnouncementScoped(sb, body, auth); break;
       case "getAnnouncementHistory": result = await getAnnouncementHistoryScoped(sb, auth); break;
@@ -287,6 +288,8 @@ Deno.serve(async (req) => {
       case "saveScoresBatch":       result = await saveScoresBatch(sb, body, auth); break;
       case "applyClassRecordToGrades": result = await applyClassRecordToGrades(sb, body, auth); break;
       case "saveTeacherName":       result = await saveTeacherName(sb, body, auth); break;
+      case "getMyStats":            result = await getMyStats(sb, auth); break;
+      case "changeMyPassword":      result = await changeMyPassword(sb, body, auth); break;
 
       default:
         return json({ success: false, message: "Unknown action: " + action }, 200);
@@ -1835,6 +1838,67 @@ async function applyClassRecordToGrades(sb: any, p: any, auth: AuthContext) {
     updated++;
   }
   return { success: true, updated };
+}
+
+// ============================================================
+// Profile
+// ============================================================
+
+async function getMyStats(sb: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+
+  let stuQ = sb.from("students").select("id", { count: "exact", head: true });
+  let subjQ = sb.from("subjects").select("id", { count: "exact", head: true });
+  let secQ = sb.from("sections").select("id", { count: "exact", head: true });
+
+  if (teacherId) {
+    stuQ = stuQ.eq("teacher_id", teacherId);
+    subjQ = subjQ.eq("teacher_id", teacherId);
+    secQ = secQ.eq("teacher_id", teacherId);
+  }
+
+  const [stu, subj, sec] = await Promise.all([stuQ, subjQ, secQ]);
+
+  return {
+    success: true,
+    students: stu.count || 0,
+    subjects: subj.count || 0,
+    sections: sec.count || 0
+  };
+}
+
+async function changeMyPassword(sb: any, p: any, auth: AuthContext) {
+  if (!auth.teacher) {
+    return { success: false, message: "Not authenticated as a teacher." };
+  }
+  const current = String(p.currentPassword || "");
+  const next = String(p.newPassword || "");
+  if (!current || !next) {
+    return { success: false, message: "Enter both current and new password." };
+  }
+  if (next.length < 6) {
+    return { success: false, message: "New password must be at least 6 characters." };
+  }
+  if (current === next) {
+    return { success: false, message: "New password must be different from the current one." };
+  }
+
+  const teacher = auth.teacher;
+  const ok = await verifyPassword(current, teacher.password_hash, teacher.password_salt);
+  if (!ok) return { success: false, message: "Current password is incorrect." };
+
+  const { hash, salt } = await hashPassword(next);
+  const { error } = await sb.from("teachers").update({
+    password_hash: hash, password_salt: salt
+  }).eq("id", teacher.id);
+  if (error) throw error;
+
+  const currentToken = String(p.sessionToken || "").trim();
+  let q = sb.from("teacher_sessions").delete().eq("teacher_id", teacher.id);
+  if (currentToken) q = q.neq("token", currentToken);
+  await q;
+
+  return { success: true };
 }
 
 // ============================================================

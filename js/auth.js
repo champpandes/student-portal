@@ -117,6 +117,10 @@
   // After a successful teacher login (either fresh or restored)
   // ============================================================
 App.afterTeacherLogin = function () {
+    const profileTab = document.querySelector('[data-tab="profile"]');
+  if (profileTab) {
+    profileTab.classList.toggle('hidden-screen', !state.currentTeacher);
+  }
   const teacherTab = document.getElementById('tab-btn-teachers');
   if (teacherTab) {
     const isSuper = state.currentTeacher && state.currentTeacher.role === 'super_admin';

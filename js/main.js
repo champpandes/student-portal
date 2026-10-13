@@ -152,6 +152,11 @@
     document.querySelectorAll('.quarter-pill').forEach(pill => {
       pill.addEventListener('click', () => App.filterByQuarter(pill.dataset.quarter));
     });
+// ---- Profile tab ----
+const profileSaveBtn = document.getElementById('profile-save-name-btn');
+if (profileSaveBtn) profileSaveBtn.addEventListener('click', App.saveProfileName);
+const profilePwBtn = document.getElementById('profile-change-pw-btn');
+if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
     // ---- Teachers (super admin only) ----
     const refreshTeachersBtn = document.getElementById('refresh-teachers-btn');
     if (refreshTeachersBtn) {
