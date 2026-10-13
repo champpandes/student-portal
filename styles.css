@@ -56,7 +56,7 @@
   background: white;
   width: var(--page-width);
   min-height: var(--page-height);
-  padding: 36px 42px;
+  padding: 24px 28px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   margin-bottom: 24px;
   box-sizing: border-box;
@@ -78,19 +78,16 @@
 }
 
 /* ============================================================
-   PRINT — A4, header repeat, color preservation
-   Both the admin grading sheet and the student grade report
-   use the same layout approach.
+   PRINT — A4 with tighter margins, header repeat
    ============================================================ */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 8mm;
   }
 
   body * { visibility: hidden; }
 
-  /* Admin: grading sheets */
   #grading-sheet-print-area,
   #grading-sheet-print-area * { visibility: visible; }
 
@@ -102,7 +99,6 @@
     print-color-adjust: exact;
   }
 
-  /* Student: grade report */
   #student-print-area,
   #student-print-area * { visibility: visible; }
 

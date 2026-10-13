@@ -5,45 +5,68 @@
   const ROWS_PER_PREVIEW_PAGE = 30;
 
   async function getGradesFor(subject) {
-    // Never fetch if not logged in as admin. This prevents a wasted
-    // request at page load that returns Unauthorized and gets cached.
     if (!state.adminPin) return [];
-
-    // Serve from cache if we have a valid (successful) previous result.
-    if (state.allAdminGradesCache[subject]) {
-      return state.allAdminGradesCache[subject];
-    }
-
-    const res = await App.apiCall({
-      action: "getAllGrades",
-      pin: state.adminPin,
-      subject: subject
-    }, { retries: 1, timeout: 45000 });
-
-    // Only cache actual arrays. If the response was an error object
-    // (Unauthorized, Server busy, etc.), do NOT cache it — otherwise
-    // a single failure would permanently empty this subject's preview.
-    if (!Array.isArray(res)) {
-      console.warn("getGradesFor: non-array response for", subject, res);
-      return [];
-    }
-
+    if (state.allAdminGradesCache[subject]) return state.allAdminGradesCache[subject];
+    const res = await App.apiCall({ action: "getAllGrades", pin: state.adminPin, subject }, { retries: 1, timeout: 45000 });
+    if (!Array.isArray(res)) return [];
     state.allAdminGradesCache[subject] = res;
     return res;
+  }
+
+  // Auto-fill the editable detail fields when subject changes
+  App.gsPrefillDetails = function () {
+    const subjEl = document.getElementById('gs-subject');
+    if (!subjEl) return;
+    const subject = subjEl.value;
+    if (!subject) return;
+
+    const cleanSubject = subject.replace(/\s*\(SY.*?\)/i, '').trim();
+    const description = state.subjectDescriptions[subject] || '';
+
+    document.getElementById('gs-display-subject').value = cleanSubject;
+
+    // Auto-fill SY from subject name if it contains one
+    const syMatch = subject.match(/\(SY\s*([\d-]+)/i);
+    if (syMatch) {
+      document.getElementById('gs-display-sy').value = syMatch[1];
+    } else {
+      document.getElementById('gs-display-sy').value = '';
+    }
+
+    // Auto-fill description if not set yet
+    document.getElementById('gs-display-desc').value = description;
+  };
+
+  function sortStudents(students, sortKey) {
+    const list = students.slice();
+    list.sort((a, b) => {
+      const nameA = String(a.name || '').toLowerCase();
+      const nameB = String(b.name || '').toLowerCase();
+      const noA = String(a.studentNumber || '').toLowerCase();
+      const noB = String(b.studentNumber || '').toLowerCase();
+      switch (sortKey) {
+        case 'name-desc':   return nameB < nameA ? -1 : (nameB > nameA ? 1 : 0);
+        case 'number-asc':  return noA < noB ? -1 : (noA > noB ? 1 : 0);
+        case 'number-desc': return noB < noA ? -1 : (noB > noA ? 1 : 0);
+        case 'name-asc':
+        default:            return nameA < nameB ? -1 : (nameA > nameB ? 1 : 0);
+      }
+    });
+    return list;
   }
 
   function docHeader(cleanSubject, description, semester, schoolYear) {
     return '<div style="text-align:center; font-weight:bold; font-size:15px;">Pili Capital College, Inc.</div>' +
       '<div style="text-align:center; font-size:11px; margin-bottom:2px;">San Isidro, Pili, Camarines Sur</div>' +
-      '<div style="text-align:center; font-weight:bold; font-size:13px; margin-bottom:12px; text-decoration:underline;">COLLEGE GRADING SHEET</div>' +
-      '<table style="width:100%; font-size:11px; margin-bottom:8px;">' +
+      '<div style="text-align:center; font-weight:bold; font-size:13px; margin-bottom:10px; text-decoration:underline;">COLLEGE GRADING SHEET</div>' +
+      '<table style="width:100%; font-size:11px; margin-bottom:6px;">' +
         '<tr>' +
-          '<td style="text-align:left; border:none;"><b>Subject:</b> ' + App.esc(cleanSubject) + '</td>' +
-          '<td style="text-align:right; border:none;"><b>Semester:</b> ' + App.esc(semester) + '</td>' +
+          '<td style="text-align:left; border:none; padding:2px 0;"><b>Subject:</b> ' + App.esc(cleanSubject || '') + '</td>' +
+          '<td style="text-align:right; border:none; padding:2px 0;"><b>Semester:</b> ' + App.esc(semester || '') + '</td>' +
         '</tr>' +
         '<tr>' +
-          '<td style="text-align:left; border:none;"><b>Description:</b> ' + App.esc(description) + '</td>' +
-          '<td style="text-align:right; border:none;"><b>School Year:</b> ' + App.esc(schoolYear || '----------------') + '</td>' +
+          '<td style="text-align:left; border:none; padding:2px 0;"><b>Description:</b> ' + App.esc(description || '') + '</td>' +
+          '<td style="text-align:right; border:none; padding:2px 0;"><b>School Year:</b> ' + App.esc(schoolYear || '') + '</td>' +
         '</tr>' +
       '</table>';
   }
@@ -87,7 +110,7 @@
   }
 
   function docFooter() {
-    return '<table style="width:100%; margin-top:25px; font-size:11px; border:none;">' +
+    return '<table style="width:100%; margin-top:20px; font-size:11px; border:none;">' +
       '<tr>' +
         '<td style="text-align:left; border:none;">Submitted by: <b>Carl Harry M. Pandes</b></td>' +
         '<td style="text-align:left; border:none;">Received by: _______________________</td>' +
@@ -98,17 +121,31 @@
   async function buildGradingSheetHTML(subject, section, semester, mode) {
     mode = mode || 'preview';
     const all = await getGradesFor(subject);
-    const students = all.filter(s =>
-      s.subject === subject && (section === 'All' || s.section === section));
+    let students = all.filter(s => s.subject === subject && (section === 'All' || s.section === section));
 
     if (students.length === 0) {
       return '<div class="p-8 text-center text-slate-400 bg-white rounded-xl font-bold">No students found matching this Subject and Section.</div>';
     }
 
-    const syMatch = subject.match(/\(SY.*?\)/i);
-    const schoolYear = syMatch ? syMatch[0].replace(/- Sem \d/i, '').replace(/[()]/g, '').trim() : '';
-    const cleanSubject = subject.replace(/\s*\(SY.*?\)/i, '').trim();
-    const description = state.subjectDescriptions[subject] || '----------------';
+    // Sort students
+    const sortEl = document.getElementById('gs-sort');
+    const sortKey = sortEl ? sortEl.value : 'name-asc';
+    students = sortStudents(students, sortKey);
+
+    // Read editable details (fall back to auto-derived values)
+    const subjOverrideEl = document.getElementById('gs-display-subject');
+    const descOverrideEl = document.getElementById('gs-display-desc');
+    const syOverrideEl = document.getElementById('gs-display-sy');
+
+    const cleanSubjectFallback = subject.replace(/\s*\(SY.*?\)/i, '').trim();
+    const cleanSubject = (subjOverrideEl && subjOverrideEl.value.trim()) || cleanSubjectFallback;
+
+    const descriptionFallback = state.subjectDescriptions[subject] || '';
+    const description = (descOverrideEl && descOverrideEl.value.trim()) || descriptionFallback;
+
+    const syMatch = subject.match(/\(SY\s*([\d-]+)/i);
+    const syFallback = syMatch ? syMatch[1] : '';
+    const schoolYear = (syOverrideEl && syOverrideEl.value.trim()) || syFallback;
 
     if (mode === 'print') {
       const rows = students.map((s, i) => studentRow(i + 1, s)).join('');
@@ -142,9 +179,6 @@
 
     const subject = subjEl.value;
     if (!subject) return;
-
-    // Skip entirely when not logged in. Prevents a wasted request on
-    // page load that would return Unauthorized.
     if (!state.adminPin) {
       container.innerHTML = '<div class="text-center text-slate-400 py-12">Log in as teacher to preview.</div>';
       return;

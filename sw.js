@@ -1,10 +1,8 @@
 // ============================================================
 // Service Worker — Teacher Portal PWA
 // ============================================================
-// Bump CACHE_VERSION whenever you deploy significant updates.
-// ============================================================
 
-const CACHE_VERSION = 'v2.5.8';
+const CACHE_VERSION = 'v2.6.0';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -56,7 +54,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
-
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
@@ -69,7 +66,6 @@ self.addEventListener('fetch', event => {
         }
         return res;
       }).catch(() => cached);
-
       return cached || network;
     })
   );

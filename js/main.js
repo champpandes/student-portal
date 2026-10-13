@@ -3,6 +3,11 @@
 
   const state = App.state;
 
+  // ============================================================
+  // SERVICE WORKER + PWA INSTALL
+  // ============================================================
+  let deferredPrompt = null;
+
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
@@ -11,6 +16,7 @@
       navigator.serviceWorker.register('./sw.js')
         .then(reg => {
           console.log('[PWA] Service worker registered:', reg.scope);
+          reg.update().catch(() => {});
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
             if (!nw) return;
@@ -32,6 +38,58 @@
     });
   }
 
+  function hidePwaBanner() {
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.classList.add('hidden-screen');
+  }
+
+  function setupPwaInstall() {
+    // Don't show if already installed (standalone mode)
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    if (window.navigator.standalone === true) return; // iOS
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Show banner only if not dismissed before
+      if (localStorage.getItem('pwa_install_dismissed') !== '1') {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.classList.remove('hidden-screen');
+      }
+    });
+
+    // If app was successfully installed, hide the banner
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      hidePwaBanner();
+      localStorage.setItem('pwa_install_dismissed', '1');
+    });
+
+    document.getElementById('pwa-install-btn')?.addEventListener('click', async () => {
+      if (!deferredPrompt) {
+        hidePwaBanner();
+        return;
+      }
+      deferredPrompt.prompt();
+      try {
+        const choice = await deferredPrompt.userChoice;
+        console.log('[PWA] User choice:', choice.outcome);
+      } catch (e) { /* ignore */ }
+      deferredPrompt = null;
+      hidePwaBanner();
+    });
+
+    document.getElementById('pwa-dismiss-btn')?.addEventListener('click', () => {
+      localStorage.setItem('pwa_install_dismissed', '1');
+      hidePwaBanner();
+    });
+
+    document.getElementById('pwa-close-x')?.addEventListener('click', hidePwaBanner);
+  }
+
+  // ============================================================
+  // LOGIN EVENTS
+  // ============================================================
   function wireLoginEvents() {
     document.getElementById('role-tab-student').addEventListener('click', () => App.setLoginRole('student'));
     document.getElementById('role-tab-teacher').addEventListener('click', () => App.setLoginRole('teacher'));
@@ -44,24 +102,16 @@
     // Auto-format student numbers: type 1105075 → get 11-05075
     const loginInput = document.getElementById('login-input');
     loginInput.addEventListener('input', () => {
-      // Only format in student mode (skip teacher PIN)
       if (App.getLoginRole && App.getLoginRole() !== 'student') return;
-
       const cursorAtEnd = loginInput.selectionStart === loginInput.value.length;
       let digits = loginInput.value.replace(/\D/g, '');
-
-      // Insert a dash after the first 2 digits (format XX-XXXXX)
-      if (digits.length > 2) {
-        digits = digits.slice(0, 2) + '-' + digits.slice(2);
-      }
-
+      if (digits.length > 2) digits = digits.slice(0, 2) + '-' + digits.slice(2);
       if (digits !== loginInput.value) {
         loginInput.value = digits;
-        if (cursorAtEnd) {
-          loginInput.setSelectionRange(digits.length, digits.length);
-        }
+        if (cursorAtEnd) loginInput.setSelectionRange(digits.length, digits.length);
       }
     });
+
     document.getElementById('open-register-btn').addEventListener('click', App.openRegisterModal);
     document.getElementById('register-cancel-btn').addEventListener('click', App.closeRegisterModal);
     document.getElementById('submit-reg-btn').addEventListener('click', App.submitRegistration);
@@ -69,6 +119,9 @@
     document.getElementById('pending-check-btn').addEventListener('click', App.checkPendingStatus);
   }
 
+  // ============================================================
+  // ADMIN EVENTS
+  // ============================================================
   function wireAdminEvents() {
     document.querySelectorAll('.logout-btn').forEach(btn =>
       btn.addEventListener('click', App.handleLogout));
@@ -81,39 +134,6 @@
       btn.addEventListener('click', () => App.switchAdminTab(btn.dataset.tab, btn));
     });
 
-    // Handle section tab specially since admin.js doesn't know about it yet
-    document.querySelector('[data-tab="sections"]').addEventListener('click', () => {
-      App.renderSectionsList();
-    });
-
-    document.querySelector('[data-tab="class-record"]').addEventListener('click', async () => {
-      await App.populateClassRecordFilters();
-      App.loadClassRecord();
-    });
-    // Class Record — filters and sort
-    const crSearch = document.getElementById('cr-search');
-    const crSection = document.getElementById('cr-section-filter');
-    const crSort = document.getElementById('cr-sort');
-    if (crSearch) crSearch.addEventListener('input', App.debounce(App.crApplyFilters, 200));
-    if (crSection) crSection.addEventListener('change', App.crApplyFilters);
-    if (crSort) crSort.addEventListener('change', App.crApplyFilters);
-    // Class Record — delegated events on the body
-    document.getElementById('cr-body').addEventListener('click', (e) => {
-      // Pagination
-      const pageBtn = e.target.closest('button[data-cr-page]');
-      if (pageBtn) { App.crGotoPage(Number(pageBtn.dataset.crPage)); return; }
-
-      // Collapse toggle
-      const toggleBtn = e.target.closest('button[data-action="toggle-category"]');
-      if (toggleBtn) { App.crToggleCategory(toggleBtn.dataset.categoryId); return; }
-
-      // Expand / collapse all
-      if (e.target.closest('#cr-expand-all-btn')) { App.crExpandAll(); return; }
-      if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
-    });
-    document.getElementById('cr-body').addEventListener('change', (e) => {
-      if (e.target.id === 'cr-page-size') App.crSetPageSize(e.target.value);
-    });
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();
@@ -162,10 +182,38 @@
 
     document.getElementById('refresh-dashboard-btn').addEventListener('click', App.refreshDashboard);
     document.getElementById('recompute-btn').addEventListener('click', App.recomputeAllGrades);
+
+    // ---- Add student modal (single) ----
     document.getElementById('open-add-student-btn').addEventListener('click', App.openAddStudentModal);
     document.getElementById('add-student-cancel-btn').addEventListener('click', App.closeAddStudentModal);
     document.getElementById('save-new-student-btn').addEventListener('click', App.saveNewStudent);
 
+    // ---- Bulk buttons — open Import Wizard with preset action ----
+    document.getElementById('open-bulk-students-btn').addEventListener('click', () => {
+      App.openImportModal();
+      document.getElementById('import-action').value = 'register';
+      App.toggleImportUI();
+    });
+    document.getElementById('open-bulk-grades-btn').addEventListener('click', () => {
+      App.openImportModal();
+      document.getElementById('import-action').value = 'grades';
+      App.toggleImportUI();
+    });
+
+    // ---- Import wizard ----
+    document.getElementById('open-import-btn').addEventListener('click', App.openImportModal);
+    document.getElementById('import-action').addEventListener('change', App.toggleImportUI);
+    document.getElementById('preview-btn').addEventListener('click', App.previewDataTransfer);
+    document.getElementById('confirm-btn').addEventListener('click', App.confirmDataTransfer);
+    document.getElementById('import-cancel-btn').addEventListener('click', App.closeImportModal);
+    document.getElementById('import-close-x').addEventListener('click', App.closeImportModal);
+    document.getElementById('import-subject').addEventListener('change', () => {
+      if (document.getElementById('import-action').value === 'grades') {
+        App.populateGradeColumnMappings();
+      }
+    });
+
+    // ---- Registrations ----
     document.getElementById('refresh-registrations-btn').addEventListener('click', () => {
       App.loadPendingRegistrations();
       App.showToast("Refreshed.");
@@ -184,18 +232,14 @@
     document.getElementById('approve-select-all-btn').addEventListener('click', App.approveSelectAll);
     document.getElementById('approve-clear-all-btn').addEventListener('click', App.approveClearAll);
 
+    // ---- Slide panel ----
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
     document.getElementById('slide-panel-backdrop').addEventListener('click', App.closeSlidePanel);
     document.getElementById('panel-save-info-btn').addEventListener('click', App.savePanelInfo);
     document.getElementById('panel-save-grades-btn').addEventListener('click', App.savePanelGrades);
     document.getElementById('panel-delete-btn').addEventListener('click', App.deleteStudentFromPanel);
 
-    document.getElementById('sections-list-ui').addEventListener('click', e => {
-      const btn = e.target.closest('button[data-action]');
-      if (!btn) return;
-      if (btn.dataset.action === 'edit') App.prepareEditSection(btn.dataset.section);
-      else if (btn.dataset.action === 'delete') App.handleDeleteSection(btn.dataset.section);
-    });
+    // ---- Subjects ----
     document.getElementById('subjects-list-ui').addEventListener('click', e => {
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
@@ -204,64 +248,6 @@
     });
     document.getElementById('subject-submit-btn').addEventListener('click', App.handleSaveSubject);
     document.getElementById('subject-cancel-edit-btn').addEventListener('click', App.resetSubjectForm);
-    document.getElementById('section-submit-btn').addEventListener('click', App.handleSaveSection);
-    document.getElementById('section-cancel-edit-btn').addEventListener('click', App.resetSectionForm);
-    // ---- Class Record ----
-    document.getElementById('cr-subject').addEventListener('change', App.loadClassRecord);
-    document.getElementById('cr-quarter').addEventListener('change', App.loadClassRecord);
-    document.getElementById('cr-refresh-btn').addEventListener('click', App.loadClassRecord);
-    document.getElementById('cr-apply-btn').addEventListener('click', App.applyClassRecord);
-
-    // Assessment modal
-    document.getElementById('assessment-cancel-btn').addEventListener('click', App.closeAssessmentModal);
-    document.getElementById('assessment-save-btn').addEventListener('click', App.saveAssessment);
-
-    // Class record delegated events (add/edit/delete assessment + score inputs)
-    document.getElementById('cr-body').addEventListener('click', (e) => {
-      const addBtn = e.target.closest('button[data-action="add-assessment"]');
-      if (addBtn) {
-        const quarter = document.getElementById('cr-quarter').value;
-        App.openAssessmentModal(
-          Number(addBtn.dataset.categoryId),
-          addBtn.dataset.categoryName,
-          quarter,
-          null, '', 100
-        );
-        return;
-      }
-
-      const editBtn = e.target.closest('button[data-action="edit-assessment"]');
-      if (editBtn) {
-        const quarter = document.getElementById('cr-quarter').value;
-        App.openAssessmentModal(
-          Number(editBtn.dataset.categoryId),
-          editBtn.dataset.categoryName,
-          quarter,
-          Number(editBtn.dataset.id),
-          editBtn.dataset.name,
-          Number(editBtn.dataset.total)
-        );
-        return;
-      }
-
-      const delBtn = e.target.closest('button[data-action="delete-assessment"]');
-      if (delBtn) {
-        App.deleteAssessment(Number(delBtn.dataset.id), delBtn.dataset.name);
-        return;
-      }
-    });
-
-    // Track original values on focus, save on blur
-    document.getElementById('cr-body').addEventListener('focusin', (e) => {
-      if (e.target.classList.contains('cr-score-input')) {
-        e.target.dataset.originalValue = e.target.value;
-      }
-    });
-    document.getElementById('cr-body').addEventListener('focusout', (e) => {
-      if (e.target.classList.contains('cr-score-input')) {
-        App.saveScoreInline(e.target);
-      }
-    });
     document.getElementById('add-category-btn').addEventListener('click', () => {
       App.addCategoryRow('', '');
     });
@@ -269,6 +255,71 @@
       document.getElementById(id).addEventListener('input', App.updateCategoryTotals);
     });
 
+    // ---- Sections ----
+    document.getElementById('sections-list-ui').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      if (btn.dataset.action === 'edit') App.prepareEditSection(btn.dataset.section);
+      else if (btn.dataset.action === 'delete') App.handleDeleteSection(btn.dataset.section);
+    });
+    document.getElementById('section-submit-btn').addEventListener('click', App.handleSaveSection);
+    document.getElementById('section-cancel-edit-btn').addEventListener('click', App.resetSectionForm);
+
+    // ---- Class Record ----
+    document.getElementById('cr-subject').addEventListener('change', App.loadClassRecord);
+    document.getElementById('cr-quarter').addEventListener('change', App.loadClassRecord);
+    document.getElementById('cr-refresh-btn').addEventListener('click', App.loadClassRecord);
+    document.getElementById('cr-apply-btn').addEventListener('click', App.applyClassRecord);
+
+    const crSearch = document.getElementById('cr-search');
+    const crSection = document.getElementById('cr-section-filter');
+    const crSort = document.getElementById('cr-sort');
+    const crPageSize = document.getElementById('cr-page-size');
+    if (crSearch) crSearch.addEventListener('input', App.debounce(App.crApplyFilters, 200));
+    if (crSection) crSection.addEventListener('change', App.crApplyFilters);
+    if (crSort) crSort.addEventListener('change', App.crApplyFilters);
+    if (crPageSize) crPageSize.addEventListener('change', () => App.crSetPageSize(crPageSize.value));
+
+    document.getElementById('assessment-cancel-btn').addEventListener('click', App.closeAssessmentModal);
+    document.getElementById('assessment-save-btn').addEventListener('click', App.saveAssessment);
+
+    // Class record delegated events
+    document.getElementById('cr-body').addEventListener('click', (e) => {
+      const addBtn = e.target.closest('button[data-action="add-assessment"]');
+      if (addBtn) {
+        const quarter = document.getElementById('cr-quarter').value;
+        App.openAssessmentModal(Number(addBtn.dataset.categoryId), addBtn.dataset.categoryName, quarter, null, '', 100);
+        return;
+      }
+      const editBtn = e.target.closest('button[data-action="edit-assessment"]');
+      if (editBtn) {
+        const quarter = document.getElementById('cr-quarter').value;
+        App.openAssessmentModal(Number(editBtn.dataset.categoryId), editBtn.dataset.categoryName, quarter, Number(editBtn.dataset.id), editBtn.dataset.name, Number(editBtn.dataset.total));
+        return;
+      }
+      const delBtn = e.target.closest('button[data-action="delete-assessment"]');
+      if (delBtn) { App.deleteAssessment(Number(delBtn.dataset.id), delBtn.dataset.name); return; }
+
+      const toggleBtn = e.target.closest('button[data-action="toggle-category"]');
+      if (toggleBtn) { App.crToggleCategory(toggleBtn.dataset.categoryId); return; }
+
+      if (e.target.closest('#cr-expand-all-btn')) { App.crExpandAll(); return; }
+      if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
+
+      // Per-category pagination
+      const pageBtn = e.target.closest('button[data-cr-cat-page]');
+      if (pageBtn) {
+        App.crGotoCategoryPage(Number(pageBtn.dataset.crCatPage), pageBtn.dataset.categoryId);
+      }
+    });
+    document.getElementById('cr-body').addEventListener('focusin', (e) => {
+      if (e.target.classList.contains('cr-score-input')) e.target.dataset.originalValue = e.target.value;
+    });
+    document.getElementById('cr-body').addEventListener('focusout', (e) => {
+      if (e.target.classList.contains('cr-score-input')) App.saveScoreInline(e.target);
+    });
+
+    // ---- Announcements / comments ----
     document.getElementById('broadcast-btn').addEventListener('click', App.broadcastAnnouncement);
     document.getElementById('refresh-announcements-btn').addEventListener('click', () => {
       App.loadAnnouncementHistory();
@@ -286,26 +337,15 @@
     });
     document.getElementById('clear-comments-btn').addEventListener('click', App.clearClassComments);
 
+    // ---- Analytics ----
     document.getElementById('analytics-subject-filter').addEventListener('change', App.refreshAnalytics);
     document.getElementById('analytics-section-filter').addEventListener('change', App.refreshAnalytics);
 
-    document.getElementById('open-import-btn').addEventListener('click', App.openImportModal);
-    document.getElementById('import-action').addEventListener('change', App.toggleImportUI);
-    document.getElementById('import-subject').addEventListener('change', () => {
-      if (document.getElementById('import-action').value === 'grades') {
-        App.populateGradeColumnMappings();
-      }
-    });
-    document.getElementById('preview-btn').addEventListener('click', App.previewDataTransfer);
-    document.getElementById('confirm-btn').addEventListener('click', App.confirmDataTransfer);
-    document.getElementById('import-cancel-btn').addEventListener('click', App.closeImportModal);
-    document.getElementById('import-close-x').addEventListener('click', App.closeImportModal);
-
+    // ---- Backup ----
     document.getElementById('csv-export-btn').addEventListener('click',
       () => App.exportTableToCSV('student_records_backup.csv'));
     document.getElementById('xlsx-export-btn').addEventListener('click',
       () => App.exportTableToXLSX('student_records_backup.xlsx'));
-
     document.getElementById('backup-download-btn').addEventListener('click', App.downloadFullBackup);
     document.getElementById('backup-restore-btn').addEventListener('click', App.openBackupRestore);
     document.getElementById('backup-file-input').addEventListener('change', e => {
@@ -313,12 +353,32 @@
       if (file) App.handleBackupRestoreFile(file);
     });
 
-    document.getElementById('gs-subject').addEventListener('change', App.updateGradingSheetPreview);
+    // ---- Grading sheet ----
+    document.getElementById('gs-subject').addEventListener('change', () => {
+      App.gsPrefillDetails();
+      App.updateGradingSheetPreview();
+    });
     document.getElementById('gs-section').addEventListener('change', App.updateGradingSheetPreview);
+    document.getElementById('gs-sort').addEventListener('change', App.updateGradingSheetPreview);
     document.getElementById('gs-semester').addEventListener('change', App.updateGradingSheetPreview);
+    document.getElementById('gs-display-subject').addEventListener('input', App.debounce(App.updateGradingSheetPreview, 300));
+    document.getElementById('gs-display-desc').addEventListener('input', App.debounce(App.updateGradingSheetPreview, 300));
+    document.getElementById('gs-display-sy').addEventListener('input', App.debounce(App.updateGradingSheetPreview, 300));
     document.getElementById('gs-print-btn').addEventListener('click', App.printGradingSheets);
+
+    // ---- Sidebar special tab wiring ----
+    document.querySelector('[data-tab="sections"]').addEventListener('click', () => {
+      App.renderSectionsList();
+    });
+    document.querySelector('[data-tab="class-record"]').addEventListener('click', async () => {
+      await App.populateClassRecordFilters();
+      App.loadClassRecord();
+    });
   }
 
+  // ============================================================
+  // STUDENT EVENTS
+  // ============================================================
   function wireStudentEvents() {
     document.getElementById('student-subject-selector').addEventListener('change',
       e => App.changeStudentSubject(e.target.value));
@@ -346,6 +406,7 @@
     document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
       App.showScreen(state.adminPin !== '' ? 'admin' : 'student');
     });
+    document.getElementById('print-breakdown-btn')?.addEventListener('click', () => window.print());
   }
 
   function hideBootScreen() {
@@ -358,12 +419,11 @@
     state.sessionToken = App.newSessionToken();
 
     registerServiceWorker();
+    setupPwaInstall();
     wireLoginEvents();
     wireAdminEvents();
     wireStudentEvents();
 
-    // 1. Try to restore session FIRST. The boot screen is still covering
-    //    the page during this call, so the user sees a spinner not login.
     let restored = false;
     try {
       restored = await App.restoreSession();
@@ -372,32 +432,25 @@
     }
 
     if (restored) {
-      // Session restored — hide boot overlay, dashboard is already shown.
       hideBootScreen();
-      // Kick off background loads that don't block the UI.
       App.fetchSubjects().then(function () {
         if (App.state.adminPin) App.loadAdminDashboard();
       });
       App.loadComments();
     } else {
-      // 2. No session. Now load what the login screen needs.
       App.setLoginRole('student');
       hideBootScreen();
       App.showScreen('login');
-      // Fire these in the background — login screen doesn't need them.
       App.fetchSubjects();
       App.fetchAllSectionsForDropdowns();
       App.loadComments();
     }
-    // Pre-populate the subject form with the default 4 categories
-    if (typeof App.resetSubjectForm === 'function') {
-      App.resetSubjectForm();
-    }
-    if (typeof App.resetSectionForm === 'function') {
-      App.resetSectionForm();
-    }
+
     const sidebar = document.getElementById('admin-sidebar');
     if (sidebar) sidebar.classList.remove('collapsed');
+
+    if (typeof App.resetSubjectForm === 'function') App.resetSubjectForm();
+    if (typeof App.resetSectionForm === 'function') App.resetSectionForm();
   }
 
   if (document.readyState === 'loading') {
