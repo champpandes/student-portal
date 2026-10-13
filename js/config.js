@@ -45,6 +45,7 @@ App.state = {
   // Session (transient, per-tab)
   adminPin: "",
   sessionToken: "",
+  teacherName: "",             // ← add this line
 
   // UI
   pendingImportData: [],

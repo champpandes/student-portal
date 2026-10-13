@@ -181,6 +181,7 @@
     document.getElementById('admin-mobile-card-list').addEventListener('keydown', handleRowKey);
 
     document.getElementById('refresh-dashboard-btn').addEventListener('click', App.refreshDashboard);
+    document.getElementById('save-teacher-name-btn').addEventListener('click', App.saveTeacherNameFromUI);
     document.getElementById('recompute-btn').addEventListener('click', App.recomputeAllGrades);
 
     // ---- Add student modal (single) ----

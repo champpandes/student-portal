@@ -2,7 +2,46 @@
   'use strict';
 
   const state = App.state;
+  // ============================================================
+  // TEACHER DISPLAY NAME (used in printed grading sheets)
+  // ============================================================
+  App.loadTeacherName = async function () {
+    try {
+      const res = await App.apiCall({ action: 'getTeacherName' });
+      if (res && res.success) {
+        state.teacherName = res.name || '';
+        const input = document.getElementById('teacher-name-input');
+        if (input && !input.value) input.value = state.teacherName;
+      }
+    } catch (e) {
+      console.warn('Could not load teacher name', e);
+    }
+  };
 
+  App.saveTeacherNameFromUI = async function () {
+    const input = document.getElementById('teacher-name-input');
+    if (!input) return;
+    const name = input.value.trim();
+    if (!name) { App.showToast('Name cannot be empty.', 'error'); return; }
+
+    const btn = document.getElementById('save-teacher-name-btn');
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: 'saveTeacherName',
+        pin: state.adminPin,
+        name: name
+      }, { retries: 1 });
+
+      if (res.success) {
+        state.teacherName = res.name;
+        App.showToast('Teacher name saved.');
+        App.updateGradingSheetPreview();
+      } else {
+        App.showToast(res.message || 'Could not save name.', 'error');
+      }
+    }, { text: 'Saving...' });
+  };
+  
   // ============================================================
   // ANNOUNCEMENTS
   // ============================================================

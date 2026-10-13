@@ -126,7 +126,8 @@ Deno.serve(async (req) => {
       "approveRegistration", "rejectRegistration", "restoreAll",
       "recomputeAllGrades",
       "addAssessment", "renameAssessment", "deleteAssessment",
-      "saveScore", "saveScoresBatch", "applyClassRecordToGrades"
+      "saveScore", "saveScoresBatch", "applyClassRecordToGrades",
+      "saveTeacherName"
     ]);
 
     if (WRITE_ACTIONS.has(action)) {
@@ -166,6 +167,8 @@ Deno.serve(async (req) => {
       case "saveScore":             result = await saveScore(sb, body); break;
       case "saveScoresBatch":       result = await saveScoresBatch(sb, body); break;
       case "applyClassRecordToGrades": result = await applyClassRecordToGrades(sb, body); break;
+      case "getTeacherName":        result = await getTeacherName(sb); break;
+      case "saveTeacherName":       result = await saveTeacherName(sb, body); break;
       default:
         return json({ success: false, message: "Unknown action: " + action }, 200);
     }
@@ -1335,4 +1338,27 @@ async function restoreAll(sb: any, p: any) {
   }
 
   return { success: true, message: "Restored " + restoredRows + " rows." };
+}
+
+
+// ============================================================
+// Teacher display name
+// ============================================================
+
+async function getTeacherName(sb: any) {
+  const rows = await sb.from("settings").select("value").eq("key", "teacher_display_name").limit(1);
+  const name = (rows.data && rows.data[0]) ? String(rows.data[0].value || "") : "";
+  return { success: true, name };
+}
+
+async function saveTeacherName(sb: any, p: any) {
+  const name = stripTags(String(p.name || "").trim()).slice(0, 120);
+  if (!name) return { success: false, message: "Name cannot be empty." };
+
+  const { error } = await sb.from("settings").upsert(
+    { key: "teacher_display_name", value: name },
+    { onConflict: "key" }
+  );
+  if (error) throw error;
+  return { success: true, name };
 }

@@ -104,9 +104,10 @@
   }
 
   function docFooter() {
+    const name = App.state.teacherName || App.DEVELOPER_CREDIT.developer || '';
     return '<table style="width:100%; margin-top:20px; font-size:11px; border:none;">' +
       '<tr>' +
-        '<td style="text-align:left; border:none;">Submitted by: <b>Carl Harry M. Pandes</b></td>' +
+        '<td style="text-align:left; border:none;">Submitted by: <b>' + App.esc(name) + '</b></td>' +
         '<td style="text-align:left; border:none;">Received by: _______________________</td>' +
       '</tr>' +
     '</table>';

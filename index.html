@@ -668,6 +668,19 @@
 
       <!-- ===== TAB: Import & Backup ===== -->
       <div id="tab-import" class="admin-tab-content hidden-screen space-y-6">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h3 class="text-base font-black text-slate-900 mb-1">Teacher Information</h3>
+          <p class="text-xs text-slate-500 font-medium mb-4">Appears as "Submitted by" on every printed grading sheet.</p>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <label for="teacher-name-input" class="sr-only">Teacher name</label>
+            <input type="text" id="teacher-name-input" placeholder="e.g. Carl Harry M. Pandes"
+                   class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-600">
+            <button id="save-teacher-name-btn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap">
+              Save Name
+            </button>
+          </div>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
             <div>

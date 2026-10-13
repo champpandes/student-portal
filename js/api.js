@@ -367,6 +367,17 @@
       studentNumber: p.studentNumber
     }),
 
+    getTeacherName: async () => {
+      const res = await callAdmin({ action: 'getTeacherName' });
+      return res;
+    },
+
+    saveTeacherName: async (p) => callAdmin({
+      action: 'saveTeacherName',
+      pin: p.pin,
+      name: p.name
+    }),
+
     backupAll: async () => {
       const [subjects, students, enrollments, grades, comments, announcements, pending, assessments, scores] = await Promise.all([
         sbGet('subjects', 'select=*'), sbGet('students', 'select=*'),

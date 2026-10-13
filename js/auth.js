@@ -76,6 +76,7 @@
 
           App.showToast("Welcome back!");
           App.showScreen('admin');
+          App.loadTeacherName();
           App.loadAnnouncement();
           App.fetchAllSectionsForDropdowns();
           App.loadAdminDashboard();
