@@ -349,7 +349,6 @@
       App.toggleBreakdownEdit(btn, btn.dataset.quarter, btn.dataset.subject);
     });
 
-    // BUG 1 FIXED HERE: Check if teacher, go to admin. Else, go to student.
     document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
       App.showScreen(state.currentTeacher ? 'admin' : 'student');
     });

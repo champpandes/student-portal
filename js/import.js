@@ -3,6 +3,7 @@
 
   const state = App.state;
 
+  // --- MODAL OPEN/CLOSE ---
   App.openImportModal = function (mode) {
     document.getElementById('transfer-status').classList.add('hidden');
     document.getElementById('preview-section').classList.add('hidden');
@@ -17,12 +18,19 @@
     document.getElementById('csv-file-input').value = '';
     document.getElementById('smart-paste-input').value = '';
 
-    ['col-id-reg','col-name','col-sec','col-id-grades'].forEach(id => {
+    ['col-id-reg','col-name','col-id-grades'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
 
     state.pendingImportData = [];
+
+    // POPULATE SECTIONS DROPDOWN
+    const secSelect = document.getElementById('import-section');
+    if (secSelect) {
+      secSelect.innerHTML = '<option value="">Select a section...</option>' + 
+        (state.sectionsCache || []).map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
+    }
 
     // SMART MODAL LOGIC
     const actionSelect = document.getElementById('import-action');
@@ -46,11 +54,18 @@
     App.closeModal(document.getElementById('import-modal'));
   };
 
+  // --- UI TOGGLING ---
   App.toggleImportUI = function () {
-    const isGrades = document.getElementById('import-action').value === 'grades';
+    const action = document.getElementById('import-action').value;
+    const isGrades = action === 'grades';
+    
     document.getElementById('import-quarter-container').classList.toggle('hidden', !isGrades);
+    document.getElementById('import-section-container').classList.toggle('hidden', isGrades);
+    document.getElementById('import-subject-container').classList.toggle('hidden', !isGrades);
+
     document.getElementById('col-mapping-register').classList.toggle('hidden', isGrades);
     document.getElementById('col-mapping-grades').classList.toggle('hidden', !isGrades);
+    
     if (isGrades) App.populateGradeColumnMappings();
   };
 
@@ -91,6 +106,7 @@
       .join('');
   };
 
+  // --- PARSERS ---
   function readCSVFile(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -155,6 +171,7 @@
     return colLetterToIndex(el.value);
   }
 
+  // --- PREVIEW ---
   App.previewDataTransfer = async function () {
     const btn = document.getElementById('preview-btn');
     const action = document.getElementById('import-action').value;
@@ -177,6 +194,15 @@
     await App.withButtonLoading(btn, async () => {
       try {
         const subj = document.getElementById('import-subject').value;
+        const targetSection = document.getElementById('import-section').value;
+        
+        if (action === 'register' && !targetSection) {
+          throw new Error("Please select a Target Section before previewing.");
+        }
+        if (action === 'grades' && !subj) {
+          throw new Error("Please select a Target Subject before previewing.");
+        }
+
         let rawRows = [];
         let delimiter = '\t';
         let source = 'file';
@@ -206,13 +232,12 @@
         if (action === 'register') {
           const cId = getInputColIndex('col-id-reg');
           const cName = getInputColIndex('col-name');
-          const cSec = getInputColIndex('col-sec');
           if (cId < 0 || cName < 0) throw new Error("ID and Name columns are required.");
 
           thead.innerHTML = '<tr>' +
             '<th class="p-3 font-bold">Student No.</th>' +
             '<th class="p-3 font-bold">Name</th>' +
-            (cSec >= 0 ? '<th class="p-3 font-bold">Section</th>' : '') +
+            '<th class="p-3 font-bold">Assigned Section</th>' +
           '</tr>';
 
           for (let i = startRow; i < rawRows.length; i++) {
@@ -223,17 +248,16 @@
 
             const cleanNo = String(cols[cId]).trim();
             const name = String(cols[cName]).trim();
-            const sec = cSec >= 0 ? String(cols[cSec] || '').trim() : '';
 
             state.pendingImportData.push({
-              studentNumber: cleanNo, name: name, section: sec, enrolledSubjects: [subj]
+              studentNumber: cleanNo, name: name, section: targetSection, enrolledSubjects: []
             });
 
             tbody.insertAdjacentHTML('beforeend',
               '<tr class="hover:bg-slate-50 transition-colors">' +
                 '<td class="p-3 border-b border-slate-100 font-semibold">' + App.esc(cleanNo) + '</td>' +
                 '<td class="p-3 border-b border-slate-100 font-bold text-slate-700">' + App.esc(name) + '</td>' +
-                (cSec >= 0 ? '<td class="p-3 border-b border-slate-100 text-slate-500">' + App.esc(sec) + '</td>' : '') +
+                '<td class="p-3 border-b border-slate-100 text-slate-500 font-bold">' + App.esc(targetSection) + '</td>' +
               '</tr>');
           }
         } else {
@@ -294,6 +318,7 @@
     }, { text: 'Reading...' });
   };
 
+  // --- CONFIRM ---
   App.confirmDataTransfer = async function () {
     const btn = document.getElementById('confirm-btn');
     const cancelBtn = document.getElementById('import-cancel-btn');
@@ -366,6 +391,7 @@
     }
   };
 
+  // --- EXPORT CSV / XLSX ---
   App.exportTableToCSV = function (filename) {
     if (!state.currentAdminData || state.currentAdminData.length === 0) {
       App.showToast("No data to export.", "error");
