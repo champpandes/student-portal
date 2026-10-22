@@ -266,6 +266,7 @@ if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
     document.getElementById('slide-panel-backdrop').addEventListener('click', App.closeSlidePanel);
     document.getElementById('panel-save-info-btn').addEventListener('click', App.savePanelInfo);
+    document.getElementById('panel-save-enrollments-btn').addEventListener('click', App.savePanelEnrollments);
     document.getElementById('panel-save-grades-btn').addEventListener('click', App.savePanelGrades);
     document.getElementById('panel-delete-btn').addEventListener('click', App.deleteStudentFromPanel);
 

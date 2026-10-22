@@ -277,6 +277,7 @@ Deno.serve(async (req) => {
       case "manageSubject":         result = await manageSubject(sb, body, auth); break;
       case "manageSection":         result = await manageSection(sb, body, auth); break;
       case "approveRegistration":   result = await approveRegistration(sb, body, auth); break;
+      case "syncStudentEnrollments": result = await syncStudentEnrollments(sb, body, auth); break;
       case "rejectRegistration":    result = await rejectRegistration(sb, body, auth); break;
       case "recomputeAllGrades":    result = await recomputeAllGrades(sb, auth); break;
       case "restoreAll":            result = await restoreAll(sb, body, auth); break;
@@ -942,26 +943,6 @@ async function addStudent(sb: any, p: any, auth: AuthContext, isBulk: boolean) {
     let { error } = await sb.from("students").upsert(studentPayload, { onConflict: "student_number" });
     if (error) throw error;
 
-    for (const sub of subjects) {
-      const subName = String(sub);
-      const ex = await sb.from("enrollments").select("id")
-        .eq("student_number", sNo).eq("subject_name", subName);
-      if (!ex.data || ex.data.length === 0) {
-        const enrollPayload: any = { student_number: sNo, subject_name: subName };
-        if (auth.teacher) enrollPayload.teacher_id = auth.teacher.id;
-        const ins = await sb.from("enrollments").insert(enrollPayload);
-        if (ins.error) throw ins.error;
-      }
-      const gradePayload: any = {
-        student_number: sNo, subject_name: subName,
-        q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: []
-      };
-      if (auth.teacher) gradePayload.teacher_id = auth.teacher.id;
-      const g = await sb.from("grades").upsert(gradePayload, {
-        onConflict: "student_number,subject_name"
-      });
-      if (g.error) throw g.error;
-    }
     processed++;
   }
   return { success: true, processed };
@@ -1479,43 +1460,8 @@ async function approveRegistration(sb: any, p: any, auth: AuthContext) {
   const sRes = await sb.from("students").upsert(studentPayload, { onConflict: "student_number" });
   if (sRes.error) return { success: false, message: "Could not create student: " + sRes.error.message };
 
-  const existingEnroll = await sb.from("enrollments")
-    .select("subject_name").eq("student_number", sNo).in("subject_name", subjects);
-  if (existingEnroll.error) {
-    return { success: false, message: "Could not check enrollments: " + existingEnroll.error.message };
-  }
-
-  const have = new Set((existingEnroll.data || []).map((e: any) => String(e.subject_name)));
-  const missing = subjects.filter(s => !have.has(s));
-
-  if (missing.length > 0) {
-    const rows = missing.map(s => {
-      const row: any = { student_number: sNo, subject_name: s };
-      if (teacherId) row.teacher_id = teacherId;
-      return row;
-    });
-    const ins = await sb.from("enrollments").insert(rows);
-    if (ins.error) {
-      return { success: false, message: "Could not enroll in " + missing.join(", ") + ": " + ins.error.message };
-    }
-  }
-
-  const gradeRows = subjects.map(s => {
-    const row: any = {
-      student_number: sNo, subject_name: s,
-      q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: []
-    };
-    if (teacherId) row.teacher_id = teacherId;
-    return row;
-  });
-
-  const gr = await sb.from("grades").upsert(gradeRows, {
-    onConflict: "student_number,subject_name", ignoreDuplicates: false
-  });
-  if (gr.error) return { success: false, message: "Could not prepare grade sheet: " + gr.error.message };
-
   const { error: upErr } = await sb.from("pending_registrations").update({
-    section, enrolled_subjects: subjects,
+    section, enrolled_subjects: [],
     status: "approved", reviewed_at: new Date().toISOString()
   }).eq("id", pr.id);
   if (upErr) return { success: false, message: "Could not finalize approval: " + upErr.message };
@@ -1847,7 +1793,7 @@ async function applyClassRecordToGrades(sb: any, p: any, auth: AuthContext) {
 async function getMyStats(sb: any, auth: AuthContext) {
   const teacherId = auth.teacher?.id || null;
 
-  let stuQ = sb.from("students").select("id", { count: "exact", head: true });
+  let stuQ = sb.from("students").select("student_number", { count: "exact", head: true });
   let subjQ = sb.from("subjects").select("id", { count: "exact", head: true });
   let secQ = sb.from("sections").select("id", { count: "exact", head: true });
 
@@ -1956,6 +1902,51 @@ function extractGradesFromSubjectData(sd: any) {
     }
   });
   return list;
+}
+
+async function syncStudentEnrollments(sb: any, p: any, auth: AuthContext) {
+  const sNo = String(p.studentNumber || "");
+  const newSubjects: string[] = p.subjects || [];
+  const teacherId = auth.teacher?.id || null;
+
+  let q = sb.from("enrollments").select("subject_name").eq("student_number", sNo);
+  if (teacherId) q = q.eq("teacher_id", teacherId);
+  const current = await q;
+  const currentSubjects = (current.data || []).map((e: any) => e.subject_name);
+
+  const toAdd = newSubjects.filter(s => !currentSubjects.includes(s));
+  const toRemove = currentSubjects.filter(s => !newSubjects.includes(s));
+
+  if (toRemove.length > 0) {
+    let delQ = sb.from("enrollments").delete().eq("student_number", sNo).in("subject_name", toRemove);
+    if (teacherId) delQ = delQ.eq("teacher_id", teacherId);
+    await delQ;
+    
+    let delG = sb.from("grades").delete().eq("student_number", sNo).in("subject_name", toRemove);
+    if (teacherId) delG = delG.eq("teacher_id", teacherId);
+    await delG;
+  }
+
+  if (toAdd.length > 0) {
+    const rows = toAdd.map(s => {
+      const row: any = { student_number: sNo, subject_name: s };
+      if (teacherId) row.teacher_id = teacherId;
+      return row;
+    });
+    await sb.from("enrollments").insert(rows);
+
+    const gradeRows = toAdd.map(s => {
+      const row: any = {
+        student_number: sNo, subject_name: s,
+        q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: []
+      };
+      if (teacherId) row.teacher_id = teacherId;
+      return row;
+    });
+    await sb.from("grades").upsert(gradeRows, { onConflict: "student_number,subject_name" });
+  }
+
+  return { success: true };
 }
 
 async function restoreAll(sb: any, p: any, auth: AuthContext) {

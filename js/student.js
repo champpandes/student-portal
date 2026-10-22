@@ -4,6 +4,13 @@
   const state = App.state;
 
   App.initializeStudentDropdowns = function (subjectsArr) {
+
+    if (!subjectsArr || subjectsArr.length === 0) {
+    document.getElementById('student-sy-selector').classList.add('hidden');
+    document.getElementById('student-subject-selector').innerHTML = '<option>No subjects assigned</option>';
+    document.getElementById('student-main-grades').innerHTML = '<div class="p-8 text-center text-slate-400 font-bold bg-white rounded-2xl border border-slate-100">You are not enrolled in any subjects yet. Please contact your teacher.</div>';
+    return;
+  }
     const sySelect = document.getElementById('student-sy-selector');
     const subjSelect = document.getElementById('student-subject-selector');
 

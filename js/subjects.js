@@ -7,7 +7,7 @@
   // Fetch + populate
   // ============================================================
   App.fetchSubjects = async function () {
-    const CACHE_KEY = 'sp_subjects_cache';
+    const CACHE_KEY = 'sp_subjects_cache_' + (App.state.currentTeacher?.id || 'anon');
     const TTL_MS = 5 * 60 * 1000;
 
     try {
@@ -142,7 +142,7 @@
   };
 
   App.fetchAllSectionsForDropdowns = async function () {
-    const CACHE_KEY = 'sp_sections_cache';
+    const CACHE_KEY = 'sp_sections_cache_' + (App.state.currentTeacher?.id || 'anon');
     const TTL_MS = 5 * 60 * 1000;
 
     try {

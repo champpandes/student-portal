@@ -463,6 +463,17 @@ if (tabName === 'sections') {
     document.getElementById('panel-student-subject').value = subject;
     document.getElementById('panel-subject-label').textContent = state.activeManageSubject;
 
+    const enrolled = Object.keys(student.subjects || {});
+    const cbContainer = document.getElementById('panel-subject-checkboxes');
+    if (cbContainer) {
+      cbContainer.innerHTML = state.availableSubjects.map(s => {
+        const checked = enrolled.includes(s) ? 'checked' : '';
+        return `<label class="font-medium text-sm text-slate-600 flex items-center cursor-pointer">
+          <input type="checkbox" value="${App.esc(s)}" class="mr-2 accent-indigo-600 w-4 h-4" ${checked}> ${App.esc(s)}
+        </label>`;
+      }).join('');
+    }
+
     ['q1','q2','q3','q4'].forEach(q => {
       document.getElementById('panel-' + q).value = student[q] || '';
     });
@@ -555,6 +566,30 @@ if (tabName === 'sections') {
     }, { text: 'Saving...' });
   };
 
+    App.savePanelEnrollments = async function () {
+    const btn = document.getElementById('panel-save-enrollments-btn');
+    const studentNumber = state.activeManageStudentId;
+    const checkboxes = document.querySelectorAll('#panel-subject-checkboxes input:checked');
+    const subjects = Array.from(checkboxes).map(cb => cb.value);
+
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "syncStudentEnrollments",
+        studentNumber: studentNumber,
+        subjects: subjects
+      }, { retries: 1 });
+
+      if (res.success) {
+        App.showToast("Enrollments updated.");
+        App.invalidateActiveCache();
+        await App.loadAdminDashboard();
+        App.closeSlidePanel();
+      } else {
+        App.showToast(res.message || "Failed to update.", "error");
+      }
+    }, { text: 'Saving...' });
+  };
+
   App.deleteStudentFromPanel = async function () {
     if (!confirm("Erase this student profile completely? This cannot be undone.")) return;
 
@@ -597,11 +632,8 @@ if (tabName === 'sections') {
     const id = document.getElementById('new-student-id').value.trim();
     const name = document.getElementById('new-student-name').value.trim();
     const sec = document.getElementById('new-student-section').value;
-    const subjects = Array.prototype.slice.call(
-      document.querySelectorAll('#add-subject-checkboxes input:checked')
-    ).map(cb => cb.value);
 
-    if (!id || !name || !sec || subjects.length === 0) {
+    if (!id || !name || !sec) {
       App.showToast("Fill all fields and select a section and subject.", "error");
       return;
     }
@@ -611,7 +643,7 @@ if (tabName === 'sections') {
     await App.withButtonLoading(btn, async () => {
       const res = await App.apiCall({
         action: "addStudent", pin: state.adminPin,
-        studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: subjects }
+        studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: [] }
       }, { retries: 1 });
 
       if (res.success) {

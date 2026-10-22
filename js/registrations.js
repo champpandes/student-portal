@@ -121,15 +121,6 @@
       sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
     sel.value = item.section && sections.indexOf(item.section) !== -1 ? item.section : '';
 
-    const cbContainer = document.getElementById('approve-subject-checkboxes');
-    if (state.availableSubjects.length === 0) {
-      cbContainer.innerHTML = '<span class="text-xs text-rose-500 font-bold">No subjects available. Add a subject first.</span>';
-    } else {
-      cbContainer.innerHTML = state.availableSubjects.map(s =>
-        '<label class="font-medium text-sm text-slate-600 flex items-center cursor-pointer">' +
-          '<input type="checkbox" value="' + App.esc(s) + '" class="mr-1.5 accent-indigo-600 w-4 h-4"> ' + App.esc(s) +
-        '</label>').join('');
-    }
 
     App.openModal(document.getElementById('approve-modal'));
   };

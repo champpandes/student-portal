@@ -225,7 +225,7 @@ App.afterTeacherLogin = function () {
             return;
           }
           if (res && res.rejected) throw new Error(res.message || 'Your registration was not approved.');
-          if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
+          if (!res || res.success === false) {
             throw new Error((res && res.message) || 'Student not found or has no enrolled subjects.');
           }
 
