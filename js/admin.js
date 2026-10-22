@@ -185,6 +185,9 @@
 
     const list = Object.values(uniqueStudents);
     list.sort((a, b) => a.name.localeCompare(b.name));
+    
+    // Store in memory for fast filtering
+    state.currentRosterData = list;
 
     // Populate Section Filter
     const sections = [...new Set(list.map(s => s.section))].sort();
@@ -195,14 +198,31 @@
       if (sections.includes(curr)) secFilter.value = curr;
     }
 
+    // Populate Subject Filter
+    const subjFilter = document.getElementById('roster-subject-filter');
+    if (subjFilter) {
+      const curr = subjFilter.value;
+      subjFilter.innerHTML = '<option value="All">All Subjects</option>' + 
+                             '<option value="Unassigned">No Subjects Assigned</option>' +
+                             state.availableSubjects.map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
+      if (curr) subjFilter.value = curr;
+    }
+
     // Populate Bulk Subject Dropdown
     const bulkSubj = document.getElementById('bulk-subject-select');
     if (bulkSubj) {
       bulkSubj.innerHTML = '<option value="">Select subject to enroll...</option>' + state.availableSubjects.map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
     }
 
+    App.filterRoster();
+  };
+
+  App.renderRosterTable = function (list) {
+    const tbody = document.getElementById('roster-table-body');
+    if (!tbody) return;
+
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="6">No students in the pool yet.</td></tr>';
+      tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="6">No students match the current filters.</td></tr>';
       return;
     }
 
@@ -223,28 +243,32 @@
       </tr>`;
     }).join('');
 
-    App.filterRoster();
+    document.getElementById('roster-select-all').checked = false;
     App.updateBulkActionBar();
   };
 
   App.filterRoster = function () {
+    if (!state.currentRosterData) return;
+
     const search = (document.getElementById('roster-search').value || '').toLowerCase().trim();
     const sec = document.getElementById('roster-section-filter').value;
+    const subj = document.getElementById('roster-subject-filter').value;
     
-    document.querySelectorAll('#roster-table-body tr.roster-row').forEach(row => {
-      const text = row.textContent.toLowerCase();
-      const rowSec = row.dataset.section;
-      const matchSearch = text.includes(search);
-      const matchSec = sec === 'All' || rowSec === sec;
+    const filtered = state.currentRosterData.filter(s => {
+      const matchSearch = s.name.toLowerCase().includes(search) || String(s.studentNumber).toLowerCase().includes(search);
+      const matchSec = sec === 'All' || s.section === sec;
       
-      if (matchSearch && matchSec) row.classList.remove('hidden');
-      else row.classList.add('hidden');
+      let matchSubj = true;
+      if (subj === 'Unassigned') {
+        matchSubj = s.subjects.length === 0;
+      } else if (subj !== 'All') {
+        matchSubj = s.subjects.includes(subj);
+      }
+
+      return matchSearch && matchSec && matchSubj;
     });
 
-    // Uncheck hidden boxes
-    document.getElementById('roster-select-all').checked = false;
-    document.querySelectorAll('.roster-checkbox').forEach(cb => cb.checked = false);
-    App.updateBulkActionBar();
+    App.renderRosterTable(filtered);
   };
 
   App.updateBulkActionBar = function () {

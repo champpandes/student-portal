@@ -144,6 +144,7 @@
 
     document.getElementById('roster-search').addEventListener('input', App.debounce(App.filterRoster, 250));
     document.getElementById('roster-section-filter').addEventListener('change', App.filterRoster);
+    document.getElementById('roster-subject-filter').addEventListener('change', App.filterRoster);
     
     // Bulk Select Logic
     document.getElementById('roster-select-all').addEventListener('change', e => {
