@@ -44,21 +44,18 @@
   }
 
   function setupPwaInstall() {
-    // Don't show if already installed (standalone mode)
     if (window.matchMedia('(display-mode: standalone)').matches) return;
-    if (window.navigator.standalone === true) return; // iOS
+    if (window.navigator.standalone === true) return;
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      // Show banner only if not dismissed before
       if (localStorage.getItem('pwa_install_dismissed') !== '1') {
         const banner = document.getElementById('pwa-install-banner');
         if (banner) banner.classList.remove('hidden-screen');
       }
     });
 
-    // If app was successfully installed, hide the banner
     window.addEventListener('appinstalled', () => {
       deferredPrompt = null;
       hidePwaBanner();
@@ -103,7 +100,6 @@
       if (e.key === 'Enter') App.handleLogin();
     });
 
-    // Auto-format student numbers: type 1105075 → get 11-05075
     const loginInput = document.getElementById('login-input');
     loginInput.addEventListener('input', () => {
       if (App.getLoginRole && App.getLoginRole() !== 'student') return;
@@ -152,30 +148,7 @@
     document.querySelectorAll('.quarter-pill').forEach(pill => {
       pill.addEventListener('click', () => App.filterByQuarter(pill.dataset.quarter));
     });
-// ---- Profile tab ----
-const profileSaveBtn = document.getElementById('profile-save-name-btn');
-if (profileSaveBtn) profileSaveBtn.addEventListener('click', App.saveProfileName);
-const profilePwBtn = document.getElementById('profile-change-pw-btn');
-if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
-    // ---- Teachers (super admin only) ----
-    const refreshTeachersBtn = document.getElementById('refresh-teachers-btn');
-    if (refreshTeachersBtn) {
-      refreshTeachersBtn.addEventListener('click', () => {
-        App.renderTeacherManagementTab();
-        App.showToast('Refreshed.');
-      });
-    }
 
-    const pendingTeachersList = document.getElementById('pending-teachers-list');
-    const allTeachersList = document.getElementById('teachers-list');
-    [pendingTeachersList, allTeachersList].forEach(el => {
-      if (!el) return;
-      el.addEventListener('click', e => {
-        const btn = e.target.closest('button[data-action]');
-        if (!btn) return;
-        App.handleTeacherAction(btn.dataset.action, btn.dataset);
-      });
-    });
     const handleRowClick = e => {
       const tr = e.target.closest('[data-id][data-subject]');
       if (!tr) return;
@@ -216,7 +189,7 @@ if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
     document.getElementById('add-student-cancel-btn').addEventListener('click', App.closeAddStudentModal);
     document.getElementById('save-new-student-btn').addEventListener('click', App.saveNewStudent);
 
-    // ---- Bulk buttons — open Import Wizard with preset action ----
+    // ---- Bulk buttons ----
     document.getElementById('open-bulk-students-btn').addEventListener('click', () => {
       App.openImportModal();
       document.getElementById('import-action').value = 'register';
@@ -259,16 +232,20 @@ if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
       App.closeModal(modal);
     });
     document.getElementById('confirm-approve-btn').addEventListener('click', App.confirmApproval);
-    document.getElementById('approve-select-all-btn').addEventListener('click', App.approveSelectAll);
-    document.getElementById('approve-clear-all-btn').addEventListener('click', App.approveClearAll);
+    document.getElementById('approve-select-all-btn')?.addEventListener('click', App.approveSelectAll);
+    document.getElementById('approve-clear-all-btn')?.addEventListener('click', App.approveClearAll);
 
     // ---- Slide panel ----
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
     document.getElementById('slide-panel-backdrop').addEventListener('click', App.closeSlidePanel);
     document.getElementById('panel-save-info-btn').addEventListener('click', App.savePanelInfo);
-    document.getElementById('panel-save-enrollments-btn').addEventListener('click', App.savePanelEnrollments);
     document.getElementById('panel-save-grades-btn').addEventListener('click', App.savePanelGrades);
     document.getElementById('panel-delete-btn').addEventListener('click', App.deleteStudentFromPanel);
+
+    const saveEnrollmentsBtn = document.getElementById('panel-save-enrollments-btn');
+    if (saveEnrollmentsBtn) {
+      saveEnrollmentsBtn.addEventListener('click', App.savePanelEnrollments);
+    }
 
     // ---- Subjects ----
     document.getElementById('subjects-list-ui').addEventListener('click', e => {
@@ -337,7 +314,6 @@ if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
       if (e.target.closest('#cr-expand-all-btn')) { App.crExpandAll(); return; }
       if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
 
-      // Per-category pagination
       const pageBtn = e.target.closest('button[data-cr-cat-page]');
       if (pageBtn) {
         App.crGotoCategoryPage(Number(pageBtn.dataset.crCatPage), pageBtn.dataset.categoryId);
@@ -405,6 +381,12 @@ if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
       await App.populateClassRecordFilters();
       App.loadClassRecord();
     });
+
+    // ---- Profile tab ----
+    const profileSaveBtn = document.getElementById('profile-save-name-btn');
+    if (profileSaveBtn) profileSaveBtn.addEventListener('click', App.saveProfileName);
+    const profilePwBtn = document.getElementById('profile-change-pw-btn');
+    if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
   }
 
   // ============================================================

@@ -40,11 +40,12 @@
 
   // ---------- Tabs ----------
   App.switchAdminTab = function (tabName, btnElement) {
+    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.add('hidden-screen'));
     document.querySelectorAll('.admin-tab-btn').forEach(btn => {
-  const base = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white";
-  const shouldHide = btn.classList.contains('hidden-screen');
-  btn.className = base + (shouldHide ? ' hidden-screen' : '');
-});
+      const base = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white";
+      const shouldHide = btn.classList.contains('hidden-screen');
+      btn.className = base + (shouldHide ? ' hidden-screen' : '');
+    });
 
     const active = document.getElementById('tab-' + tabName);
     if (active) active.classList.remove('hidden-screen');
@@ -84,27 +85,29 @@
       if (App.loadPendingRegistrations) App.loadPendingRegistrations();
     }
 
-if (tabName === 'sections') {
-  sessionStorage.removeItem('sp_sections_cache');
-  if (App.fetchAllSectionsForDropdowns) {
-    App.fetchAllSectionsForDropdowns().then(() => {
-      if (App.renderSectionsList) App.renderSectionsList();
-    });
-  } else if (App.renderSectionsList) {
-    App.renderSectionsList();
-  }
-}
+    if (tabName === 'sections') {
+      sessionStorage.removeItem('sp_sections_cache');
+      if (App.fetchAllSectionsForDropdowns) {
+        App.fetchAllSectionsForDropdowns().then(() => {
+          if (App.renderSectionsList) App.renderSectionsList();
+        });
+      } else if (App.renderSectionsList) {
+        App.renderSectionsList();
+      }
+    }
+
     if (tabName === 'profile') {
       if (App.loadProfileTab) App.loadProfileTab();
+    }
+
     if (tabName === 'teachers') {
-  if (!state.currentTeacher || state.currentTeacher.role !== 'super_admin') {
-    // Non-super-admins can't see this tab — bail silently.
-    App.showToast('Super admin access required.', 'error');
-    App.switchAdminTab('students', document.querySelector('[data-tab="students"]'));
-    return;
-  }
-  if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
-}
+      if (!state.currentTeacher || state.currentTeacher.role !== 'super_admin') {
+        App.showToast('Super admin access required.', 'error');
+        App.switchAdminTab('students', document.querySelector('[data-tab="students"]'));
+        return;
+      }
+      if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
+    }
   };
 
   // ---------- Refresh ----------
@@ -144,7 +147,6 @@ if (tabName === 'sections') {
     const mobileList = document.getElementById('admin-mobile-card-list');
     const sync = document.getElementById('sync-indicator');
 
-    // If subjects haven't loaded yet, wait for them first.
     if (state.availableSubjects.length === 0) {
       try {
         await App.fetchSubjects();
@@ -468,9 +470,9 @@ if (tabName === 'sections') {
     if (cbContainer) {
       cbContainer.innerHTML = state.availableSubjects.map(s => {
         const checked = enrolled.includes(s) ? 'checked' : '';
-        return `<label class="font-medium text-sm text-slate-600 flex items-center cursor-pointer">
-          <input type="checkbox" value="${App.esc(s)}" class="mr-2 accent-indigo-600 w-4 h-4" ${checked}> ${App.esc(s)}
-        </label>`;
+        return '<label class="font-medium text-sm text-slate-600 flex items-center cursor-pointer">' +
+          '<input type="checkbox" value="' + App.esc(s) + '" class="mr-2 accent-indigo-600 w-4 h-4" ' + checked + '> ' + App.esc(s) +
+        '</label>';
       }).join('');
     }
 
@@ -491,6 +493,7 @@ if (tabName === 'sections') {
     p.focus();
     App.snapshotModal(p);
   };
+  
   App.closeSlidePanel = function () {
     const p = document.getElementById('slide-panel');
     if (!App.confirmDiscard(p, "You have unsaved changes in this panel. Discard them?")) return;
@@ -537,6 +540,30 @@ if (tabName === 'sections') {
     }, { text: 'Saving...' });
   };
 
+  App.savePanelEnrollments = async function () {
+    const btn = document.getElementById('panel-save-enrollments-btn');
+    const studentNumber = state.activeManageStudentId;
+    const checkboxes = document.querySelectorAll('#panel-subject-checkboxes input:checked');
+    const subjects = Array.from(checkboxes).map(cb => cb.value);
+
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "syncStudentEnrollments",
+        studentNumber: studentNumber,
+        subjects: subjects
+      }, { retries: 1 });
+
+      if (res.success) {
+        App.showToast("Enrollments updated.");
+        App.invalidateActiveCache();
+        await App.loadAdminDashboard();
+        App.closeSlidePanel();
+      } else {
+        App.showToast(res.message || "Failed to update.", "error");
+      }
+    }, { text: 'Saving...' });
+  };
+
   App.savePanelGrades = async function () {
     const btn = document.getElementById('panel-save-grades-btn');
 
@@ -566,30 +593,6 @@ if (tabName === 'sections') {
     }, { text: 'Saving...' });
   };
 
-      App.savePanelEnrollments = async function () {
-    const btn = document.getElementById('panel-save-enrollments-btn');
-    const studentNumber = state.activeManageStudentId;
-    const checkboxes = document.querySelectorAll('#panel-subject-checkboxes input:checked');
-    const subjects = Array.from(checkboxes).map(cb => cb.value);
-
-    await App.withButtonLoading(btn, async () => {
-      const res = await App.apiCall({
-        action: "syncStudentEnrollments",
-        studentNumber: studentNumber,
-        subjects: subjects
-      }, { retries: 1 });
-
-      if (res.success) {
-        App.showToast("Enrollments updated.");
-        App.invalidateActiveCache();
-        await App.loadAdminDashboard();
-        App.closeSlidePanel();
-      } else {
-        App.showToast(res.message || "Failed to update.", "error");
-      }
-    }, { text: 'Saving...' });
-  };
-
   App.deleteStudentFromPanel = async function () {
     if (!confirm("Erase this student profile completely? This cannot be undone.")) return;
 
@@ -611,6 +614,52 @@ if (tabName === 'sections') {
         App.showToast(res.message || "Delete failed.", "error");
       }
     }, { text: 'Deleting...' });
+  };
+
+  // ---------- Add student ----------
+  App.openAddStudentModal = function () {
+    document.getElementById('new-student-id').value = '';
+    document.getElementById('new-student-name').value = '';
+    document.getElementById('new-student-section').value = '';
+    App.openModal(document.getElementById('add-student-modal'));
+  };
+
+  App.closeAddStudentModal = function () {
+    const modal = document.getElementById('add-student-modal');
+    if (!App.confirmDiscard(modal, "You have unsaved student details. Discard them?")) return;
+    App.closeModal(modal);
+  };
+
+  App.saveNewStudent = async function () {
+    const btn = document.getElementById('save-new-student-btn');
+    const id = document.getElementById('new-student-id').value.trim();
+    const name = document.getElementById('new-student-name').value.trim();
+    const sec = document.getElementById('new-student-section').value;
+
+    if (!id || !name || !sec) {
+      App.showToast("Fill all fields and select a section.", "error");
+      return;
+    }
+
+    let succeeded = false;
+
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "addStudent", pin: state.adminPin,
+        studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: [] }
+      }, { retries: 1 });
+
+      if (res.success) {
+        App.showToast("Student " + name + " added to pool.");
+        App.closeModal(document.getElementById('add-student-modal'));
+        App.invalidateActiveCache();
+        await App.loadAdminDashboard();
+        App.updateLastSavedTimestamp();
+        succeeded = true;
+      } else {
+        App.showToast(res.message || "Failed to save new student.", "error");
+      }
+    }, { text: 'Saving...' });
   };
 
 })(window.App);
