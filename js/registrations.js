@@ -72,12 +72,7 @@
             ? '<span class="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">Approved</span>'
             : '<span class="text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md">Rejected</span>';
 
-          const subjLine = (item.subjects && item.subjects.length)
-            ? '<div class="text-[11px] text-slate-500 mt-0.5">Subjects: ' + item.subjects.map(s => App.esc(s)).join(', ') + '</div>'
-            : '';
-          const secLine = item.section
-            ? 'Section: ' + App.esc(item.section)
-            : '';
+          const secLine = item.section ? 'Section: ' + App.esc(item.section) : '';
 
           return '<div class="bg-slate-50 border border-slate-200 rounded-xl p-3">' +
             '<div class="flex items-center justify-between mb-1">' +
@@ -88,7 +83,6 @@
               'ID: ' + App.esc(item.studentNumber) +
               (secLine ? ' &bull; ' + secLine : '') +
             '</div>' +
-            subjLine +
             '<div class="text-[10px] text-slate-400 mt-0.5">' +
               'Submitted: ' + App.esc(App.formatTimestamp(item.timestamp)) +
               (item.reviewedAt ? ' &bull; Reviewed: ' + App.esc(App.formatTimestamp(item.reviewedAt)) : '') +
@@ -121,7 +115,6 @@
       sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
     sel.value = item.section && sections.indexOf(item.section) !== -1 ? item.section : '';
 
-
     App.openModal(document.getElementById('approve-modal'));
   };
 
@@ -129,21 +122,13 @@
     const btn = document.getElementById('confirm-approve-btn');
     const studentNumber = document.getElementById('approve-pending-student-number').value;
     const section = document.getElementById('approve-student-section').value.trim();
-    const subjects = Array.prototype.slice.call(
-      document.querySelectorAll('#approve-subject-checkboxes input:checked')
-    ).map(cb => cb.value);
-
+    
     const errorBox = document.getElementById('approve-error');
     errorBox.classList.add('hidden');
     errorBox.textContent = '';
 
     if (!section) {
-      errorBox.textContent = 'Please enter a section.';
-      errorBox.classList.remove('hidden');
-      return;
-    }
-    if (subjects.length === 0) {
-      errorBox.textContent = 'Select at least one subject.';
+      errorBox.textContent = 'Please select a section.';
       errorBox.classList.remove('hidden');
       return;
     }
@@ -155,7 +140,7 @@
           pin: state.adminPin,
           studentNumber: studentNumber,
           section: section,
-          subjects: subjects
+          subjects: [] // Empty array because they go to the pool
         }, { retries: 1 });
 
         if (res.success) {
@@ -207,14 +192,6 @@
         }
       });
     }
-  };
-
-  App.approveSelectAll = function () {
-    document.querySelectorAll('#approve-subject-checkboxes input').forEach(cb => cb.checked = true);
-  };
-
-  App.approveClearAll = function () {
-    document.querySelectorAll('#approve-subject-checkboxes input').forEach(cb => cb.checked = false);
   };
 
   App.showPendingModal = function (info) {
