@@ -151,6 +151,12 @@
 
   // ---------- Roster (Student Pool) ----------
   App.loadRoster = async function () {
+    const isAdmin = state.currentTeacher && state.currentTeacher.role === 'super_admin';
+    const addBtn = document.getElementById('open-add-student-btn');
+    if (addBtn) addBtn.classList.toggle('hidden-screen', !isAdmin);
+    const bulkBtn = document.getElementById('open-bulk-students-btn');
+    if (bulkBtn) bulkBtn.classList.toggle('hidden-screen', !isAdmin);
+
     const tbody = document.getElementById('roster-table-body');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 animate-pulse" colspan="5">Loading roster...</td></tr>';

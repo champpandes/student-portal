@@ -2,7 +2,6 @@
 // Edge Function: admin
 // Handles all privileged operations for the Teacher Portal.
 // Runs server-side with the service_role key.
-// Multi-teacher version (Phase 1C — scoped reads, legacy-safe).
 // ============================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -40,19 +39,10 @@ function normalizeQuarterLabel(q: any): string {
   return m ? QUARTER_ORDINAL[m[1]] : s;
 }
 
-// ============================================================
-// Legacy rows created before the multi-teacher upgrade have NULL
-// teacher_id. We still want the first teacher to see them, so
-// the filter is: "mine OR unassigned".
-// ============================================================
 function scopeByTeacher(query: any, teacherId: string | null) {
   if (!teacherId) return query;
   return query.or(`teacher_id.eq.${teacherId},teacher_id.is.null`);
 }
-
-// ============================================================
-// Generic helpers
-// ============================================================
 
 function transmuteGrade(score: any): number | "" {
   if (score === "" || score === null || isNaN(score)) return "";
@@ -142,10 +132,6 @@ function computeWeightedFinal(q1: any, q2: any, q3: any, q4: any, quarterWeights
   return Math.round(sum / totalWeight);
 }
 
-// ============================================================
-// Session / auth helpers
-// ============================================================
-
 interface AuthContext {
   teacher: any;
   legacy: boolean;
@@ -195,10 +181,6 @@ function requireSuperAdmin(auth: AuthContext | null): boolean {
   return auth.teacher.role === "super_admin";
 }
 
-// ============================================================
-// Entry point
-// ============================================================
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
@@ -210,7 +192,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action || "");
 
-    // -------- Public actions (no auth) --------
     switch (action) {
       case "registerTeacher":   return json(await registerTeacher(sb, body), 200);
       case "teacherLogin":      return json(await teacherLogin(sb, body), 200);
@@ -220,7 +201,6 @@ Deno.serve(async (req) => {
       case "getTeacherName":    return json(await getTeacherName(sb, body), 200);
     }
 
-    // -------- Everything else requires auth --------
     const auth = await resolveAuth(sb, body);
     if (!auth) {
       return json({ success: false, message: "Not authenticated. Please log in again." }, 200);
@@ -238,12 +218,10 @@ Deno.serve(async (req) => {
 
     let result: any;
     switch (action) {
-      // Auth / session
       case "getMe":                 result = await getMe(sb, auth); break;
       case "teacherLogout":         result = await teacherLogout(sb, body); break;
       case "markWalkthroughSeen":   result = await markWalkthroughSeen(sb, auth); break;
 
-      // Super admin — teacher management
       case "listTeachers":          result = await listTeachers(sb); break;
       case "approveTeacher":        result = await approveTeacher(sb, body, auth); break;
       case "rejectTeacher":         result = await rejectTeacher(sb, body); break;
@@ -252,7 +230,6 @@ Deno.serve(async (req) => {
       case "resetTeacherPassword":  result = await resetTeacherPassword(sb, body); break;
       case "deleteTeacher":         result = await deleteTeacher(sb, body, auth); break;
 
-      // ===== SCOPED READS =====
       case "getAllGrades":          result = await getAllGradesScoped(sb, body, auth); break;
       case "getSections":           result = await buildSectionsPayload(sb, auth.teacher?.id || null); break;
       case "getPendingRegistrations": result = await getPendingRegistrationsScoped(sb, auth); break;
@@ -261,7 +238,6 @@ Deno.serve(async (req) => {
       case "getAnnouncementHistory": result = await getAnnouncementHistoryScoped(sb, auth); break;
       case "getClassRecord":        result = await getClassRecordScoped(sb, body, auth); break;
 
-      // ===== SCOPED WRITES / other =====
       case "adminLogin":            result = await adminLogin(sb, body); break;
       case "saveGrades":            result = await saveGrades(sb, body, auth); break;
       case "saveBreakdown":         result = await saveBreakdown(sb, body, auth, false); break;
@@ -288,6 +264,8 @@ Deno.serve(async (req) => {
       case "applyClassRecordToGrades": result = await applyClassRecordToGrades(sb, body, auth); break;
       case "saveTeacherName":       result = await saveTeacherName(sb, body, auth); break;
       case "syncStudentEnrollments": result = await syncStudentEnrollments(sb, body, auth); break;
+      case "getMyStats":            result = await getMyStats(sb, auth); break;
+      case "changeMyPassword":      result = await changeMyPassword(sb, body, auth); break;
 
       default:
         return json({ success: false, message: "Unknown action: " + action }, 200);
@@ -315,16 +293,17 @@ async function getAllGradesScoped(sb: any, p: any, auth: AuthContext) {
   const gRows = await gq;
   if (!gRows.data) return [];
 
+  // Global Student Pool: Fetch ALL students in the school, not just this teacher's
   let sq = sb.from("students").select("student_number,name,section");
-  sq = scopeByTeacher(sq, teacherId);
   const sRows = await sq;
+
   const sMap: Record<string, any> = {};
   (sRows.data || []).forEach((s: any) => { sMap[s.student_number] = s; });
 
   const results: any[] = [];
   const seen = new Set();
 
-  // 1. Add students who have grades
+  // 1. Add students who have grades (means they are enrolled in the selected subject(s))
   gRows.data.forEach((r: any) => {
     const sNo = String(r.student_number);
     const stu = sMap[sNo] || {};
@@ -340,7 +319,7 @@ async function getAllGradesScoped(sb: any, p: any, auth: AuthContext) {
     });
   });
 
-  // 2. If "All Subjects" is selected, add students who are in the pool but have no grades yet
+  // 2. If "All Subjects" is selected, add students from the pool who don't have grades yet
   if (subject === "All") {
     for (const sNo of Object.keys(sMap)) {
       if (!seen.has(sNo)) {
@@ -479,7 +458,6 @@ async function getClassRecordScoped(sb: any, p: any, auth: AuthContext) {
   return { success: true, categories, assessments, scores, students };
 }
 
-// Tiny helper so scoped reads don't need to re-import PostgREST
 async function sbGet(sb: any, table: string, query: string) {
   const url = new URL(SUPABASE_URL + "/rest/v1/" + table + (query ? "?" + query : ""));
   const res = await fetch(url.toString(), {
@@ -946,6 +924,11 @@ async function saveBreakdown(sb: any, p: any, auth: AuthContext, isBulk: boolean
 // ============================================================
 
 async function addStudent(sb: any, p: any, auth: AuthContext, isBulk: boolean) {
+  // Only super admins can add students to the pool
+  if (auth.teacher && auth.teacher.role !== 'super_admin') {
+    return { success: false, message: "Only the Super Admin can add students to the pool." };
+  }
+
   const list = isBulk ? (p.studentsArray || []) : [p.studentData];
   let processed = 0;
   for (const sData of list) {
@@ -1456,6 +1439,11 @@ async function manageSection(sb: any, p: any, auth: AuthContext) {
 // ============================================================
 
 async function approveRegistration(sb: any, p: any, auth: AuthContext) {
+  // Only super admins can approve registrations
+  if (auth.teacher && auth.teacher.role !== 'super_admin') {
+    return { success: false, message: "Only the Super Admin can approve registrations." };
+  }
+
   const sNo = String(p.studentNumber || "");
   const section = stripTags(String(p.section || "").trim());
   const teacherId = auth.teacher?.id || null;

@@ -67,7 +67,6 @@
     else { input.type = 'password'; btn.textContent = '👁'; }
   };
 
-  // Legacy PIN toggle (teacher tab only)
   App.toggleLegacyPin = function () {
     legacyPinMode = !legacyPinMode;
     const emailField = document.getElementById('login-email-wrapper');
@@ -80,7 +79,6 @@
       passField.classList.add('hidden-screen');
       hint.textContent = 'Enter your legacy teacher PIN';
       btn.textContent = 'Use email & password instead';
-      // Reuse the student number field for PIN entry
       const pinInput = document.getElementById('login-input');
       pinInput.type = 'password';
       pinInput.placeholder = '••••';
@@ -113,35 +111,35 @@
     document.getElementById('login-error').classList.add('hidden-screen');
   }
 
-  // ============================================================
-  // After a successful teacher login (either fresh or restored)
-  // ============================================================
-App.afterTeacherLogin = function () {
-    const profileTab = document.querySelector('[data-tab="profile"]');
-  if (profileTab) {
-    profileTab.classList.toggle('hidden-screen', !state.currentTeacher);
-  }
-  const teacherTab = document.getElementById('tab-btn-teachers');
-  if (teacherTab) {
+  App.afterTeacherLogin = function () {
     const isSuper = state.currentTeacher && state.currentTeacher.role === 'super_admin';
-    teacherTab.classList.toggle('hidden-screen', !isSuper);
-  }
+    
+    const teacherTab = document.getElementById('tab-btn-teachers');
+    if (teacherTab) teacherTab.classList.toggle('hidden-screen', !isSuper);
 
-  const legacyToggle = document.getElementById('legacy-pin-toggle');
-  if (legacyToggle && state.sessionToken) legacyToggle.classList.add('hidden-screen');
+    // Hide admin-only tabs and buttons for regular teachers
+    const regTab = document.querySelector('[data-tab="registrations"]');
+    if (regTab) regTab.classList.toggle('hidden-screen', !isSuper);
+    
+    const addBtn = document.getElementById('open-add-student-btn');
+    if (addBtn) addBtn.classList.toggle('hidden-screen', !isSuper);
+    
+    const bulkBtn = document.getElementById('open-bulk-students-btn');
+    if (bulkBtn) bulkBtn.classList.toggle('hidden-screen', !isSuper);
 
-  App.showScreen('admin');
-  App.loadTeacherName();
-  App.loadAnnouncement();
-  App.fetchAllSectionsForDropdowns();
-  App.loadAdminDashboard();
-  if (App.loadPendingRegistrations) App.loadPendingRegistrations();
-  if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
-};
+    const legacyToggle = document.getElementById('legacy-pin-toggle');
+    if (legacyToggle && state.sessionToken) legacyToggle.classList.add('hidden-screen');
 
-  // ============================================================
-  // Login
-  // ============================================================
+    App.showScreen('admin');
+    App.loadTeacherName();
+    App.loadAnnouncement();
+    App.fetchAllSectionsForDropdowns();
+    App.loadAdminDashboard();
+    if (App.loadRoster) App.loadRoster();
+    if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+    if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
+  };
+
   App.handleLogin = async function () {
     const btn = document.getElementById('login-btn');
     clearLoginError();
@@ -150,7 +148,6 @@ App.afterTeacherLogin = function () {
       try {
         if (loginRole === 'teacher') {
           if (legacyPinMode) {
-            // Legacy PIN path
             const pin = document.getElementById('login-input').value.trim();
             if (!pin) return;
             const res = await App.apiCall({
@@ -167,7 +164,6 @@ App.afterTeacherLogin = function () {
             App.showToast('Welcome back!');
             App.afterTeacherLogin();
           } else {
-            // Email + password
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
             if (!email || !password) throw new Error('Enter your email and password.');
@@ -204,7 +200,6 @@ App.afterTeacherLogin = function () {
             App.afterTeacherLogin();
           }
         } else {
-          // Student path (unchanged)
           const inputVal = document.getElementById('login-input').value.trim();
           if (!inputVal) return;
           lastLoginInput = inputVal;
@@ -226,7 +221,7 @@ App.afterTeacherLogin = function () {
           }
           if (res && res.rejected) throw new Error(res.message || 'Your registration was not approved.');
           if (!res || res.success === false) {
-            throw new Error((res && res.message) || 'Student not found or has no enrolled subjects.');
+            throw new Error((res && res.message) || 'Student not found.');
           }
 
           state.currentStudentData = res;
@@ -245,11 +240,7 @@ App.afterTeacherLogin = function () {
     }, { text: 'Logging in...' });
   };
 
-  // ============================================================
-  // Logout
-  // ============================================================
   App.handleLogout = async function () {
-    // Revoke the session server-side if we have one.
     if (state.sessionToken) {
       try {
         await App.apiCall({ action: 'teacherLogout', sessionToken: state.sessionToken }, { retries: 0 });
@@ -265,7 +256,7 @@ App.afterTeacherLogin = function () {
     state.allAdminGradesCache = {};
     state.pendingImportData = [];
     App.invalidateAllCache();
-
+    
     sessionStorage.removeItem('sp_subjects_cache');
     sessionStorage.removeItem('sp_sections_cache');
 
@@ -280,14 +271,10 @@ App.afterTeacherLogin = function () {
     App.setLoginRole('student');
   };
 
-  // ============================================================
-  // Session restore
-  // ============================================================
   App.restoreSession = async function () {
     const session = App.loadSession();
     if (!session) return false;
 
-    // ---- Teacher (new session token) ----
     if (session.role === 'teacher' && session.sessionToken) {
       state.sessionToken = session.sessionToken;
       const res = await App.apiCall({ action: 'getMe' }, { timeout: 45000 });
@@ -296,14 +283,12 @@ App.afterTeacherLogin = function () {
         if (res.teacher) {
           state.currentTeacher = res.teacher;
         } else if (session.teacher) {
-          // Legacy super admin, no teacher row yet
           state.currentTeacher = session.teacher;
         }
         App.afterTeacherLogin();
         return true;
       }
 
-      // If the token is definitively invalid, clear it.
       const msg = String((res && res.message) || '').toLowerCase();
       if (msg.indexOf('not authenticated') !== -1) {
         App.clearSession();
@@ -311,7 +296,6 @@ App.afterTeacherLogin = function () {
       return false;
     }
 
-    // ---- Teacher (legacy PIN) ----
     if (session.role === 'teacher' && session.pin) {
       const res = await App.apiCall({
         action: 'adminLogin',
@@ -331,14 +315,13 @@ App.afterTeacherLogin = function () {
       return true;
     }
 
-    // ---- Student ----
     if (session.role === 'student' && session.studentNumber) {
       const res = await App.apiCall({
         action: 'getStudent',
         studentNumber: session.studentNumber
       }, { retries: 1, timeout: 45000 });
 
-      if (!res || !res.subjects || Object.keys(res.subjects).length === 0) {
+      if (!res || res.success === false) {
         App.clearSession();
         return false;
       }
@@ -354,12 +337,8 @@ App.afterTeacherLogin = function () {
     return false;
   };
 
-  // ============================================================
-  // Student registration
-  // ============================================================
   App.openRegisterModal = async function () {
     document.getElementById('reg-error').classList.add('hidden');
-    // Load teachers list for the dropdown.
     const select = document.getElementById('reg-teacher-select');
     if (select) {
       select.innerHTML = '<option value="">Loading...</option>';
@@ -434,9 +413,6 @@ App.afterTeacherLogin = function () {
     }, { text: 'Submitting...' });
   };
 
-  // ============================================================
-  // Teacher registration
-  // ============================================================
   App.openTeacherRegisterModal = function () {
     document.getElementById('reg-teacher-error').classList.add('hidden');
     ['reg-teacher-name', 'reg-teacher-email', 'reg-teacher-password', 'reg-teacher-password2']
@@ -474,7 +450,6 @@ App.afterTeacherLogin = function () {
         }, { retries: 0 });
 
         if (res.success && res.firstUser) {
-          // Bootstrap: first user is super admin. Auto-login.
           App.closeModal(document.getElementById('register-teacher-modal'));
           state.sessionToken = res.sessionToken;
           state.currentTeacher = res.teacher;
@@ -511,9 +486,6 @@ App.afterTeacherLogin = function () {
     }, { text: 'Registering...' });
   };
 
-  // ============================================================
-  // Pending registration status check
-  // ============================================================
   App.checkPendingStatus = async function () {
     const btn = document.getElementById('pending-check-btn');
     await App.withButtonLoading(btn, async () => {
@@ -521,8 +493,6 @@ App.afterTeacherLogin = function () {
         if (loginRole === 'teacher') {
           const email = document.getElementById('login-email').value.trim();
           if (!email) { App.closePendingModal(); return; }
-          // Re-check by trying to log in without password is not possible;
-          // instead, just close and let the user retry the login.
           App.closePendingModal();
           App.showToast('Please try logging in again to check your status.', 'error');
           return;
@@ -539,7 +509,7 @@ App.afterTeacherLogin = function () {
         } else if (res && res.rejected) {
           App.closePendingModal();
           App.showToast(res.message || 'Your registration was not approved.', 'error');
-        } else if (res && res.subjects && Object.keys(res.subjects).length > 0) {
+        } else if (res && res.success) {
           App.closePendingModal();
           App.showToast("You've been approved! Logging in...");
           document.getElementById('login-input').value = lastLoginInput;
