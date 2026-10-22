@@ -68,6 +68,11 @@ Deno.serve(async (req) => {
       return json({ success: true, pending: true });
     }
 
+    if (action === "getPublicTeachers") {
+      const t = await sb.from("teachers").select("id, display_name").eq("status", "approved").eq("is_active", true);
+      return json({ success: true, teachers: t.data || [] });
+    }
+
     // -------- AUTH CHECK --------
     let auth = null;
     if (body.sessionToken) {
@@ -140,7 +145,17 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
-        // --- CLASS RECORD ---
+    if (action === "syncStudentEnrollments") {
+      const sNo = body.studentNumber; const newSubjects = body.subjects || [];
+      await sb.from("enrollments").delete().eq("student_number", sNo).eq("teacher_id", auth.teacher.id);
+      await sb.from("grades").delete().eq("student_number", sNo).eq("teacher_id", auth.teacher.id);
+      if (newSubjects.length > 0) {
+        await sb.from("enrollments").insert(newSubjects.map((s: string) => ({ student_number: sNo, subject_name: s, teacher_id: auth!.teacher.id })));
+        await sb.from("grades").insert(newSubjects.map((s: string) => ({ student_number: sNo, subject_name: s, q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [], teacher_id: auth!.teacher.id })));
+      }
+      return json({ success: true });
+    }
+
     if (action === "getClassRecord") {
       const subject = String(body.subject || "");
       const quarter = String(body.quarter || "");
@@ -169,7 +184,8 @@ Deno.serve(async (req) => {
 
       let students: any[] = [];
       if (studentNumbers.length > 0) {
-        let sQ = scopeByTeacher(sb.from("students").select("student_number,name,section").in("student_number", studentNumbers), auth.teacher.id);
+        // BUG FIX: Removed scopeByTeacher here so teachers can see students added by the Admin
+        let sQ = sb.from("students").select("student_number,name,section").in("student_number", studentNumbers);
         const sRows = await sQ;
         students = sRows.data || [];
       }
@@ -177,18 +193,6 @@ Deno.serve(async (req) => {
       return json({ success: true, categories, assessments, scores, students });
     }
 
-    if (action === "syncStudentEnrollments") {
-      const sNo = body.studentNumber; const newSubjects = body.subjects || [];
-      await sb.from("enrollments").delete().eq("student_number", sNo).eq("teacher_id", auth.teacher.id);
-      await sb.from("grades").delete().eq("student_number", sNo).eq("teacher_id", auth.teacher.id);
-      if (newSubjects.length > 0) {
-        await sb.from("enrollments").insert(newSubjects.map((s: string) => ({ student_number: sNo, subject_name: s, teacher_id: auth!.teacher.id })));
-        await sb.from("grades").insert(newSubjects.map((s: string) => ({ student_number: sNo, subject_name: s, q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [], teacher_id: auth!.teacher.id })));
-      }
-      return json({ success: true });
-    }
-
-    // --- NEW: ADD STUDENT / REQUEST STUDENT ---
     if (action === "addStudent") {
       const sData = body.studentData;
       const sNo = String(sData.studentNumber || "").trim();
@@ -196,11 +200,9 @@ Deno.serve(async (req) => {
       const section = stripTags(String(sData.section || "Section A"));
 
       if (auth.teacher.role === "super_admin") {
-        // Admin adds directly to the pool
         await sb.from("students").upsert({ student_number: sNo, name, section, teacher_id: auth.teacher.id }, { onConflict: "student_number" });
         return json({ success: true, message: "Student added to pool." });
       } else {
-        // Teacher requests addition (goes to Pending Registrations)
         await sb.from("pending_registrations").insert({
           timestamp: new Date().toISOString(), student_number: sNo, name: name, section: section,
           enrolled_subjects: [], status: 'pending', reviewed_at: '', teacher_id: auth.teacher.id
@@ -209,39 +211,6 @@ Deno.serve(async (req) => {
       }
     }
 
-        // --- NEW: BULK ADD STUDENTS ---
-    if (action === "bulkAddStudents") {
-      const studentsArray = body.studentsArray || [];
-      if (studentsArray.length === 0) return json({ success: false, message: "No students provided." });
-
-      if (auth.teacher.role === "super_admin") {
-        // Admin adds directly to the pool
-        const payloads = studentsArray.map((s: any) => ({
-          student_number: s.studentNumber, 
-          name: stripTags(s.name), 
-          section: s.section || "Section A", 
-          teacher_id: auth!.teacher.id
-        }));
-        await sb.from("students").upsert(payloads, { onConflict: "student_number" });
-        return json({ success: true, processed: payloads.length });
-      } else {
-        // Teacher requests addition (goes to Pending Registrations)
-        const payloads = studentsArray.map((s: any) => ({
-          timestamp: new Date().toISOString(), 
-          student_number: s.studentNumber, 
-          name: stripTags(s.name), 
-          section: s.section || "Section A",
-          enrolled_subjects: [], 
-          status: 'pending', 
-          reviewed_at: '', 
-          teacher_id: auth!.teacher.id
-        }));
-        await sb.from("pending_registrations").insert(payloads);
-        return json({ success: true, processed: payloads.length });
-      }
-    }
-
-    // --- NEW: ADMIN REGISTRATIONS ---
     if (action === "getPendingRegistrations") {
       let q = sb.from("pending_registrations").select("*").order("id", { ascending: false });
       if (auth.teacher.role !== "super_admin") q = q.eq("teacher_id", auth.teacher.id);

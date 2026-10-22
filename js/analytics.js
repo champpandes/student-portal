@@ -29,10 +29,12 @@
       }
     }
 
-    const filtered = data.filter(s =>
-      (subjectFilter === 'All' || s.subject === subjectFilter) &&
-      (sectionFilter === 'All' || s.section === sectionFilter)
-    );
+    // BUG FIX: Filter out "No subjects enrolled" so it only shows this teacher's students
+    const filtered = data.filter(s => {
+      if (s.subject === "No subjects enrolled") return false;
+      return (subjectFilter === 'All' || s.subject === subjectFilter) &&
+             (sectionFilter === 'All' || s.section === sectionFilter);
+    });
 
     renderKPIs(filtered);
     renderDistribution(filtered);
