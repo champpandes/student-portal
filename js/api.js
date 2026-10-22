@@ -205,6 +205,12 @@ getSubjects: async () => {
       studentNumber: p.studentNumber,
       subjects: p.subjects
     }),
+    
+    bulkEnrollStudents: async (p) => callAdmin({
+      action: 'bulkEnrollStudents',
+      studentNumbers: p.studentNumbers,
+      subjectName: p.subjectName
+    }),
 
     bulkAddStudents: async (p) => callAdmin({
       action: 'bulkAddStudents', studentsArray: p.studentsArray
