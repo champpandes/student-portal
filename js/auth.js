@@ -112,39 +112,37 @@
   }
 
   App.afterTeacherLogin = function () {
-  const isSuper = state.currentTeacher && state.currentTeacher.role === 'super_admin';
-  
-  const teacherTab = document.getElementById('tab-btn-teachers');
-  if (teacherTab) teacherTab.classList.toggle('hidden-screen', !isSuper);
+    const isSuper = state.currentTeacher && state.currentTeacher.role === 'super_admin';
+    
+    const teacherTab = document.getElementById('tab-btn-teachers');
+    if (teacherTab) teacherTab.classList.toggle('hidden-screen', !isSuper);
 
-  const regTab = document.querySelector('[data-tab="registrations"]');
-  if (regTab) regTab.classList.toggle('hidden-screen', !isSuper);
+    const regTab = document.querySelector('[data-tab="registrations"]');
+    if (regTab) regTab.classList.toggle('hidden-screen', !isSuper);
 
-  // FORCE THE ADD BUTTON TO BE VISIBLE FOR EVERYONE
-  const addBtn = document.getElementById('open-add-student-btn');
-  if (addBtn) {
-    addBtn.classList.remove('hidden-screen');
-    addBtn.style.display = 'block'; 
-  }
-  
-  const bulkBtn = document.getElementById('open-bulk-students-btn');
-  if (bulkBtn) {
-    bulkBtn.classList.remove('hidden-screen');
-    bulkBtn.style.display = 'block';
-  }
+    const addBtn = document.getElementById('open-add-student-btn');
+    if (addBtn) {
+      addBtn.classList.remove('hidden-screen');
+      addBtn.style.display = 'block'; 
+    }
+    
+    const bulkBtn = document.getElementById('open-bulk-students-btn');
+    if (bulkBtn) {
+      bulkBtn.classList.remove('hidden-screen');
+      bulkBtn.style.display = 'block';
+    }
 
-  const legacyToggle = document.getElementById('legacy-pin-toggle');
-  if (legacyToggle && state.sessionToken) legacyToggle.classList.add('hidden-screen');
+    const legacyToggle = document.getElementById('legacy-pin-toggle');
+    if (legacyToggle && state.sessionToken) legacyToggle.classList.add('hidden-screen');
 
-  App.showScreen('admin');
-  App.loadTeacherName();
-  App.loadAnnouncement();
-  App.fetchAllSectionsForDropdowns();
-  App.loadAdminDashboard();
-  if (App.loadRoster) App.loadRoster();
-  if (App.loadPendingRegistrations) App.loadPendingRegistrations();
-  if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
-};
+    App.showScreen('admin');
+    App.loadTeacherName();
+    App.fetchAllSectionsForDropdowns();
+    App.loadAdminDashboard();
+    if (App.loadRoster) App.loadRoster();
+    if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+    if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
+  };
 
   App.handleLogin = async function () {
     const btn = document.getElementById('login-btn');
@@ -238,7 +236,6 @@
           App.initializeStudentDropdowns(Object.keys(res.subjects));
           App.showToast('Logged in as ' + res.name);
           App.showScreen('student');
-          App.loadAnnouncement();
         }
       } catch (error) {
         showLoginError(error.message || 'Login failed.');
@@ -336,7 +333,6 @@
       setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
       App.initializeStudentDropdowns(Object.keys(res.subjects));
       App.showScreen('student');
-      App.loadAnnouncement();
       return true;
     }
 
