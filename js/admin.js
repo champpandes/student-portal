@@ -54,6 +54,13 @@
     }
     App.closeMobileSidebar();
 
+    if (tabName === 'roster') {
+      App.loadRoster();
+    }
+    if (tabName === 'grades') {
+      App.loadAdminDashboard();
+    }
+
     if (tabName === 'grading-sheet') {
       const sections = [];
       const seen = {};
@@ -103,7 +110,7 @@
     if (tabName === 'teachers') {
       if (!state.currentTeacher || state.currentTeacher.role !== 'super_admin') {
         App.showToast('Super admin access required.', 'error');
-        App.switchAdminTab('students', document.querySelector('[data-tab="students"]'));
+        App.switchAdminTab('grades', document.querySelector('[data-tab="grades"]'));
         return;
       }
       if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
@@ -120,6 +127,7 @@
 
       try {
         await App.loadAdminDashboard();
+        if (App.loadRoster) await App.loadRoster();
         if (App.loadPendingRegistrations) App.loadPendingRegistrations();
         App.showToast("Dashboard refreshed.");
       } catch (e) {
@@ -141,7 +149,70 @@
     badge.classList.add('flex');
   };
 
-  // ---------- Dashboard ----------
+  // ---------- Roster (Student Pool) ----------
+  App.loadRoster = async function () {
+    const tbody = document.getElementById('roster-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 animate-pulse" colspan="5">Loading roster...</td></tr>';
+
+    const res = await App.apiCall({ action: "getAllGrades", subject: "All" });
+    
+    if (!Array.isArray(res)) {
+      tbody.innerHTML = '<tr><td class="p-8 text-center text-rose-500 font-bold" colspan="5">Failed to load roster.</td></tr>';
+      return;
+    }
+
+    const uniqueStudents = {};
+    res.forEach(r => {
+      if (!uniqueStudents[r.studentNumber]) {
+        uniqueStudents[r.studentNumber] = {
+          studentNumber: r.studentNumber,
+          name: r.name,
+          section: r.section,
+          subjects: []
+        };
+      }
+      if (r.subject && r.subject !== "No subjects enrolled") {
+        uniqueStudents[r.studentNumber].subjects.push(r.subject);
+      }
+    });
+
+    const list = Object.values(uniqueStudents);
+    list.sort((a, b) => a.name.localeCompare(b.name));
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="5">No students in the pool yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(s => {
+      const subjectText = s.subjects.length === 0 
+        ? '<span class="text-slate-400 italic text-xs">None assigned</span>'
+        : s.subjects.map(sub => `<span class="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md text-[10px] font-bold mr-1 mb-1 border border-indigo-100">${App.esc(sub)}</span>`).join('');
+
+      return `<tr class="hover:bg-indigo-50/30 transition-colors">
+        <td class="p-4 font-semibold text-slate-600">${App.esc(s.studentNumber)}</td>
+        <td class="p-4 font-bold text-slate-800">${App.esc(s.name)}</td>
+        <td class="p-4 text-slate-500 font-medium">${App.esc(s.section)}</td>
+        <td class="p-4">${subjectText}</td>
+        <td class="p-4 text-center">
+          <button type="button" data-action="manage-roster" data-id="${App.esc(s.studentNumber)}" class="text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100">Manage</button>
+        </td>
+      </tr>`;
+    }).join('');
+  };
+
+  App.filterRoster = function () {
+    const search = (document.getElementById('roster-search').value || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('#roster-table-body tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      if (text.includes(search)) row.classList.remove('hidden');
+      else row.classList.add('hidden');
+    });
+  };
+
+  // ---------- Dashboard (Grade Book) ----------
   App.loadAdminDashboard = async function () {
     const tbody = document.getElementById('admin-table-body');
     const mobileList = document.getElementById('admin-mobile-card-list');
@@ -390,7 +461,7 @@
 
   // ---------- Filters ----------
   App.applyAdminFilters = function () {
-    const search = (document.getElementById('admin-search').value || '').toLowerCase().trim();
+    const search = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
     const sec = document.getElementById('section-filter').value;
     const filtered = state.currentAdminData.filter(s =>
       (s.name.toLowerCase().indexOf(search) !== -1 ||
@@ -409,9 +480,11 @@
       if (s.section && !seen[s.section]) { seen[s.section] = true; sections.push(s.section); }
     });
     sections.sort();
-    document.getElementById('section-filter').innerHTML =
-      '<option value="All">All Sections</option>' +
-      sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
+    const el = document.getElementById('section-filter');
+    if (el) {
+      el.innerHTML = '<option value="All">All Sections</option>' +
+        sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
+    }
   };
 
   // ---------- Sorting ----------
@@ -444,26 +517,29 @@
     let student = null;
     for (let i = 0; i < state.currentAdminData.length; i++) {
       const s = state.currentAdminData[i];
-      if (String(s.studentNumber) === String(studentNo) && s.subject === subject) {
+      if (String(s.studentNumber) === String(studentNo) && (s.subject === subject || subject === 'roster')) {
         student = s;
         break;
       }
     }
-    if (!student) return;
+    
+    if (!student) {
+      student = { studentNumber: studentNo, name: "", section: "", subject: subject };
+    }
 
     state.activeManageStudentId = studentNo;
     state.activeManageSubject = subject;
 
-    document.getElementById('panel-old-student-id').value = student.studentNumber;
-    document.getElementById('panel-student-id').value = student.studentNumber;
+    document.getElementById('panel-old-student-id').value = studentNo;
+    document.getElementById('panel-student-id').value = studentNo;
     document.getElementById('panel-old-student-subject').value = subject;
     document.getElementById('panel-student-name').value = student.name;
     document.getElementById('panel-student-section').value = student.section;
+    
     document.getElementById('panel-student-subject').innerHTML =
-      state.availableSubjects.map(s =>
-        '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
-    document.getElementById('panel-student-subject').value = subject;
-    document.getElementById('panel-subject-label').textContent = state.activeManageSubject;
+      state.availableSubjects.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
+    document.getElementById('panel-student-subject').value = subject === 'roster' ? (state.availableSubjects[0] || '') : subject;
+    document.getElementById('panel-subject-label').textContent = subject === 'roster' ? 'Manage Enrollments' : subject;
 
     const res = await App.apiCall({ action: "getStudent", studentNumber: studentNo });
     const enrolled = (res && res.success) ? Object.keys(res.subjects || {}) : [];
@@ -481,7 +557,7 @@
     ['q1','q2','q3','q4'].forEach(q => {
       document.getElementById('panel-' + q).value = student[q] || '';
     });
-    document.getElementById('panel-header-name').textContent = student.name;
+    document.getElementById('panel-header-name').textContent = student.name || 'Student';
     document.getElementById('panel-header-id').textContent = 'ID: ' + student.studentNumber;
 
     const b = document.getElementById('slide-panel-backdrop');
@@ -529,6 +605,7 @@
       if (res.success) {
         App.invalidateActiveCache();
         await App.loadAdminDashboard();
+        if (App.loadRoster) await App.loadRoster();
         state.activeManageStudentId = newId;
         state.activeManageSubject = newSubject;
         document.getElementById('panel-old-student-id').value = newId;
@@ -558,6 +635,7 @@
       if (res.success) {
         App.showToast("Enrollments updated.");
         App.invalidateActiveCache();
+        if (App.loadRoster) await App.loadRoster();
         await App.loadAdminDashboard();
         App.closeSlidePanel();
       } else {
@@ -587,6 +665,7 @@
       if (res.success) {
         App.invalidateActiveCache();
         await App.loadAdminDashboard();
+        if (App.loadRoster) await App.loadRoster();
         App.showToast("Grades saved.");
         App.updateLastSavedTimestamp();
       } else {
@@ -611,6 +690,7 @@
         App.showToast("Student deleted.");
         App.updateLastSavedTimestamp();
         await App.loadAdminDashboard();
+        if (App.loadRoster) await App.loadRoster();
         App.closeSlidePanel();
       } else {
         App.showToast(res.message || "Delete failed.", "error");
@@ -656,6 +736,7 @@
         App.closeModal(document.getElementById('add-student-modal'));
         App.invalidateActiveCache();
         await App.loadAdminDashboard();
+        if (App.loadRoster) await App.loadRoster();
         App.updateLastSavedTimestamp();
         succeeded = true;
       } else {

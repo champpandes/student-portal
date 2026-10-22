@@ -134,16 +134,23 @@
       btn.addEventListener('click', () => App.switchAdminTab(btn.dataset.tab, btn));
     });
 
+    // Roster Table Click
+    document.getElementById('roster-table-body').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-action="manage-roster"]');
+      if (btn) {
+        App.openSlidePanel(btn.dataset.id, 'roster');
+      }
+    });
+    
+    // Roster Search
+    document.getElementById('roster-search').addEventListener('input', App.debounce(App.filterRoster, 250));
+
+    // Grade Book Filters
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();
     });
-    document.getElementById('admin-search').addEventListener('input',
-      App.debounce(App.applyAdminFilters, 250));
     document.getElementById('section-filter').addEventListener('change', App.applyAdminFilters);
-
-    document.getElementById('sort-by-no').addEventListener('click', App.sortByStudentNo);
-    document.getElementById('sort-by-name').addEventListener('click', App.sortByName);
 
     document.querySelectorAll('.quarter-pill').forEach(pill => {
       pill.addEventListener('click', () => App.filterByQuarter(pill.dataset.quarter));
@@ -195,7 +202,7 @@
       document.getElementById('import-action').value = 'register';
       App.toggleImportUI();
     });
-    document.getElementById('open-bulk-grades-btn').addEventListener('click', () => {
+    document.getElementById('open-bulk-grades-btn')?.addEventListener('click', () => {
       App.openImportModal();
       document.getElementById('import-action').value = 'grades';
       App.toggleImportUI();
@@ -232,8 +239,6 @@
       App.closeModal(modal);
     });
     document.getElementById('confirm-approve-btn').addEventListener('click', App.confirmApproval);
-    document.getElementById('approve-select-all-btn')?.addEventListener('click', App.approveSelectAll);
-    document.getElementById('approve-clear-all-btn')?.addEventListener('click', App.approveClearAll);
 
     // ---- Slide panel ----
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
