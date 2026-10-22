@@ -10,11 +10,44 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const TRANSMUTATION: [number, number][] = [
+  [98.40, 99], [96.80, 98], [95.20, 97], [93.60, 96], [92.00, 95], [90.40, 94], [88.80, 93], [87.20, 92], [85.60, 91], [84.00, 90],
+  [82.40, 89], [80.80, 88], [79.20, 87], [77.60, 86], [76.00, 85], [74.40, 84], [72.80, 83], [71.20, 82], [69.60, 81], [68.00, 80],
+  [66.40, 79], [64.80, 78], [63.20, 77], [61.60, 76], [60.00, 75], [56.00, 74], [52.00, 73], [48.00, 72], [44.00, 71], [40.00, 70],
+  [36.00, 69], [32.00, 68], [28.00, 67], [24.00, 66], [20.00, 65], [16.00, 64], [12.00, 63], [8.00, 62], [4.00, 61], [0.00, 60]
+];
+
 function json(data: any, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
 }
 
 function stripTags(s: any) { return String(s ?? "").replace(/[<>]/g, ""); }
+
+function determineRemarks(f: any): string {
+  if (f === "" || f === null || isNaN(f)) return "";
+  return Number(f) >= 75 ? "Passed" : "Failed";
+}
+
+function transmuteGrade(score: any): number | "" {
+  if (score === "" || score === null || isNaN(score)) return "";
+  const s = Number(score);
+  if (s >= 100) return 100;
+  for (const [lo, hi] of TRANSMUTATION) {
+    if (s >= lo) return hi;
+  }
+  return 60;
+}
+
+function computeWeightedFinal(q1: any, q2: any, q3: any, q4: any, quarterWeights: any): number | "" {
+  const w = quarterWeights || { "1st": 25, "2nd": 25, "3rd": 25, "4th": 25 };
+  const pairs: [any, number][] = [[q1, Number(w["1st"] || 0)], [q2, Number(w["2nd"] || 0)], [q3, Number(w["3rd"] || 0)], [q4, Number(w["4th"] || 0)]];
+  const valid = pairs.filter(([v]) => v !== null && v !== undefined && v !== "" && !isNaN(v));
+  if (valid.length === 0) return "";
+  let totalWeight = 0, sum = 0;
+  for (const [v, weight] of valid) { sum += Number(v) * weight; totalWeight += weight; }
+  if (totalWeight === 0) return "";
+  return Math.round(sum / totalWeight);
+}
 
 function scopeByTeacher(query: any, teacherId: string | null) {
   if (!teacherId) return query;
@@ -178,12 +211,10 @@ Deno.serve(async (req) => {
         if (scoreRes.ok) scores = await scoreRes.json();
       }
 
-      // Fetch enrolled students
       let enrQ = scopeByTeacher(sb.from("enrollments").select("student_number").eq("subject_name", subject), auth.teacher.id);
       const enrRows = await enrQ;
       let studentNumbers = (enrRows.data || []).map(e => e.student_number);
 
-      // BUG FIX: Fallback to `grades` table if `enrollments` is empty
       if (studentNumbers.length === 0) {
         let gq = scopeByTeacher(sb.from("grades").select("student_number").eq("subject_name", subject), auth.teacher.id);
         const gRows = await gq;
@@ -198,6 +229,148 @@ Deno.serve(async (req) => {
       }
 
       return json({ success: true, categories, assessments, scores, students });
+    }
+
+    // --- CLASS RECORD WRITE ACTIONS ---
+    if (action === "addAssessment") {
+      const subject = String(body.subject || "");
+      const quarter = String(body.quarter || "");
+      const categoryId = Number(body.categoryId);
+      const name = stripTags(String(body.name || "").trim());
+      const totalPoints = Number(body.totalPoints);
+
+      const existing = await sb.from("assessments").select("position").eq("subject_name", subject).eq("quarter", quarter).eq("category_id", categoryId);
+      const nextPos = (existing.data || []).reduce((max: number, r: any) => Math.max(max, Number(r.position) || 0), 0) + 1;
+
+      const { data, error } = await sb.from("assessments").insert({
+        subject_name: subject, quarter, category_id: categoryId, name, total_points: totalPoints, position: nextPos, teacher_id: auth.teacher.id
+      }).select();
+      if (error) throw error;
+      return json({ success: true, assessment: data[0] });
+    }
+
+    if (action === "renameAssessment") {
+      const id = Number(body.id);
+      const { error } = await sb.from("assessments").update({ name: stripTags(body.name), total_points: Number(body.totalPoints) }).eq("id", id);
+      if (error) throw error;
+      return json({ success: true });
+    }
+
+    if (action === "deleteAssessment") {
+      const id = Number(body.id);
+      const { error } = await sb.from("assessments").delete().eq("id", id);
+      if (error) throw error;
+      return json({ success: true });
+    }
+
+    if (action === "saveScore") {
+      const assessmentId = Number(body.assessmentId);
+      const studentNumber = String(body.studentNumber || "");
+      const score = (body.score === "" || body.score === null || body.score === undefined) ? null : Number(body.score);
+      const { error } = await sb.from("scores").upsert({
+        assessment_id: assessmentId, student_number: studentNumber, score, updated_at: new Date().toISOString()
+      }, { onConflict: "assessment_id,student_number" });
+      if (error) throw error;
+      return json({ success: true });
+    }
+
+    if (action === "saveScoresBatch") {
+      const items = body.items || [];
+      if (items.length === 0) return json({ success: true, processed: 0 });
+      const rows = items.map((it: any) => ({
+        assessment_id: Number(it.assessmentId), student_number: String(it.studentNumber),
+        score: (it.score === "" || it.score === null || it.score === undefined) ? null : Number(it.score),
+        updated_at: new Date().toISOString()
+      }));
+      const { error } = await sb.from("scores").upsert(rows, { onConflict: "assessment_id,student_number" });
+      if (error) throw error;
+      return json({ success: true, processed: rows.length });
+    }
+
+    if (action === "applyClassRecordToGrades") {
+      const subject = String(body.subject || "");
+      const quarter = String(body.quarter || "");
+      const qNum = quarter.replace(/\D/g, "");
+      const qKey = "q" + qNum;
+
+      const catRows = await sb.from("subject_categories").select("id,name,weight").eq("subject_name", subject);
+      const cats = catRows.data || [];
+      const assessRows = await sb.from("assessments").select("*").eq("subject_name", subject).eq("quarter", quarter);
+      const assessments = assessRows.data || [];
+
+      if (assessments.length === 0) return json({ success: false, message: "No assessments created." });
+
+      const ids = assessments.map((a: any) => a.id).join(",");
+      const scoreRes = await fetch(`${SUPABASE_URL}/rest/v1/scores?select=*&assessment_id=in.(${ids})`, {
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` }
+      });
+      const scores = scoreRes.ok ? await scoreRes.json() : [];
+
+      const perStudent: any = {};
+      const assessMap: any = {};
+      assessments.forEach((a: any) => { assessMap[a.id] = a; });
+      scores.forEach((s: any) => {
+        if (s.score === null || s.score === undefined) return;
+        const a = assessMap[s.assessment_id];
+        if (!a) return;
+        if (!perStudent[s.student_number]) perStudent[s.student_number] = {};
+        if (!perStudent[s.student_number][a.category_id]) perStudent[s.student_number][a.category_id] = { got: 0, total: 0 };
+        perStudent[s.student_number][a.category_id].got += Number(s.score);
+        perStudent[s.student_number][a.category_id].total += Number(a.total_points);
+      });
+
+      const catAverages: any = {};
+      for (const sNo of Object.keys(perStudent)) {
+        catAverages[sNo] = {};
+        for (const c of cats) {
+          const bucket = perStudent[sNo][c.id];
+          catAverages[sNo][c.id] = (!bucket || bucket.total === 0) ? "" : Math.round((bucket.got / bucket.total) * 100 * 100) / 100;
+        }
+      }
+
+      const gradeRows = await sb.from("grades").select("*").eq("subject_name", subject);
+      const grades = gradeRows.data || [];
+      const subjRow = await sb.from("subjects").select("quarter_weights").eq("subject_name", subject).single();
+      const qw = subjRow.data?.quarter_weights;
+
+      let updated = 0;
+      for (const g of grades) {
+        const catVals = catAverages[g.student_number];
+        if (!catVals) continue;
+
+        let raw = 0, anyValue = false;
+        cats.forEach((c: any) => {
+          const v = catVals[c.id];
+          if (v !== "" && v !== null && v !== undefined && !isNaN(v)) { raw += Number(v) * (Number(c.weight) / 100); anyValue = true; }
+        });
+        if (!anyValue) continue;
+        const qScore = transmuteGrade(raw);
+
+        let bds = Array.isArray(g.breakdowns) ? g.breakdowns.slice() : [];
+        let matched = false;
+        for (let j = 0; j < bds.length; j++) {
+          if (String(bds[j].quarter).indexOf(qNum) !== -1) {
+            bds[j].quarter = { "1": "1st", "2": "2nd", "3": "3rd", "4": "4th" }[qNum] || qNum;
+            bds[j].categories = { ...(bds[j].categories || {}), ...catVals };
+            bds[j].total = qScore;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) bds.push({ quarter: { "1": "1st", "2": "2nd", "3": "3rd", "4": "4th" }[qNum] || qNum, categories: catVals, total: qScore });
+
+        const updated2: any = { q1: g.q1, q2: g.q2, q3: g.q3, q4: g.q4 };
+        updated2[qKey] = qScore;
+        const final = computeWeightedFinal(updated2.q1, updated2.q2, updated2.q3, updated2.q4, qw);
+
+        await sb.from("grades").update({
+          q1: String(updated2.q1 === "" ? "" : updated2.q1), q2: String(updated2.q2 === "" ? "" : updated2.q2),
+          q3: String(updated2.q3 === "" ? "" : updated2.q3), q4: String(updated2.q4 === "" ? "" : updated2.q4),
+          final: String(final === "" ? "" : final), remarks: determineRemarks(final), breakdowns: bds
+        }).eq("id", g.id);
+        updated++;
+      }
+      return json({ success: true, updated });
     }
 
     if (action === "addStudent") {
