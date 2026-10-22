@@ -5,7 +5,7 @@
   const ROWS_PER_PREVIEW_PAGE = 35;
 
   async function getGradesFor(subject) {
-    if (!state.adminPin) return [];
+    if (!state.sessionToken && !state.adminPin) return [];
     if (state.allAdminGradesCache[subject]) return state.allAdminGradesCache[subject];
     const res = await App.apiCall({ action: "getAllGrades", pin: state.adminPin, subject }, { retries: 1, timeout: 45000 });
     if (!Array.isArray(res)) return [];
@@ -13,7 +13,6 @@
     return res;
   }
 
-  // Auto-fill the editable detail fields from the current subject.
   App.gsPrefillDetails = function () {
     const subjEl = document.getElementById('gs-subject');
     if (!subjEl) return;
@@ -122,12 +121,10 @@
       return '<div class="p-8 text-center text-slate-400 bg-white rounded-xl font-bold">No students found matching this Subject and Section.</div>';
     }
 
-    // Sort students
     const sortEl = document.getElementById('gs-sort');
     const sortKey = sortEl ? sortEl.value : 'name-asc';
     students = sortStudents(students, sortKey);
 
-    // Read editable details
     const subjOverrideEl = document.getElementById('gs-display-subject');
     const descOverrideEl = document.getElementById('gs-display-desc');
     const syOverrideEl = document.getElementById('gs-display-sy');
@@ -142,7 +139,6 @@
     const syFallback = syMatch ? syMatch[1] : '';
     const schoolYear = (syOverrideEl && syOverrideEl.value.trim()) || syFallback;
 
-    // Chunked output — same structure for preview and print
     const pageClass = mode === 'print' ? 'gs-print-page' : 'gs-preview-page';
     let html = '';
     for (let i = 0; i < students.length; i += ROWS_PER_PREVIEW_PAGE) {
@@ -169,12 +165,13 @@
 
     const subject = subjEl.value;
     if (!subject) return;
-    if (!state.adminPin) {
+    
+    // BUG FIX: Check for teacher session, not just adminPin
+    if (!state.currentTeacher && !state.adminPin) {
       container.innerHTML = '<div class="text-center text-slate-400 py-12">Log in as teacher to preview.</div>';
       return;
     }
 
-    // Auto-fill detail fields if empty (first time on this tab)
     const subjInput = document.getElementById('gs-display-subject');
     if (subjInput && !subjInput.value.trim()) {
       App.gsPrefillDetails();

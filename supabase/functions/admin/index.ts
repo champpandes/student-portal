@@ -140,6 +140,43 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+        // --- CLASS RECORD ---
+    if (action === "getClassRecord") {
+      const subject = String(body.subject || "");
+      const quarter = String(body.quarter || "");
+      if (!subject || !quarter) return json({ success: false, message: "Subject and quarter required." });
+
+      let catQ = scopeByTeacher(sb.from("subject_categories").select("id,name,weight,position").eq("subject_name", subject).order("position"), auth.teacher.id);
+      const catRows = await catQ;
+      const categories = catRows.data || [];
+
+      let assessQ = scopeByTeacher(sb.from("assessments").select("*").eq("subject_name", subject).eq("quarter", quarter), auth.teacher.id);
+      const assessRows = await assessQ;
+      const assessments = assessRows.data || [];
+
+      let scores: any[] = [];
+      if (assessments.length > 0) {
+        const ids = assessments.map(a => a.id).join(",");
+        const scoreRes = await fetch(`${SUPABASE_URL}/rest/v1/scores?select=*&assessment_id=in.(${ids})`, {
+          headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` }
+        });
+        if (scoreRes.ok) scores = await scoreRes.json();
+      }
+
+      let enrQ = scopeByTeacher(sb.from("enrollments").select("student_number").eq("subject_name", subject), auth.teacher.id);
+      const enrRows = await enrQ;
+      const studentNumbers = (enrRows.data || []).map(e => e.student_number);
+
+      let students: any[] = [];
+      if (studentNumbers.length > 0) {
+        let sQ = scopeByTeacher(sb.from("students").select("student_number,name,section").in("student_number", studentNumbers), auth.teacher.id);
+        const sRows = await sQ;
+        students = sRows.data || [];
+      }
+
+      return json({ success: true, categories, assessments, scores, students });
+    }
+
     if (action === "syncStudentEnrollments") {
       const sNo = body.studentNumber; const newSubjects = body.subjects || [];
       await sb.from("enrollments").delete().eq("student_number", sNo).eq("teacher_id", auth.teacher.id);

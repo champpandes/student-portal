@@ -297,18 +297,6 @@
       if (e.target.classList.contains('cr-score-input')) App.saveScoreInline(e.target);
     });
 
-    // Announcements / comments
-    document.getElementById('broadcast-btn').addEventListener('click', App.broadcastAnnouncement);
-    document.getElementById('refresh-announcements-btn').addEventListener('click', () => { App.loadAnnouncementHistory(); App.showToast("History refreshed."); });
-    document.getElementById('announcement-history').addEventListener('click', e => {
-      const btn = e.target.closest('button[data-action="delete-ann"]');
-      if (!btn) return;
-      App.deleteAnnouncement(Number(btn.dataset.row));
-    });
-    document.getElementById('admin-send-comment-btn').addEventListener('click', App.submitAdminComment);
-    document.getElementById('admin-new-comment-input').addEventListener('keydown', e => { if (e.key === 'Enter') App.submitAdminComment(); });
-    document.getElementById('clear-comments-btn').addEventListener('click', App.clearClassComments);
-
     // Analytics
     document.getElementById('analytics-subject-filter').addEventListener('change', App.refreshAnalytics);
     document.getElementById('analytics-section-filter').addEventListener('change', App.refreshAnalytics);
@@ -347,8 +335,6 @@
   function wireStudentEvents() {
     document.getElementById('student-subject-selector').addEventListener('change', e => App.changeStudentSubject(e.target.value));
     document.getElementById('student-sy-selector').addEventListener('change', e => App.changeStudentSY(e.target.value));
-    document.getElementById('student-send-comment-btn').addEventListener('click', App.submitStudentComment);
-    document.getElementById('new-comment-input').addEventListener('keydown', e => { if (e.key === 'Enter') App.submitStudentComment(); });
     document.getElementById('student-print-btn').addEventListener('click', App.printStudentGrades);
 
     document.getElementById('student-main-grades').addEventListener('click', e => {
@@ -363,7 +349,11 @@
       App.toggleBreakdownEdit(btn, btn.dataset.quarter, btn.dataset.subject);
     });
 
-    document.getElementById('back-to-dashboard-btn').addEventListener('click', () => App.showScreen(state.adminPin !== '' ? 'admin' : 'student'));
+    // BUG 1 FIXED HERE: Check if teacher, go to admin. Else, go to student.
+    document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
+      App.showScreen(state.currentTeacher ? 'admin' : 'student');
+    });
+    
     document.getElementById('print-breakdown-btn')?.addEventListener('click', () => window.print());
   }
 
@@ -387,15 +377,13 @@
 
     if (restored) {
       hideBootScreen();
-      App.fetchSubjects().then(function () { if (App.state.adminPin) App.loadAdminDashboard(); });
-      App.loadComments();
+      App.fetchSubjects().then(function () { if (App.state.currentTeacher) App.loadAdminDashboard(); });
     } else {
       App.setLoginRole('student');
       hideBootScreen();
       App.showScreen('login');
       App.fetchSubjects();
       App.fetchAllSectionsForDropdowns();
-      App.loadComments();
     }
 
     const sidebar = document.getElementById('admin-sidebar');
