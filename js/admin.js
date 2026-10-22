@@ -566,7 +566,7 @@ if (tabName === 'sections') {
     }, { text: 'Saving...' });
   };
 
-    App.savePanelEnrollments = async function () {
+      App.savePanelEnrollments = async function () {
     const btn = document.getElementById('panel-save-enrollments-btn');
     const studentNumber = state.activeManageStudentId;
     const checkboxes = document.querySelectorAll('#panel-subject-checkboxes input:checked');
@@ -611,52 +611,6 @@ if (tabName === 'sections') {
         App.showToast(res.message || "Delete failed.", "error");
       }
     }, { text: 'Deleting...' });
-  };
-
-  // ---------- Add student ----------
-  App.openAddStudentModal = function () {
-    document.getElementById('new-student-id').value = '';
-    document.getElementById('new-student-name').value = '';
-    document.getElementById('new-student-section').value = '';
-    App.openModal(document.getElementById('add-student-modal'));
-  };
-
-  App.closeAddStudentModal = function () {
-    const modal = document.getElementById('add-student-modal');
-    if (!App.confirmDiscard(modal, "You have unsaved student details. Discard them?")) return;
-    App.closeModal(modal);
-  };
-
-  App.saveNewStudent = async function () {
-    const btn = document.getElementById('save-new-student-btn');
-    const id = document.getElementById('new-student-id').value.trim();
-    const name = document.getElementById('new-student-name').value.trim();
-    const sec = document.getElementById('new-student-section').value;
-
-    if (!id || !name || !sec) {
-      App.showToast("Fill all fields and select a section and subject.", "error");
-      return;
-    }
-
-    let succeeded = false;
-
-    await App.withButtonLoading(btn, async () => {
-      const res = await App.apiCall({
-        action: "addStudent", pin: state.adminPin,
-        studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: [] }
-      }, { retries: 1 });
-
-      if (res.success) {
-        App.showToast("Student " + name + " enrolled.");
-        App.closeModal(document.getElementById('add-student-modal'));
-        App.invalidateActiveCache();
-        await App.loadAdminDashboard();
-        App.updateLastSavedTimestamp();
-        succeeded = true;
-      } else {
-        App.showToast(res.message || "Failed to save new student.", "error");
-      }
-    }, { text: 'Saving...' });
   };
 
 })(window.App);
