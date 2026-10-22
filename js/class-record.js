@@ -7,10 +7,8 @@
   state._crFilters = { search: '', section: 'All', sort: 'name-asc' };
   state._crPageSize = 50;
   state._crCollapsed = {};
-  // Per-category page numbers: { categoryId: 1 }
   state._crCategoryPages = {};
 
-  // ============================================================
   App.populateClassRecordFilters = async function () {
     const sel = document.getElementById('cr-subject');
     if (!sel) return;
@@ -51,7 +49,7 @@
       if (secSel) secSel.value = 'All';
       state._crFilters.section = 'All';
       state._crCollapsed = {};
-      state._crCategoryPages = {};  // reset per-category pages
+      state._crCategoryPages = {};
 
       App.populateClassRecordSectionFilter();
       App.renderClassRecord();
@@ -102,7 +100,7 @@
     state._crFilters.search = (searchEl ? searchEl.value : '').toLowerCase().trim();
     state._crFilters.section = secEl ? secEl.value : 'All';
     state._crFilters.sort = sortEl ? sortEl.value : 'name-asc';
-    state._crCategoryPages = {}; // reset per-category pages on filter change
+    state._crCategoryPages = {};
     App.renderClassRecord();
   };
 
@@ -153,7 +151,6 @@
     return list;
   };
 
-  // ============================================================
   App.renderClassRecord = function () {
     const body = document.getElementById('cr-body');
     const rec = state._classRecord;
@@ -216,9 +213,8 @@
       '</div>';
   };
 
-  // Per-category pagination UI (only renders if multiple pages)
   App._crCategoryPaginationUI = function (categoryId, currentPage, totalPages) {
-    if (totalPages <= 1) return ''; // hide when only one page
+    if (totalPages <= 1) return '';
 
     const p = currentPage;
     const nums = [];
@@ -240,18 +236,13 @@
     return '<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 bg-slate-50/50">' +
       '<div class="text-[11px] font-bold text-slate-500">Page ' + p + ' of ' + totalPages + '</div>' +
       '<div class="flex items-center gap-2">' +
-        (p > 1
-          ? '<button type="button" data-cr-cat-page="' + (p-1) + '" data-category-id="' + categoryId + '" class="' + btnCls + ' bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">← Prev</button>'
-          : '<span class="' + btnCls + ' bg-slate-100 text-slate-300 cursor-not-allowed">← Prev</span>') +
+        (p > 1 ? '<button type="button" data-cr-cat-page="' + (p-1) + '" data-category-id="' + categoryId + '" class="' + btnCls + ' bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">← Prev</button>' : '<span class="' + btnCls + ' bg-slate-100 text-slate-300 cursor-not-allowed">← Prev</span>') +
         nums.map(numBtn).join('') +
-        (p < totalPages
-          ? '<button type="button" data-cr-cat-page="' + (p+1) + '" data-category-id="' + categoryId + '" class="' + btnCls + ' bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Next →</button>'
-          : '<span class="' + btnCls + ' bg-slate-100 text-slate-300 cursor-not-allowed">Next →</span>') +
+        (p < totalPages ? '<button type="button" data-cr-cat-page="' + (p+1) + '" data-category-id="' + categoryId + '" class="' + btnCls + ' bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Next →</button>' : '<span class="' + btnCls + ' bg-slate-100 text-slate-300 cursor-not-allowed">Next →</span>') +
       '</div>' +
     '</div>';
   };
 
-  // ============================================================
   App.buildCategoryBlock = function (cat, assessments, allStudents, scoreMap) {
     const catId = String(cat.id);
     const isCollapsed = !!state._crCollapsed[catId];
@@ -269,7 +260,6 @@
       return (Math.round((got / total) * 100 * 100) / 100).toFixed(2);
     };
 
-    // Paginate students for THIS category
     const total = allStudents.length;
     const pageSize = state._crPageSize;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -281,7 +271,6 @@
 
     let html = '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">';
 
-    // Header
     html += '<div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">' +
       '<button type="button" data-action="toggle-category" data-category-id="' + cat.id + '" class="flex items-center gap-3 text-left hover:opacity-80 transition-opacity">' +
         '<span class="w-5 h-5 flex items-center justify-center text-slate-400 transition-transform duration-200" style="transform: rotate(' + (isCollapsed ? '-90' : '0') + 'deg);">' +
@@ -289,14 +278,11 @@
         '</span>' +
         '<div class="font-black text-slate-900 text-sm">' + App.esc(cat.name) + '</div>' +
         '<span class="text-[11px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md">' + App.esc(cat.weight) + '%</span>' +
-        (isCollapsed && assessments.length > 0
-          ? '<span class="text-[10px] font-bold text-slate-400 ml-1">(' + assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ')</span>'
-          : '') +
+        (isCollapsed && assessments.length > 0 ? '<span class="text-[10px] font-bold text-slate-400 ml-1">(' + assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ')</span>' : '') +
       '</button>' +
       '<button type="button" data-action="add-assessment" data-category-id="' + cat.id + '" data-category-name="' + App.esc(cat.name) + '" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all">+ Add Assessment</button>' +
     '</div>';
 
-    // Body
     if (isCollapsed) {
       // Nothing
     } else if (assessments.length === 0) {
@@ -346,7 +332,6 @@
       });
       html += '</tbody></table></div>';
 
-      // Per-category pagination
       html += App._crCategoryPaginationUI(cat.id, page, totalPages);
     }
 
@@ -354,9 +339,6 @@
     return html;
   };
 
-  // ============================================================
-  // Assessment modal + save/delete (unchanged)
-  // ============================================================
   App.openAssessmentModal = function (categoryId, categoryName, quarter, editId, name, totalPoints) {
     document.getElementById('assessment-modal-title').textContent = editId ? 'Edit Assessment' : 'Add Assessment';
     document.getElementById('assessment-edit-id').value = editId || '';

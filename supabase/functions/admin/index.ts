@@ -178,13 +178,20 @@ Deno.serve(async (req) => {
         if (scoreRes.ok) scores = await scoreRes.json();
       }
 
+      // Fetch enrolled students
       let enrQ = scopeByTeacher(sb.from("enrollments").select("student_number").eq("subject_name", subject), auth.teacher.id);
       const enrRows = await enrQ;
-      const studentNumbers = (enrRows.data || []).map(e => e.student_number);
+      let studentNumbers = (enrRows.data || []).map(e => e.student_number);
+
+      // BUG FIX: Fallback to `grades` table if `enrollments` is empty
+      if (studentNumbers.length === 0) {
+        let gq = scopeByTeacher(sb.from("grades").select("student_number").eq("subject_name", subject), auth.teacher.id);
+        const gRows = await gq;
+        studentNumbers = (gRows.data || []).map(g => g.student_number);
+      }
 
       let students: any[] = [];
       if (studentNumbers.length > 0) {
-        // BUG FIX: Removed scopeByTeacher here so teachers can see students added by the Admin
         let sQ = sb.from("students").select("student_number,name,section").in("student_number", studentNumbers);
         const sRows = await sQ;
         students = sRows.data || [];
