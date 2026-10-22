@@ -134,18 +134,36 @@
       btn.addEventListener('click', () => App.switchAdminTab(btn.dataset.tab, btn));
     });
 
-    // Roster Table Click
+    // ---- Roster Tab ----
     document.getElementById('roster-table-body').addEventListener('click', e => {
       const btn = e.target.closest('button[data-action="manage-roster"]');
       if (btn) {
         App.openSlidePanel(btn.dataset.id, 'roster');
       }
     });
-    
-    // Roster Search
-    document.getElementById('roster-search').addEventListener('input', App.debounce(App.filterRoster, 250));
 
-    // Grade Book Filters
+    document.getElementById('roster-search').addEventListener('input', App.debounce(App.filterRoster, 250));
+    document.getElementById('roster-section-filter').addEventListener('change', App.filterRoster);
+    
+    // Bulk Select Logic
+    document.getElementById('roster-select-all').addEventListener('change', e => {
+      document.querySelectorAll('#roster-table-body tr.roster-row').forEach(row => {
+        if (!row.classList.contains('hidden')) {
+          row.querySelector('.roster-checkbox').checked = e.target.checked;
+        }
+      });
+      App.updateBulkActionBar();
+    });
+
+    document.getElementById('roster-table-body').addEventListener('change', e => {
+      if (e.target.classList.contains('roster-checkbox')) {
+        App.updateBulkActionBar();
+      }
+    });
+
+    document.getElementById('bulk-enroll-btn').addEventListener('click', App.executeBulkEnroll);
+
+    // ---- Grade Book Tab ----
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();

@@ -1,4 +1,4 @@
-import { CORS_HEADERS, resolveAuth, requireSuperAdmin } from "./utils.ts";
+import { CORS_HEADERS, resolveAuth, requireSuperAdmin, json } from "./utils.ts";
 import * as Auth from "./auth.ts";
 import * as Teachers from "./teachers.ts";
 import * as Students from "./students.ts";
@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
       case "updateStudentInfo":     result = await Students.updateStudentInfo(body); break;
       case "deleteStudent":         result = await Students.deleteStudent(body); break;
       case "syncStudentEnrollments": result = await Students.syncStudentEnrollments(body, auth); break;
+      case "bulkEnrollStudents":    result = await Students.bulkEnrollStudents(body, auth); break;
 
       // Grades
       case "saveGrades":            result = await Grades.saveGrades(body, auth); break;

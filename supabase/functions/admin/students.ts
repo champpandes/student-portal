@@ -109,6 +109,29 @@ export async function syncStudentEnrollments(p: any, auth: AuthContext) {
   return { success: true };
 }
 
+export async function bulkEnrollStudents(p: any, auth: AuthContext) {
+  const studentNumbers = p.studentNumbers || [];
+  const subjectName = String(p.subjectName || "");
+  const teacherId = auth.teacher?.id || null;
+
+  if (studentNumbers.length === 0 || !subjectName) return { success: false, message: "Missing data." };
+
+  const enrollments = studentNumbers.map((sNo: string) => ({
+    student_number: sNo, subject_name: subjectName, teacher_id: teacherId
+  }));
+
+  const gradeRows = studentNumbers.map((sNo: string) => ({
+    student_number: sNo, subject_name: subjectName, 
+    q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [], teacher_id: teacherId
+  }));
+
+  // ignoreDuplicates prevents errors if a student is already enrolled
+  await sb.from("enrollments").upsert(enrollments, { onConflict: "student_number,subject_name", ignoreDuplicates: true });
+  await sb.from("grades").upsert(gradeRows, { onConflict: "student_number,subject_name", ignoreDuplicates: true });
+
+  return { success: true };
+}
+
 export async function updateStudentInfo(p: any) {
   const oldId = String(p.oldStudentNumber || "");
   const newId = String(p.newData?.studentNumber || oldId);

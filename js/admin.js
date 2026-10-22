@@ -159,12 +159,12 @@
 
     const tbody = document.getElementById('roster-table-body');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 animate-pulse" colspan="5">Loading roster...</td></tr>';
+    tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 animate-pulse" colspan="6">Loading roster...</td></tr>';
 
     const res = await App.apiCall({ action: "getAllGrades", subject: "All" });
     
     if (!Array.isArray(res)) {
-      tbody.innerHTML = '<tr><td class="p-8 text-center text-rose-500 font-bold" colspan="5">Failed to load roster.</td></tr>';
+      tbody.innerHTML = '<tr><td class="p-8 text-center text-rose-500 font-bold" colspan="6">Failed to load roster.</td></tr>';
       return;
     }
 
@@ -186,8 +186,23 @@
     const list = Object.values(uniqueStudents);
     list.sort((a, b) => a.name.localeCompare(b.name));
 
+    // Populate Section Filter
+    const sections = [...new Set(list.map(s => s.section))].sort();
+    const secFilter = document.getElementById('roster-section-filter');
+    if (secFilter) {
+      const curr = secFilter.value;
+      secFilter.innerHTML = '<option value="All">All Sections</option>' + sections.map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
+      if (sections.includes(curr)) secFilter.value = curr;
+    }
+
+    // Populate Bulk Subject Dropdown
+    const bulkSubj = document.getElementById('bulk-subject-select');
+    if (bulkSubj) {
+      bulkSubj.innerHTML = '<option value="">Select subject to enroll...</option>' + state.availableSubjects.map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
+    }
+
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="5">No students in the pool yet.</td></tr>';
+      tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="6">No students in the pool yet.</td></tr>';
       return;
     }
 
@@ -196,7 +211,8 @@
         ? '<span class="text-slate-400 italic text-xs">None assigned</span>'
         : s.subjects.map(sub => `<span class="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md text-[10px] font-bold mr-1 mb-1 border border-indigo-100">${App.esc(sub)}</span>`).join('');
 
-      return `<tr class="hover:bg-indigo-50/30 transition-colors">
+      return `<tr class="hover:bg-indigo-50/30 transition-colors roster-row" data-section="${App.esc(s.section)}">
+        <td class="p-4"><input type="checkbox" class="roster-checkbox w-4 h-4 accent-indigo-600 rounded" value="${App.esc(s.studentNumber)}"></td>
         <td class="p-4 font-semibold text-slate-600">${App.esc(s.studentNumber)}</td>
         <td class="p-4 font-bold text-slate-800">${App.esc(s.name)}</td>
         <td class="p-4 text-slate-500 font-medium">${App.esc(s.section)}</td>
@@ -206,16 +222,67 @@
         </td>
       </tr>`;
     }).join('');
+
+    App.filterRoster();
+    App.updateBulkActionBar();
   };
 
   App.filterRoster = function () {
     const search = (document.getElementById('roster-search').value || '').toLowerCase().trim();
-    const rows = document.querySelectorAll('#roster-table-body tr');
-    rows.forEach(row => {
+    const sec = document.getElementById('roster-section-filter').value;
+    
+    document.querySelectorAll('#roster-table-body tr.roster-row').forEach(row => {
       const text = row.textContent.toLowerCase();
-      if (text.includes(search)) row.classList.remove('hidden');
+      const rowSec = row.dataset.section;
+      const matchSearch = text.includes(search);
+      const matchSec = sec === 'All' || rowSec === sec;
+      
+      if (matchSearch && matchSec) row.classList.remove('hidden');
       else row.classList.add('hidden');
     });
+
+    // Uncheck hidden boxes
+    document.getElementById('roster-select-all').checked = false;
+    document.querySelectorAll('.roster-checkbox').forEach(cb => cb.checked = false);
+    App.updateBulkActionBar();
+  };
+
+  App.updateBulkActionBar = function () {
+    const checked = document.querySelectorAll('.roster-checkbox:checked');
+    const bar = document.getElementById('bulk-action-bar');
+    const count = document.getElementById('selected-count');
+    
+    if (checked.length > 0) {
+      bar.classList.remove('hidden');
+      count.textContent = checked.length;
+    } else {
+      bar.classList.add('hidden');
+    }
+  };
+
+  App.executeBulkEnroll = async function () {
+    const btn = document.getElementById('bulk-enroll-btn');
+    const subject = document.getElementById('bulk-subject-select').value;
+    const checked = document.querySelectorAll('.roster-checkbox:checked');
+    const studentNumbers = Array.from(checked).map(cb => cb.value);
+
+    if (!subject) { App.showToast('Please select a subject.', 'error'); return; }
+    if (studentNumbers.length === 0) return;
+
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({
+        action: "bulkEnrollStudents",
+        studentNumbers: studentNumbers,
+        subjectName: subject
+      }, { retries: 1 });
+
+      if (res.success) {
+        App.showToast(`Successfully enrolled ${studentNumbers.length} students in ${subject}.`);
+        App.loadRoster();
+      } else {
+        App.showToast(res.message || 'Failed to enroll.', 'error');
+      }
+    }, { text: 'Enrolling...' });
   };
 
   // ---------- Dashboard (Grade Book) ----------
