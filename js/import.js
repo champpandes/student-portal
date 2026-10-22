@@ -3,7 +3,6 @@
 
   const state = App.state;
 
-  // --- MODAL OPEN/CLOSE ---
   App.openImportModal = function (mode) {
     document.getElementById('transfer-status').classList.add('hidden');
     document.getElementById('preview-section').classList.add('hidden');
@@ -18,7 +17,7 @@
     document.getElementById('csv-file-input').value = '';
     document.getElementById('smart-paste-input').value = '';
 
-    ['col-id-reg','col-name','col-id-grades'].forEach(id => {
+    ['col-id-reg','col-name','col-sec','col-id-grades'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
@@ -28,8 +27,13 @@
     // POPULATE SECTIONS DROPDOWN
     const secSelect = document.getElementById('import-section');
     if (secSelect) {
-      secSelect.innerHTML = '<option value="">Select a section...</option>' + 
-        (state.sectionsCache || []).map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
+      sessionStorage.removeItem('sp_sections_cache');
+      secSelect.innerHTML = '<option value="">Loading sections...</option>';
+      
+      App.fetchAllSectionsForDropdowns().then(() => {
+        secSelect.innerHTML = '<option value="">Select a section...</option>' + 
+          (state.sectionsCache || []).map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
+      });
     }
 
     // SMART MODAL LOGIC
@@ -54,7 +58,6 @@
     App.closeModal(document.getElementById('import-modal'));
   };
 
-  // --- UI TOGGLING ---
   App.toggleImportUI = function () {
     const action = document.getElementById('import-action').value;
     const isGrades = action === 'grades';
@@ -106,7 +109,6 @@
       .join('');
   };
 
-  // --- PARSERS ---
   function readCSVFile(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -171,7 +173,6 @@
     return colLetterToIndex(el.value);
   }
 
-  // --- PREVIEW ---
   App.previewDataTransfer = async function () {
     const btn = document.getElementById('preview-btn');
     const action = document.getElementById('import-action').value;
@@ -318,7 +319,6 @@
     }, { text: 'Reading...' });
   };
 
-  // --- CONFIRM ---
   App.confirmDataTransfer = async function () {
     const btn = document.getElementById('confirm-btn');
     const cancelBtn = document.getElementById('import-cancel-btn');
@@ -391,7 +391,6 @@
     }
   };
 
-  // --- EXPORT CSV / XLSX ---
   App.exportTableToCSV = function (filename) {
     if (!state.currentAdminData || state.currentAdminData.length === 0) {
       App.showToast("No data to export.", "error");

@@ -19,7 +19,6 @@ const TRANSMUTATION: [number, number][] = [
 ];
 const QUARTER_ORDINAL: Record<string, string> = { "1": "1st", "2": "2nd", "3": "3rd", "4": "4th" };
 
-// --- HELPERS ---
 function json(data: any, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
 }
@@ -92,7 +91,6 @@ function publicTeacher(t: any) {
   return { id: t.id, email: t.email, displayName: t.display_name, role: t.role, status: t.status, isActive: t.is_active, createdAt: t.created_at, lastLoginAt: t.last_login_at };
 }
 
-// --- MAIN ROUTER ---
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
@@ -238,7 +236,6 @@ Deno.serve(async (req) => {
       }
     }
     if (!auth) {
-      // Legacy PIN fallback
       const pin = String(body?.pin || "").trim();
       if (pin) {
         const pinRows = await sb.from("settings").select("value").eq("key", "admin_pin_hash").limit(1);
@@ -256,7 +253,7 @@ Deno.serve(async (req) => {
     // ==========================================
     // 3. SUPER ADMIN ONLY
     // ==========================================
-    const SUPER_ONLY = new Set(["listTeachers", "approveTeacher", "rejectTeacher", "setTeacherRole", "setTeacherActive", "resetTeacherPassword", "deleteTeacher"]);
+    const SUPER_ONLY = new Set(["listTeachers", "approveTeacher", "rejectTeacher", "setTeacherRole", "setTeacherActive", "resetTeacherPassword", "deleteTeacher", "manageSection"]);
     if (SUPER_ONLY.has(action) && (!auth.teacher || auth.teacher.role !== "super_admin")) {
       return json({ success: false, message: "Super admin access required." });
     }
@@ -291,6 +288,22 @@ Deno.serve(async (req) => {
     if (action === "deleteTeacher") {
       if (body.teacherId === auth.teacher.id) return json({ success: false, message: "Cannot delete self." });
       await sb.from("teachers").delete().eq("id", body.teacherId);
+      return json({ success: true });
+    }
+
+    if (action === "manageSection") {
+      const subAction = String(body.subAction || "add");
+      const name = stripTags(String(body.name || "").trim());
+
+      if (subAction === "add") {
+        await sb.from("sections").insert({ name, teacher_id: auth.teacher.id });
+      } else if (subAction === "rename") {
+        const oldName = String(body.oldName);
+        await sb.from("sections").update({ name }).eq("name", oldName);
+        await sb.from("students").update({ section: name }).eq("section", oldName);
+      } else if (subAction === "delete") {
+        await sb.from("sections").delete().eq("name", name);
+      }
       return json({ success: true });
     }
 
@@ -331,7 +344,7 @@ Deno.serve(async (req) => {
       return json({ success: true, name });
     }
 
-    // SUBJECTS & SECTIONS
+    // SUBJECTS
     if (action === "getSubjects") {
       let subjQ = scopeByTeacher(sb.from("subjects").select("*").order("subject_name"), auth.teacher?.id || null);
       let catQ = scopeByTeacher(sb.from("subject_categories").select("*").order("position"), auth.teacher?.id || null);
@@ -395,33 +408,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === "getSections") {
-      const q = scopeByTeacher(sb.from("sections").select("name").order("name"), auth.teacher?.id || null);
-      const sec = await q;
+      // REMOVED scopeByTeacher so ALL sections are visible to everyone
+      const sec = await sb.from("sections").select("name").order("name");
       return json({ success: true, sections: (sec.data || []).map(s => s.name) });
-    }
-
-    if (action === "manageSection") {
-      const subAction = String(body.subAction || "add");
-      const name = stripTags(String(body.name || "").trim());
-      const teacherId = auth.teacher?.id || null;
-
-      if (subAction === "add") {
-        const payload: any = { name }; if (teacherId) payload.teacher_id = teacherId;
-        await sb.from("sections").insert(payload);
-      } else if (subAction === "rename") {
-        const oldName = String(body.oldName);
-        let updateQ = sb.from("sections").update({ name }).eq("name", oldName);
-        if (teacherId) updateQ = updateQ.eq("teacher_id", teacherId);
-        await updateQ;
-        let stuUpdate = sb.from("students").update({ section: name }).eq("section", oldName);
-        if (teacherId) stuUpdate = stuUpdate.eq("teacher_id", teacherId);
-        await stuUpdate;
-      } else if (subAction === "delete") {
-        let delQ = sb.from("sections").delete().eq("name", name);
-        if (teacherId) delQ = delQ.eq("teacher_id", teacherId);
-        await delQ;
-      }
-      return json({ success: true });
     }
 
     // STUDENTS & ROSTER
@@ -472,11 +461,24 @@ Deno.serve(async (req) => {
     if (action === "bulkAddStudents") {
       if (auth.teacher && auth.teacher.role !== 'super_admin') return json({ success: false, message: "Super admin only." });
       const list = body.studentsArray || [];
+      
+      // VALIDATE SECTIONS
+      const validSectionsRes = await sb.from("sections").select("name");
+      const validSections = (validSectionsRes.data || []).map(s => s.name);
+
       for (const sData of list) {
+        let section = stripTags(String(sData.section || "").trim());
+        
+        // If a section is provided but it doesn't exist in the DB, reject the import
+        if (section && !validSections.includes(section)) {
+            return json({ success: false, message: `The section "${section}" does not exist. Please create it in the Sections tab first.` });
+        }
+        
         const sNo = String(sData.studentNumber || "").trim();
         const name = stripTags(String(sData.name || "").trim());
-        const section = stripTags(String(sData.section || "Section A"));
-        if (sNo && name) await sb.from("students").upsert({ student_number: sNo, name, section, teacher_id: auth.teacher?.id || null }, { onConflict: "student_number" });
+        if (sNo && name) {
+            await sb.from("students").upsert({ student_number: sNo, name, section: section || validSections[0] || "Section A", teacher_id: auth.teacher?.id || null }, { onConflict: "student_number" });
+        }
       }
       return json({ success: true, processed: list.length });
     }
@@ -804,7 +806,7 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
-    // COMMENTS & ANNOUNCEMENTS (Kept for backwards compatibility, even if UI is removed)
+    // COMMENTS & ANNOUNCEMENTS
     if (action === "getComments") {
       let q = scopeByTeacher(sb.from("comments").select("*").order("id", { ascending: true }), auth.teacher?.id || null);
       const rows = await q;

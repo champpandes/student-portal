@@ -151,8 +151,6 @@
 
   // ---------- Roster (Student Pool) ----------
   App.loadRoster = async function () {
-
-
     const tbody = document.getElementById('roster-table-body');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 animate-pulse" colspan="6">Loading roster...</td></tr>';
@@ -181,9 +179,6 @@
 
     const list = Object.values(uniqueStudents);
     list.sort((a, b) => a.name.localeCompare(b.name));
-    
-    // Store in memory for fast filtering
-    state.currentRosterData = list;
 
     // Populate Section Filter
     const sections = [...new Set(list.map(s => s.section))].sort();
@@ -194,31 +189,14 @@
       if (sections.includes(curr)) secFilter.value = curr;
     }
 
-    // Populate Subject Filter
-    const subjFilter = document.getElementById('roster-subject-filter');
-    if (subjFilter) {
-      const curr = subjFilter.value;
-      subjFilter.innerHTML = '<option value="All">All Subjects</option>' + 
-                             '<option value="Unassigned">No Subjects Assigned</option>' +
-                             state.availableSubjects.map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
-      if (curr) subjFilter.value = curr;
-    }
-
     // Populate Bulk Subject Dropdown
     const bulkSubj = document.getElementById('bulk-subject-select');
     if (bulkSubj) {
       bulkSubj.innerHTML = '<option value="">Select subject to enroll...</option>' + state.availableSubjects.map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
     }
 
-    App.filterRoster();
-  };
-
-  App.renderRosterTable = function (list) {
-    const tbody = document.getElementById('roster-table-body');
-    if (!tbody) return;
-
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="6">No students match the current filters.</td></tr>';
+      tbody.innerHTML = '<tr><td class="p-8 text-center text-slate-400 font-bold" colspan="6">No students in the pool yet.</td></tr>';
       return;
     }
 
@@ -239,32 +217,28 @@
       </tr>`;
     }).join('');
 
-    document.getElementById('roster-select-all').checked = false;
+    App.filterRoster();
     App.updateBulkActionBar();
   };
 
   App.filterRoster = function () {
-    if (!state.currentRosterData) return;
-
     const search = (document.getElementById('roster-search').value || '').toLowerCase().trim();
     const sec = document.getElementById('roster-section-filter').value;
-    const subj = document.getElementById('roster-subject-filter').value;
     
-    const filtered = state.currentRosterData.filter(s => {
-      const matchSearch = s.name.toLowerCase().includes(search) || String(s.studentNumber).toLowerCase().includes(search);
-      const matchSec = sec === 'All' || s.section === sec;
+    document.querySelectorAll('#roster-table-body tr.roster-row').forEach(row => {
+      const text = row.textContent.toLowerCase();
+      const rowSec = row.dataset.section;
+      const matchSearch = text.includes(search);
+      const matchSec = sec === 'All' || rowSec === sec;
       
-      let matchSubj = true;
-      if (subj === 'Unassigned') {
-        matchSubj = s.subjects.length === 0;
-      } else if (subj !== 'All') {
-        matchSubj = s.subjects.includes(subj);
-      }
-
-      return matchSearch && matchSec && matchSubj;
+      if (matchSearch && matchSec) row.classList.remove('hidden');
+      else row.classList.add('hidden');
     });
 
-    App.renderRosterTable(filtered);
+    // Uncheck hidden boxes
+    document.getElementById('roster-select-all').checked = false;
+    document.querySelectorAll('.roster-checkbox').forEach(cb => cb.checked = false);
+    App.updateBulkActionBar();
   };
 
   App.updateBulkActionBar = function () {
@@ -767,9 +741,14 @@
   };
 
   // ---------- Add student ----------
-  App.openAddStudentModal = function () {
+  App.openAddStudentModal = async function () {
     document.getElementById('new-student-id').value = '';
     document.getElementById('new-student-name').value = '';
+    
+    // Force a fresh fetch of sections so the dropdown is always up-to-date
+    sessionStorage.removeItem('sp_sections_cache');
+    await App.fetchAllSectionsForDropdowns();
+    
     document.getElementById('new-student-section').value = '';
     App.openModal(document.getElementById('add-student-modal'));
   };
@@ -784,10 +763,13 @@
     const btn = document.getElementById('save-new-student-btn');
     const id = document.getElementById('new-student-id').value.trim();
     const name = document.getElementById('new-student-name').value.trim();
-    const sec = document.getElementById('new-student-section').value;
+    
+    const isAdmin = state.currentTeacher && state.currentTeacher.role === 'super_admin';
+    const secEl = document.getElementById('new-student-section');
+    const sec = secEl ? secEl.value : '';
 
-    if (!id || !name || !sec) {
-      App.showToast("Fill all fields and select a section.", "error");
+    if (!id || !name || (isAdmin && !sec)) {
+      App.showToast("Fill all required fields.", "error");
       return;
     }
 
@@ -796,18 +778,23 @@
     await App.withButtonLoading(btn, async () => {
       const res = await App.apiCall({
         action: "addStudent", pin: state.adminPin,
-        studentData: { studentNumber: id, name: name, section: sec, enrolledSubjects: [] }
+        studentData: { 
+          studentNumber: id, 
+          name: name, 
+          section: isAdmin ? sec : 'Pending Assignment',
+          enrolledSubjects: [] 
+        }
       }, { retries: 1 });
 
       if (res.success) {
-        App.showToast(res.message || "Student added to pool."); // <--- Update this line
+        App.showToast(res.message || "Student added to pool.");
         App.closeModal(document.getElementById('add-student-modal'));
         App.invalidateActiveCache();
         await App.loadAdminDashboard();
         if (App.loadRoster) await App.loadRoster();
         App.updateLastSavedTimestamp();
         succeeded = true;
-      }else {
+      } else {
         App.showToast(res.message || "Failed to save new student.", "error");
       }
     }, { text: 'Saving...' });
