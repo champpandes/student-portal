@@ -8,7 +8,7 @@
   state._crPageSize = 50;
   state._crCollapsed = {};
   state._crCategoryPages = {};
-  state._crActiveCategoryId = null; // NEW: Track active category tab
+  state._crActiveCategoryId = null;
 
   App.populateClassRecordFilters = async function () {
     const sel = document.getElementById('cr-subject');
@@ -52,7 +52,6 @@
       state._crCollapsed = {};
       state._crCategoryPages = {};
       
-      // Reset active category to the first one
       if (res.categories && res.categories.length > 0) {
         state._crActiveCategoryId = String(res.categories[0].id);
       } else {
@@ -181,7 +180,6 @@
       assessByCat[k].sort((a, b) => (a.position || 0) - (b.position || 0));
     });
 
-    // Ensure active category is valid
     let activeCat = categories.find(c => String(c.id) === String(state._crActiveCategoryId));
     if (!activeCat) {
       activeCat = categories[0];
@@ -190,7 +188,6 @@
 
     const filterInfo = App._crFilterSummary(allFiltered.length, rec.students.length);
 
-    // Build Tabs UI
     let tabsHtml = '<div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 mb-4">';
     categories.sort((a, b) => (a.position || 0) - (b.position || 0)).forEach(cat => {
       const isActive = String(cat.id) === String(state._crActiveCategoryId);
@@ -201,7 +198,6 @@
     });
     tabsHtml += '</div>';
 
-    // Render only the active category block
     const activeAssessments = assessByCat[String(activeCat.id)] || [];
     const categoryBlock = App.buildCategoryBlock(activeCat, activeAssessments, allFiltered, scoreMap);
 
@@ -288,9 +284,12 @@
     } else if (students.length === 0) {
       html += '<div class="p-8 text-center text-slate-400 text-sm italic">No students match the current filter.</div>';
     } else {
-      html += '<div class="overflow-x-auto"><table class="w-full text-left text-sm border-collapse">';
+      // Added relative for sticky context
+      html += '<div class="overflow-x-auto relative"><table class="w-full text-left text-sm border-collapse">';
       html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-wider">';
-      html += '<th class="p-3 min-w-[180px]">Student</th>';
+      
+      // STICKY LEFT COLUMN
+      html += '<th class="p-3 min-w-[180px] sticky left-0 z-20 bg-slate-50 border-r border-slate-200 shadow-[1px_0_0_0_#e2e8f0]">Student</th>';
 
       assessments.forEach(a => {
         html += '<th class="p-3 text-center min-w-[100px]">' +
@@ -304,13 +303,17 @@
           '</div>' +
         '</th>';
       });
-      html += '<th class="p-3 text-center min-w-[80px] bg-indigo-50/50">Avg</th>';
+      
+      // STICKY RIGHT COLUMN
+      html += '<th class="p-3 text-center min-w-[80px] sticky right-0 z-20 bg-slate-50 border-l border-slate-200 shadow-[-1px_0_0_0_#e2e8f0]">Avg</th>';
       html += '</tr></thead>';
 
       html += '<tbody class="divide-y divide-slate-100">';
       students.forEach(stu => {
-        html += '<tr class="hover:bg-slate-50/40 transition-colors">';
-        html += '<td class="p-3"><div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div><div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div></td>';
+        html += '<tr class="group hover:bg-slate-50/40 transition-colors">';
+        
+        // STICKY LEFT COLUMN
+        html += '<td class="p-3 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 shadow-[1px_0_0_0_#e2e8f0]"><div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div><div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div></td>';
 
         assessments.forEach(a => {
           const val = scoreMap[a.id + '|' + stu.student_number];
@@ -325,7 +328,9 @@
 
         const avg = computeAvg(stu.student_number);
         const avgColor = avg === '-' ? 'text-slate-400' : (Number(avg) >= 75 ? 'text-emerald-600' : 'text-rose-600');
-        html += '<td class="p-3 text-center bg-indigo-50/30"><span class="font-black text-sm ' + avgColor + '">' + avg + '</span></td>';
+        
+        // STICKY RIGHT COLUMN
+        html += '<td class="p-3 text-center sticky right-0 z-10 bg-indigo-50 group-hover:bg-indigo-100 border-l border-slate-200 shadow-[-1px_0_0_0_#e2e8f0]"><span class="font-black text-sm ' + avgColor + '">' + avg + '</span></td>';
         html += '</tr>';
       });
       html += '</tbody></table></div>';
