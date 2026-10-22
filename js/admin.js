@@ -333,7 +333,6 @@
       try {
         state.currentAdminData = JSON.parse(cached);
         App.populateSectionFilter();
-        App.updateSummaryMetrics(state.currentAdminData);
         App.applyAdminFilters();
         if (sync) { sync.classList.remove('hidden'); sync.classList.add('flex'); }
       } catch (e) { console.warn("Cache read error", e); }
@@ -366,7 +365,6 @@
         sessionStorage.setItem(key, JSON.stringify(res));
         state.currentAdminData = res;
         App.populateSectionFilter();
-        App.updateSummaryMetrics(state.currentAdminData);
         App.applyAdminFilters();
         App.updateLastSavedTimestamp();
 
@@ -408,28 +406,6 @@
     } finally {
       if (sync && myReq === state.reqSeq) { sync.classList.add('hidden'); sync.classList.remove('flex'); }
     }
-  };
-
-  App.updateSummaryMetrics = function (data) {
-    const total = data.length;
-    document.getElementById('stat-total-students').textContent = total;
-
-    if (total === 0) {
-      document.getElementById('stat-passing-rate').textContent = "0%";
-      document.getElementById('stat-class-average').textContent = "-";
-      return;
-    }
-
-    let passed = 0;
-    data.forEach(s => { if (s.remarks === 'Passed') passed++; });
-    document.getElementById('stat-passing-rate').textContent = Math.round((passed / total) * 100) + '%';
-
-    let sum = 0, count = 0;
-    data.forEach(s => {
-      const f = Number(s.final);
-      if (!isNaN(f) && f > 0) { sum += f; count++; }
-    });
-    document.getElementById('stat-class-average').textContent = count ? Math.round(sum / count) : "-";
   };
 
   // ---------- Quarter filter ----------
@@ -561,7 +537,6 @@
        String(s.studentNumber).indexOf(search) !== -1) &&
       (sec === "All" || s.section === sec)
     );
-    App.updateSummaryMetrics(filtered);
     App.renderAdminTable(filtered);
     App.renderAdminMobileCards(filtered);
   };
