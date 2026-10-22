@@ -408,7 +408,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === "getSections") {
-      // REMOVED scopeByTeacher so ALL sections are visible to everyone
       const sec = await sb.from("sections").select("name").order("name");
       return json({ success: true, sections: (sec.data || []).map(s => s.name) });
     }
@@ -459,28 +458,57 @@ Deno.serve(async (req) => {
     }
 
     if (action === "bulkAddStudents") {
-      if (auth.teacher && auth.teacher.role !== 'super_admin') return json({ success: false, message: "Super admin only." });
       const list = body.studentsArray || [];
-      
+      if (list.length === 0) return json({ success: true, processed: 0 });
+
       // VALIDATE SECTIONS
       const validSectionsRes = await sb.from("sections").select("name");
       const validSections = (validSectionsRes.data || []).map(s => s.name);
 
       for (const sData of list) {
         let section = stripTags(String(sData.section || "").trim());
-        
-        // If a section is provided but it doesn't exist in the DB, reject the import
         if (section && !validSections.includes(section)) {
-            return json({ success: false, message: `The section "${section}" does not exist. Please create it in the Sections tab first.` });
-        }
-        
-        const sNo = String(sData.studentNumber || "").trim();
-        const name = stripTags(String(sData.name || "").trim());
-        if (sNo && name) {
-            await sb.from("students").upsert({ student_number: sNo, name, section: section || validSections[0] || "Section A", teacher_id: auth.teacher?.id || null }, { onConflict: "student_number" });
+            return json({ success: false, message: `The section "${section}" does not exist. Please create it first.` });
         }
       }
-      return json({ success: true, processed: list.length });
+
+      if (auth.teacher && auth.teacher.role === "super_admin") {
+        // ADMIN: Add directly to the pool
+        for (const sData of list) {
+          const sNo = String(sData.studentNumber || "").trim();
+          const name = stripTags(String(sData.name || "").trim());
+          let section = stripTags(String(sData.section || "").trim());
+          if (sNo && name) {
+            await sb.from("students").upsert({ 
+              student_number: sNo, 
+              name, 
+              section: section || validSections[0] || "Section A", 
+              teacher_id: auth.teacher.id 
+            }, { onConflict: "student_number" });
+          }
+        }
+        return json({ success: true, processed: list.length, message: `Added ${list.length} students to pool.` });
+      } else {
+        // TEACHER: Submit requests to Admin
+        const rows = list.map((sData: any) => {
+          const sNo = String(sData.studentNumber || "").trim();
+          const name = stripTags(String(sData.name || "").trim());
+          const section = stripTags(String(sData.section || "").trim());
+          return {
+            timestamp: new Date().toISOString(),
+            student_number: sNo,
+            name: name,
+            section: section,
+            enrolled_subjects: [],
+            status: 'pending',
+            reviewed_at: '',
+            teacher_id: auth.teacher?.id || null
+          };
+        });
+        
+        await sb.from("pending_registrations").insert(rows);
+        return json({ success: true, processed: list.length, message: `Submitted ${list.length} requests to Admin for approval.` });
+      }
     }
 
     if (action === "updateStudentInfo") {

@@ -356,7 +356,9 @@
         }, { retries: 1, timeout: 120000 });
 
         if (!res.success) throw new Error(res.message || "Bulk registration failed.");
-        setProgress(100, 'Registered ' + total + ' entries.', "Done.");
+        
+        status.textContent = res.message || ("Registered " + total + " entries.");
+        setProgress(100, res.message || 'Registered ' + total + ' entries.', "Done.");
       } else {
         setProgress(20, 'Saving ' + total + ' grade entries…', "One batch request…");
 
