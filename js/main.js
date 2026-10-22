@@ -289,6 +289,14 @@
       if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
       const pageBtn = e.target.closest('button[data-cr-cat-page]');
       if (pageBtn) { App.crGotoCategoryPage(Number(pageBtn.dataset.crCatPage), pageBtn.dataset.categoryId); }
+
+      // NEW: Handle Category Tab Clicks
+      const tabBtn = e.target.closest('button[data-action="switch-category"]');
+      if (tabBtn) {
+        App.crSetActiveCategory(tabBtn.dataset.categoryId);
+        return;
+      }
+
     });
     document.getElementById('cr-body').addEventListener('focusin', (e) => {
       if (e.target.classList.contains('cr-score-input')) e.target.dataset.originalValue = e.target.value;

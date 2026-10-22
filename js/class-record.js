@@ -8,6 +8,7 @@
   state._crPageSize = 50;
   state._crCollapsed = {};
   state._crCategoryPages = {};
+  state._crActiveCategoryId = null; // NEW: Track active category tab
 
   App.populateClassRecordFilters = async function () {
     const sel = document.getElementById('cr-subject');
@@ -50,6 +51,13 @@
       state._crFilters.section = 'All';
       state._crCollapsed = {};
       state._crCategoryPages = {};
+      
+      // Reset active category to the first one
+      if (res.categories && res.categories.length > 0) {
+        state._crActiveCategoryId = String(res.categories[0].id);
+      } else {
+        state._crActiveCategoryId = null;
+      }
 
       App.populateClassRecordSectionFilter();
       App.renderClassRecord();
@@ -75,21 +83,8 @@
     else sel.value = 'All';
   };
 
-  App.crToggleCategory = function (categoryId) {
-    const id = String(categoryId);
-    state._crCollapsed[id] = !state._crCollapsed[id];
-    App.renderClassRecord();
-  };
-
-  App.crCollapseAll = function () {
-    ((state._classRecord && state._classRecord.categories) || []).forEach(c => {
-      state._crCollapsed[String(c.id)] = true;
-    });
-    App.renderClassRecord();
-  };
-
-  App.crExpandAll = function () {
-    state._crCollapsed = {};
+  App.crSetActiveCategory = function (categoryId) {
+    state._crActiveCategoryId = String(categoryId);
     App.renderClassRecord();
   };
 
@@ -186,27 +181,38 @@
       assessByCat[k].sort((a, b) => (a.position || 0) - (b.position || 0));
     });
 
+    // Ensure active category is valid
+    let activeCat = categories.find(c => String(c.id) === String(state._crActiveCategoryId));
+    if (!activeCat) {
+      activeCat = categories[0];
+      state._crActiveCategoryId = String(activeCat.id);
+    }
+
     const filterInfo = App._crFilterSummary(allFiltered.length, rec.students.length);
 
-    const controls = '<div class="flex items-center justify-end gap-2">' +
-      '<button type="button" id="cr-expand-all-btn" class="text-[11px] text-indigo-600 hover:underline font-bold">Expand all</button>' +
-      '<span class="text-slate-300">·</span>' +
-      '<button type="button" id="cr-collapse-all-btn" class="text-[11px] text-indigo-600 hover:underline font-bold">Collapse all</button>' +
-    '</div>';
+    // Build Tabs UI
+    let tabsHtml = '<div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 mb-4">';
+    categories.sort((a, b) => (a.position || 0) - (b.position || 0)).forEach(cat => {
+      const isActive = String(cat.id) === String(state._crActiveCategoryId);
+      const activeClass = isActive 
+        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50';
+      tabsHtml += `<button type="button" data-action="switch-category" data-category-id="${cat.id}" class="px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeClass}">${App.esc(cat.name)} <span class="opacity-75">(${cat.weight}%)</span></button>`;
+    });
+    tabsHtml += '</div>';
 
-    const categoryBlocks = categories
-      .sort((a, b) => (a.position || 0) - (b.position || 0))
-      .map(cat => App.buildCategoryBlock(cat, assessByCat[String(cat.id)] || [], allFiltered, scoreMap))
-      .join('');
+    // Render only the active category block
+    const activeAssessments = assessByCat[String(activeCat.id)] || [];
+    const categoryBlock = App.buildCategoryBlock(activeCat, activeAssessments, allFiltered, scoreMap);
 
-    body.innerHTML = filterInfo + controls + categoryBlocks;
+    body.innerHTML = filterInfo + tabsHtml + categoryBlock;
   };
 
   App._crFilterSummary = function (visible, total) {
     const f = state._crFilters;
     const hasFilter = f.search || (f.section && f.section !== 'All');
     if (!hasFilter) return '';
-    return '<div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-xs font-bold text-indigo-700">' +
+    return '<div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-xs font-bold text-indigo-700 mb-4">' +
       'Showing <b>' + visible + '</b> of <b>' + total + '</b> students' +
       (f.search ? ' · Search: "' + App.esc(f.search) + '"' : '') +
       (f.section && f.section !== 'All' ? ' · Section: ' + App.esc(f.section) : '') +
@@ -245,7 +251,6 @@
 
   App.buildCategoryBlock = function (cat, assessments, allStudents, scoreMap) {
     const catId = String(cat.id);
-    const isCollapsed = !!state._crCollapsed[catId];
 
     const computeAvg = (studentNo) => {
       let got = 0, total = 0;
@@ -271,24 +276,17 @@
 
     let html = '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">';
 
-    html += '<div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">' +
-      '<button type="button" data-action="toggle-category" data-category-id="' + cat.id + '" class="flex items-center gap-3 text-left hover:opacity-80 transition-opacity">' +
-        '<span class="w-5 h-5 flex items-center justify-center text-slate-400 transition-transform duration-200" style="transform: rotate(' + (isCollapsed ? '-90' : '0') + 'deg);">' +
-          '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>' +
-        '</span>' +
-        '<div class="font-black text-slate-900 text-sm">' + App.esc(cat.name) + '</div>' +
-        '<span class="text-[11px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md">' + App.esc(cat.weight) + '%</span>' +
-        (isCollapsed && assessments.length > 0 ? '<span class="text-[10px] font-bold text-slate-400 ml-1">(' + assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ')</span>' : '') +
-      '</button>' +
+    html += '<div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">' +
+      '<div class="flex items-center gap-3">' +
+        '<div class="font-black text-slate-900 text-sm">' + App.esc(cat.name) + ' Assessments</div>' +
+      '</div>' +
       '<button type="button" data-action="add-assessment" data-category-id="' + cat.id + '" data-category-name="' + App.esc(cat.name) + '" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all">+ Add Assessment</button>' +
     '</div>';
 
-    if (isCollapsed) {
-      // Nothing
-    } else if (assessments.length === 0) {
-      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No assessments yet.</div>';
+    if (assessments.length === 0) {
+      html += '<div class="p-8 text-center text-slate-400 text-sm italic">No assessments yet for this category. Click "+ Add Assessment" to start.</div>';
     } else if (students.length === 0) {
-      html += '<div class="p-6 text-center text-slate-400 text-xs italic">No students match the current filter.</div>';
+      html += '<div class="p-8 text-center text-slate-400 text-sm italic">No students match the current filter.</div>';
     } else {
       html += '<div class="overflow-x-auto"><table class="w-full text-left text-sm border-collapse">';
       html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-wider">';
