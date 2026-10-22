@@ -45,9 +45,9 @@ function normalizeQuarterLabel(q: any): string {
 // teacher_id. We still want the first teacher to see them, so
 // the filter is: "mine OR unassigned".
 // ============================================================
-function scopeByTeacher(query, teacherId) {
+function scopeByTeacher(query: any, teacherId: string | null) {
   if (!teacherId) return query;
-  return query.eq("teacher_id", teacherId);   // strict — no .is.null fallback
+  return query.or(`teacher_id.eq.${teacherId},teacher_id.is.null`);
 }
 
 // ============================================================
@@ -256,7 +256,6 @@ Deno.serve(async (req) => {
       case "getAllGrades":          result = await getAllGradesScoped(sb, body, auth); break;
       case "getSections":           result = await buildSectionsPayload(sb, auth.teacher?.id || null); break;
       case "getPendingRegistrations": result = await getPendingRegistrationsScoped(sb, auth); break;
-      case "getSubjects":           result = await buildSubjectsResponse(sb, auth.teacher?.id || null); break;
       case "getComments":           result = await getCommentsScoped(sb, auth); break;
       case "getAnnouncement":       result = await getAnnouncementScoped(sb, body, auth); break;
       case "getAnnouncementHistory": result = await getAnnouncementHistoryScoped(sb, auth); break;
@@ -277,7 +276,6 @@ Deno.serve(async (req) => {
       case "manageSubject":         result = await manageSubject(sb, body, auth); break;
       case "manageSection":         result = await manageSection(sb, body, auth); break;
       case "approveRegistration":   result = await approveRegistration(sb, body, auth); break;
-      case "syncStudentEnrollments": result = await syncStudentEnrollments(sb, body, auth); break;
       case "rejectRegistration":    result = await rejectRegistration(sb, body, auth); break;
       case "recomputeAllGrades":    result = await recomputeAllGrades(sb, auth); break;
       case "restoreAll":            result = await restoreAll(sb, body, auth); break;
@@ -289,8 +287,7 @@ Deno.serve(async (req) => {
       case "saveScoresBatch":       result = await saveScoresBatch(sb, body, auth); break;
       case "applyClassRecordToGrades": result = await applyClassRecordToGrades(sb, body, auth); break;
       case "saveTeacherName":       result = await saveTeacherName(sb, body, auth); break;
-      case "getMyStats":            result = await getMyStats(sb, auth); break;
-      case "changeMyPassword":      result = await changeMyPassword(sb, body, auth); break;
+      case "syncStudentEnrollments": result = await syncStudentEnrollments(sb, body, auth); break;
 
       default:
         return json({ success: false, message: "Unknown action: " + action }, 200);
@@ -324,23 +321,45 @@ async function getAllGradesScoped(sb: any, p: any, auth: AuthContext) {
   const sMap: Record<string, any> = {};
   (sRows.data || []).forEach((s: any) => { sMap[s.student_number] = s; });
 
-  return gRows.data
-    .filter((r: any) => {
-      const sNo = String(r.student_number);
-      return !(sNo.indexOf("T") !== -1 && sNo.indexOf("-") !== -1);
-    })
-    .map((r: any) => {
-      const stu = sMap[r.student_number] || {};
-      return {
-        studentNumber: String(r.student_number),
-        name: stu.name || "",
-        section: stu.section || "Section A",
-        subject: r.subject_name,
-        q1: r.q1, q2: r.q2, q3: r.q3, q4: r.q4,
-        final: r.final,
-        remarks: r.remarks || determineRemarks(r.final)
-      };
+  const results: any[] = [];
+  const seen = new Set();
+
+  // 1. Add students who have grades
+  gRows.data.forEach((r: any) => {
+    const sNo = String(r.student_number);
+    const stu = sMap[sNo] || {};
+    seen.add(sNo);
+    results.push({
+      studentNumber: sNo,
+      name: stu.name || "",
+      section: stu.section || "Section A",
+      subject: r.subject_name,
+      q1: r.q1, q2: r.q2, q3: r.q3, q4: r.q4,
+      final: r.final,
+      remarks: r.remarks || determineRemarks(r.final)
     });
+  });
+
+  // 2. If "All Subjects" is selected, add students who are in the pool but have no grades yet
+  if (subject === "All") {
+    for (const sNo of Object.keys(sMap)) {
+      if (!seen.has(sNo)) {
+        const stu = sMap[sNo];
+        results.push({
+          studentNumber: sNo,
+          name: stu.name || "",
+          section: stu.section || "Section A",
+          subject: "No subjects enrolled",
+          q1: "", q2: "", q3: "", q4: "", final: "", remarks: ""
+        });
+      }
+    }
+  }
+
+  return results.filter((r: any) => {
+    const sNo = String(r.studentNumber);
+    return !(sNo.indexOf("T") !== -1 && sNo.indexOf("-") !== -1);
+  });
 }
 
 async function getPendingRegistrationsScoped(sb: any, auth: AuthContext) {
@@ -934,7 +953,6 @@ async function addStudent(sb: any, p: any, auth: AuthContext, isBulk: boolean) {
     const sNo = String(sData.studentNumber || "").trim();
     const name = stripTags(String(sData.name || "").trim());
     const section = stripTags(String(sData.section || "Section A"));
-    const subjects = sData.enrolledSubjects || [];
     if (!sNo || !name) continue;
 
     const studentPayload: any = { student_number: sNo, name, section };
@@ -1440,11 +1458,9 @@ async function manageSection(sb: any, p: any, auth: AuthContext) {
 async function approveRegistration(sb: any, p: any, auth: AuthContext) {
   const sNo = String(p.studentNumber || "");
   const section = stripTags(String(p.section || "").trim());
-  const subjects: string[] = (p.subjects || []).map((s: any) => String(s));
   const teacherId = auth.teacher?.id || null;
 
   if (!section) return { success: false, message: "Section is required." };
-  if (subjects.length === 0) return { success: false, message: "Select at least one subject." };
 
   let prQuery = sb.from("pending_registrations").select("*")
     .eq("student_number", sNo).eq("status", "pending");
@@ -1461,12 +1477,12 @@ async function approveRegistration(sb: any, p: any, auth: AuthContext) {
   if (sRes.error) return { success: false, message: "Could not create student: " + sRes.error.message };
 
   const { error: upErr } = await sb.from("pending_registrations").update({
-    section, enrolled_subjects: [],
+    section, enrolled_subjects: [], 
     status: "approved", reviewed_at: new Date().toISOString()
   }).eq("id", pr.id);
   if (upErr) return { success: false, message: "Could not finalize approval: " + upErr.message };
 
-  return { success: true, studentNumber: sNo, message: pr.name + " approved and enrolled." };
+  return { success: true, studentNumber: sNo, message: pr.name + " approved. Assign subjects from the Manage menu." };
 }
 
 async function rejectRegistration(sb: any, p: any, auth: AuthContext) {
@@ -1787,67 +1803,6 @@ async function applyClassRecordToGrades(sb: any, p: any, auth: AuthContext) {
 }
 
 // ============================================================
-// Profile
-// ============================================================
-
-async function getMyStats(sb: any, auth: AuthContext) {
-  const teacherId = auth.teacher?.id || null;
-
-  let stuQ = sb.from("students").select("student_number", { count: "exact", head: true });
-  let subjQ = sb.from("subjects").select("id", { count: "exact", head: true });
-  let secQ = sb.from("sections").select("id", { count: "exact", head: true });
-
-  if (teacherId) {
-    stuQ = stuQ.eq("teacher_id", teacherId);
-    subjQ = subjQ.eq("teacher_id", teacherId);
-    secQ = secQ.eq("teacher_id", teacherId);
-  }
-
-  const [stu, subj, sec] = await Promise.all([stuQ, subjQ, secQ]);
-
-  return {
-    success: true,
-    students: stu.count || 0,
-    subjects: subj.count || 0,
-    sections: sec.count || 0
-  };
-}
-
-async function changeMyPassword(sb: any, p: any, auth: AuthContext) {
-  if (!auth.teacher) {
-    return { success: false, message: "Not authenticated as a teacher." };
-  }
-  const current = String(p.currentPassword || "");
-  const next = String(p.newPassword || "");
-  if (!current || !next) {
-    return { success: false, message: "Enter both current and new password." };
-  }
-  if (next.length < 6) {
-    return { success: false, message: "New password must be at least 6 characters." };
-  }
-  if (current === next) {
-    return { success: false, message: "New password must be different from the current one." };
-  }
-
-  const teacher = auth.teacher;
-  const ok = await verifyPassword(current, teacher.password_hash, teacher.password_salt);
-  if (!ok) return { success: false, message: "Current password is incorrect." };
-
-  const { hash, salt } = await hashPassword(next);
-  const { error } = await sb.from("teachers").update({
-    password_hash: hash, password_salt: salt
-  }).eq("id", teacher.id);
-  if (error) throw error;
-
-  const currentToken = String(p.sessionToken || "").trim();
-  let q = sb.from("teacher_sessions").delete().eq("teacher_id", teacher.id);
-  if (currentToken) q = q.neq("token", currentToken);
-  await q;
-
-  return { success: true };
-}
-
-// ============================================================
 // Restore (legacy JSON)
 // ============================================================
 
@@ -1902,51 +1857,6 @@ function extractGradesFromSubjectData(sd: any) {
     }
   });
   return list;
-}
-
-async function syncStudentEnrollments(sb: any, p: any, auth: AuthContext) {
-  const sNo = String(p.studentNumber || "");
-  const newSubjects: string[] = p.subjects || [];
-  const teacherId = auth.teacher?.id || null;
-
-  let q = sb.from("enrollments").select("subject_name").eq("student_number", sNo);
-  if (teacherId) q = q.eq("teacher_id", teacherId);
-  const current = await q;
-  const currentSubjects = (current.data || []).map((e: any) => e.subject_name);
-
-  const toAdd = newSubjects.filter(s => !currentSubjects.includes(s));
-  const toRemove = currentSubjects.filter(s => !newSubjects.includes(s));
-
-  if (toRemove.length > 0) {
-    let delQ = sb.from("enrollments").delete().eq("student_number", sNo).in("subject_name", toRemove);
-    if (teacherId) delQ = delQ.eq("teacher_id", teacherId);
-    await delQ;
-    
-    let delG = sb.from("grades").delete().eq("student_number", sNo).in("subject_name", toRemove);
-    if (teacherId) delG = delG.eq("teacher_id", teacherId);
-    await delG;
-  }
-
-  if (toAdd.length > 0) {
-    const rows = toAdd.map(s => {
-      const row: any = { student_number: sNo, subject_name: s };
-      if (teacherId) row.teacher_id = teacherId;
-      return row;
-    });
-    await sb.from("enrollments").insert(rows);
-
-    const gradeRows = toAdd.map(s => {
-      const row: any = {
-        student_number: sNo, subject_name: s,
-        q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: []
-      };
-      if (teacherId) row.teacher_id = teacherId;
-      return row;
-    });
-    await sb.from("grades").upsert(gradeRows, { onConflict: "student_number,subject_name" });
-  }
-
-  return { success: true };
 }
 
 async function restoreAll(sb: any, p: any, auth: AuthContext) {
@@ -2020,4 +1930,114 @@ async function restoreAll(sb: any, p: any, auth: AuthContext) {
     }
   }
   return { success: true, message: "Restored " + restoredRows + " rows." };
+}
+
+// ============================================================
+// Profile
+// ============================================================
+
+async function getMyStats(sb: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+
+  let stuQ = sb.from("students").select("student_number", { count: "exact", head: true });
+  let subjQ = sb.from("subjects").select("id", { count: "exact", head: true });
+  let secQ = sb.from("sections").select("id", { count: "exact", head: true });
+
+  if (teacherId) {
+    stuQ = stuQ.eq("teacher_id", teacherId);
+    subjQ = subjQ.eq("teacher_id", teacherId);
+    secQ = secQ.eq("teacher_id", teacherId);
+  }
+
+  const [stu, subj, sec] = await Promise.all([stuQ, subjQ, secQ]);
+
+  return {
+    success: true,
+    students: stu.count || 0,
+    subjects: subj.count || 0,
+    sections: sec.count || 0
+  };
+}
+
+async function changeMyPassword(sb: any, p: any, auth: AuthContext) {
+  if (!auth.teacher) {
+    return { success: false, message: "Not authenticated as a teacher." };
+  }
+  const current = String(p.currentPassword || "");
+  const next = String(p.newPassword || "");
+  if (!current || !next) {
+    return { success: false, message: "Enter both current and new password." };
+  }
+  if (next.length < 6) {
+    return { success: false, message: "New password must be at least 6 characters." };
+  }
+  if (current === next) {
+    return { success: false, message: "New password must be different from the current one." };
+  }
+
+  const teacher = auth.teacher;
+  const ok = await verifyPassword(current, teacher.password_hash, teacher.password_salt);
+  if (!ok) return { success: false, message: "Current password is incorrect." };
+
+  const { hash, salt } = await hashPassword(next);
+  const { error } = await sb.from("teachers").update({
+    password_hash: hash, password_salt: salt
+  }).eq("id", teacher.id);
+  if (error) throw error;
+
+  const currentToken = String(p.sessionToken || "").trim();
+  let q = sb.from("teacher_sessions").delete().eq("teacher_id", teacher.id);
+  if (currentToken) q = q.neq("token", currentToken);
+  await q;
+
+  return { success: true };
+}
+
+// ============================================================
+// Student Enrollments
+// ============================================================
+
+async function syncStudentEnrollments(sb: any, p: any, auth: AuthContext) {
+  const sNo = String(p.studentNumber || "");
+  const newSubjects: string[] = p.subjects || [];
+  const teacherId = auth.teacher?.id || null;
+
+  let q = sb.from("enrollments").select("subject_name").eq("student_number", sNo);
+  if (teacherId) q = q.eq("teacher_id", teacherId);
+  const current = await q;
+  const currentSubjects = (current.data || []).map((e: any) => e.subject_name);
+
+  const toAdd = newSubjects.filter(s => !currentSubjects.includes(s));
+  const toRemove = currentSubjects.filter(s => !newSubjects.includes(s));
+
+  if (toRemove.length > 0) {
+    let delQ = sb.from("enrollments").delete().eq("student_number", sNo).in("subject_name", toRemove);
+    if (teacherId) delQ = delQ.eq("teacher_id", teacherId);
+    await delQ;
+    
+    let delG = sb.from("grades").delete().eq("student_number", sNo).in("subject_name", toRemove);
+    if (teacherId) delG = delG.eq("teacher_id", teacherId);
+    await delG;
+  }
+
+  if (toAdd.length > 0) {
+    const rows = toAdd.map(s => {
+      const row: any = { student_number: sNo, subject_name: s };
+      if (teacherId) row.teacher_id = teacherId;
+      return row;
+    });
+    await sb.from("enrollments").insert(rows);
+
+    const gradeRows = toAdd.map(s => {
+      const row: any = {
+        student_number: sNo, subject_name: s,
+        q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: []
+      };
+      if (teacherId) row.teacher_id = teacherId;
+      return row;
+    });
+    await sb.from("grades").upsert(gradeRows, { onConflict: "student_number,subject_name" });
+  }
+
+  return { success: true };
 }

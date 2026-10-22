@@ -440,7 +440,7 @@
   };
 
   // ---------- Slide panel ----------
-  App.openSlidePanel = function (studentNo, subject) {
+  App.openSlidePanel = async function (studentNo, subject) {
     let student = null;
     for (let i = 0; i < state.currentAdminData.length; i++) {
       const s = state.currentAdminData[i];
@@ -465,7 +465,9 @@
     document.getElementById('panel-student-subject').value = subject;
     document.getElementById('panel-subject-label').textContent = state.activeManageSubject;
 
-    const enrolled = Object.keys(student.subjects || {});
+    const res = await App.apiCall({ action: "getStudent", studentNumber: studentNo });
+    const enrolled = (res && res.success) ? Object.keys(res.subjects || {}) : [];
+    
     const cbContainer = document.getElementById('panel-subject-checkboxes');
     if (cbContainer) {
       cbContainer.innerHTML = state.availableSubjects.map(s => {
