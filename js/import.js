@@ -3,10 +3,7 @@
 
   const state = App.state;
 
-  // ============================================================
-  // Modal open/close
-  // ============================================================
-  App.openImportModal = function () {
+  App.openImportModal = function (mode) {
     document.getElementById('transfer-status').classList.add('hidden');
     document.getElementById('preview-section').classList.add('hidden');
     document.getElementById('progress-container').classList.add('hidden');
@@ -26,6 +23,21 @@
     });
 
     state.pendingImportData = [];
+
+    // SMART MODAL LOGIC
+    const actionSelect = document.getElementById('import-action');
+    const actionWrapper = document.getElementById('import-action-wrapper');
+
+    if (mode === 'students') {
+      actionSelect.value = 'register';
+      if (actionWrapper) actionWrapper.classList.add('hidden');
+    } else if (mode === 'grades') {
+      actionSelect.value = 'grades';
+      if (actionWrapper) actionWrapper.classList.add('hidden');
+    } else {
+      if (actionWrapper) actionWrapper.classList.remove('hidden');
+    }
+
     App.toggleImportUI();
     App.openModal(document.getElementById('import-modal'));
   };
@@ -34,9 +46,6 @@
     App.closeModal(document.getElementById('import-modal'));
   };
 
-  // ============================================================
-  // Toggle UI + populate grade columns
-  // ============================================================
   App.toggleImportUI = function () {
     const isGrades = document.getElementById('import-action').value === 'grades';
     document.getElementById('import-quarter-container').classList.toggle('hidden', !isGrades);
@@ -82,9 +91,6 @@
       .join('');
   };
 
-  // ============================================================
-  // Parsers
-  // ============================================================
   function readCSVFile(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -94,22 +100,15 @@
     });
   }
 
-  // Sniff the delimiter from the first few non-empty lines.
-  // Candidates: tab, comma, semicolon, pipe.
-  // Falls back to tab if nothing is found.
   function detectDelimiter(text) {
     const candidates = ['\t', ',', ';', '|'];
-    const lines = String(text || '')
-      .split('\n')
-      .filter(l => l.trim())
-      .slice(0, 5);
+    const lines = String(text || '').split('\n').filter(l => l.trim()).slice(0, 5);
     if (lines.length === 0) return '\t';
 
     let best = '\t';
     let bestCount = 0;
     candidates.forEach(d => {
       const count = lines.reduce((sum, line) => {
-        // Simple count — doesn't respect quotes, but good enough for sniffing.
         let c = 0;
         for (let i = 0; i < line.length; i++) if (line[i] === d) c++;
         return sum + c;
@@ -119,7 +118,6 @@
     return bestCount > 0 ? best : '\t';
   }
 
-  // Parse one row, honoring quoted fields and doubled quotes.
   function parseDelimitedRow(line, delimiter) {
     const out = [];
     let cell = '';
@@ -135,16 +133,10 @@
     return out;
   }
 
-  // Human-readable name for the preview banner.
   function delimiterLabel(d) {
-    return d === '\t' ? 'TAB'
-         : d === ','  ? 'comma'
-         : d === ';'  ? 'semicolon'
-         : d === '|'  ? 'pipe'
-         : 'unknown';
+    return d === '\t' ? 'TAB' : d === ',' ? 'comma' : d === ';' ? 'semicolon' : d === '|' ? 'pipe' : 'unknown';
   }
 
-  // Convert "A" → 0, "B" → 1, "AA" → 26, etc.
   function colLetterToIndex(letter) {
     const v = String(letter || '').trim().toUpperCase();
     if (!v) return -1;
@@ -163,9 +155,6 @@
     return colLetterToIndex(el.value);
   }
 
-  // ============================================================
-  // Preview
-  // ============================================================
   App.previewDataTransfer = async function () {
     const btn = document.getElementById('preview-btn');
     const action = document.getElementById('import-action').value;
@@ -205,12 +194,9 @@
         }
 
         tbody.innerHTML = '';
-
-        // We skip the header row only for files. Pastes usually have no header.
         const startRow = source === 'file' ? 1 : 0;
         const delimName = delimiterLabel(delimiter);
 
-        // Show a small banner so the user knows what we detected.
         const banner = document.getElementById('import-delim-banner');
         if (banner) {
           banner.textContent = 'Detected delimiter: ' + delimName;
@@ -261,14 +247,10 @@
             colIndex: colLetterToIndex(inp.value)
           })).filter(c => c.colIndex >= 0);
 
-          if (catCols.length === 0) {
-            throw new Error("Map at least one category column.");
-          }
+          if (catCols.length === 0) throw new Error("Map at least one category column.");
 
           let headHTML = '<tr><th class="p-3 font-bold">Student No.</th>';
-          catCols.forEach(c => {
-            headHTML += '<th class="p-3 font-bold text-center">' + App.esc(c.name) + '</th>';
-          });
+          catCols.forEach(c => { headHTML += '<th class="p-3 font-bold text-center">' + App.esc(c.name) + '</th>'; });
           headHTML += '</tr>';
           thead.innerHTML = headHTML;
 
@@ -279,25 +261,17 @@
             if (String(cols[cId]).toLowerCase().indexOf('student') !== -1) continue;
 
             const cleanNo = String(cols[cId]).trim();
-
             const entries = catCols.map(c => ({
               categoryId: c.categoryId,
-              value: c.colIndex >= 0 && cols[c.colIndex] !== undefined && cols[c.colIndex] !== ''
-                ? Number(cols[c.colIndex]) || 0
-                : ''
+              value: c.colIndex >= 0 && cols[c.colIndex] !== undefined && cols[c.colIndex] !== '' ? Number(cols[c.colIndex]) || 0 : ''
             }));
 
-            state.pendingImportData.push({
-              studentNumber: cleanNo,
-              entries: entries
-            });
+            state.pendingImportData.push({ studentNumber: cleanNo, entries: entries });
 
             let rowHTML = '<tr class="hover:bg-slate-50 transition-colors">' +
               '<td class="p-3 border-b border-slate-100 font-semibold">' + App.esc(cleanNo) + '</td>';
             entries.forEach(e => {
-              rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' +
-                (e.value === '' ? '—' : App.esc(e.value)) +
-              '</td>';
+              rowHTML += '<td class="p-3 border-b border-slate-100 font-bold text-center">' + (e.value === '' ? '—' : App.esc(e.value)) + '</td>';
             });
             rowHTML += '</tr>';
             tbody.insertAdjacentHTML('beforeend', rowHTML);
@@ -320,9 +294,6 @@
     }, { text: 'Reading...' });
   };
 
-  // ============================================================
-  // Confirm / Import
-  // ============================================================
   App.confirmDataTransfer = async function () {
     const btn = document.getElementById('confirm-btn');
     const cancelBtn = document.getElementById('import-cancel-btn');
@@ -395,9 +366,6 @@
     }
   };
 
-  // ============================================================
-  // CSV Export
-  // ============================================================
   App.exportTableToCSV = function (filename) {
     if (!state.currentAdminData || state.currentAdminData.length === 0) {
       App.showToast("No data to export.", "error");
@@ -405,20 +373,13 @@
     }
 
     const csv = [];
-    csv.push([
-      "Student Number","Full Name","Section","Subject",
-      "1st Quarter","2nd Quarter","3rd Quarter","4th Quarter",
-      "Final Grade","Remarks"
-    ].join(","));
+    csv.push(["Student Number","Full Name","Section","Subject","1st Quarter","2nd Quarter","3rd Quarter","4th Quarter","Final Grade","Remarks"].join(","));
 
     state.currentAdminData.forEach(s => {
       csv.push([
-        '"' + (s.studentNumber || '') + '"',
-        '"' + String(s.name || '').replace(/"/g, '""') + '"',
-        '"' + String(s.section || '').replace(/"/g, '""') + '"',
-        '"' + String(s.subject || '').replace(/"/g, '""') + '"',
-        s.q1 || '', s.q2 || '', s.q3 || '', s.q4 || '', s.final || '',
-        '"' + (s.remarks || '') + '"'
+        '"' + (s.studentNumber || '') + '"', '"' + String(s.name || '').replace(/"/g, '""') + '"',
+        '"' + String(s.section || '').replace(/"/g, '""') + '"', '"' + String(s.subject || '').replace(/"/g, '""') + '"',
+        s.q1 || '', s.q2 || '', s.q3 || '', s.q4 || '', s.final || '', '"' + (s.remarks || '') + '"'
       ].join(","));
     });
 
@@ -435,9 +396,6 @@
     App.showToast("Backup exported!");
   };
 
-  // ============================================================
-  // XLSX Export
-  // ============================================================
   const SHEETJS_URL = 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js';
 
   function loadSheetJS() {
@@ -470,37 +428,16 @@
     await App.withButtonLoading(btn, async () => {
       try {
         const XLSX = await loadSheetJS();
-
-        const headers = [
-          "Student Number","Full Name","Section","Subject",
-          "1st Quarter","2nd Quarter","3rd Quarter","4th Quarter",
-          "Final Grade","Remarks"
-        ];
-
+        const headers = ["Student Number","Full Name","Section","Subject","1st Quarter","2nd Quarter","3rd Quarter","4th Quarter","Final Grade","Remarks"];
         const rows = [headers];
         state.currentAdminData.forEach(s => {
-          rows.push([
-            s.studentNumber || '',
-            s.name || '',
-            s.section || '',
-            s.subject || '',
-            s.q1 || '', s.q2 || '', s.q3 || '', s.q4 || '',
-            s.final || '',
-            s.remarks || ''
-          ]);
+          rows.push([s.studentNumber || '', s.name || '', s.section || '', s.subject || '', s.q1 || '', s.q2 || '', s.q3 || '', s.q4 || '', s.final || '', s.remarks || '']);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
-
-        ws['!cols'] = [
-          { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 24 },
-          { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
-          { wch: 10 }, { wch: 10 }
-        ];
-
+        ws['!cols'] = [ { wch: 14 }, { wch: 28 }, { wch: 12 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 } ];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Records');
-
         XLSX.writeFile(wb, filename);
         App.showToast("Excel file downloaded!");
       } catch (e) {

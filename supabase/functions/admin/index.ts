@@ -172,6 +172,38 @@ Deno.serve(async (req) => {
       }
     }
 
+        // --- NEW: BULK ADD STUDENTS ---
+    if (action === "bulkAddStudents") {
+      const studentsArray = body.studentsArray || [];
+      if (studentsArray.length === 0) return json({ success: false, message: "No students provided." });
+
+      if (auth.teacher.role === "super_admin") {
+        // Admin adds directly to the pool
+        const payloads = studentsArray.map((s: any) => ({
+          student_number: s.studentNumber, 
+          name: stripTags(s.name), 
+          section: s.section || "Section A", 
+          teacher_id: auth!.teacher.id
+        }));
+        await sb.from("students").upsert(payloads, { onConflict: "student_number" });
+        return json({ success: true, processed: payloads.length });
+      } else {
+        // Teacher requests addition (goes to Pending Registrations)
+        const payloads = studentsArray.map((s: any) => ({
+          timestamp: new Date().toISOString(), 
+          student_number: s.studentNumber, 
+          name: stripTags(s.name), 
+          section: s.section || "Section A",
+          enrolled_subjects: [], 
+          status: 'pending', 
+          reviewed_at: '', 
+          teacher_id: auth!.teacher.id
+        }));
+        await sb.from("pending_registrations").insert(payloads);
+        return json({ success: true, processed: payloads.length });
+      }
+    }
+
     // --- NEW: ADMIN REGISTRATIONS ---
     if (action === "getPendingRegistrations") {
       let q = sb.from("pending_registrations").select("*").order("id", { ascending: false });

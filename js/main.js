@@ -3,9 +3,6 @@
 
   const state = App.state;
 
-  // ============================================================
-  // SERVICE WORKER + PWA INSTALL
-  // ============================================================
   let deferredPrompt = null;
 
   function registerServiceWorker() {
@@ -63,15 +60,9 @@
     });
 
     document.getElementById('pwa-install-btn')?.addEventListener('click', async () => {
-      if (!deferredPrompt) {
-        hidePwaBanner();
-        return;
-      }
+      if (!deferredPrompt) { hidePwaBanner(); return; }
       deferredPrompt.prompt();
-      try {
-        const choice = await deferredPrompt.userChoice;
-        console.log('[PWA] User choice:', choice.outcome);
-      } catch (e) { /* ignore */ }
+      try { await deferredPrompt.userChoice; } catch (e) { }
       deferredPrompt = null;
       hidePwaBanner();
     });
@@ -84,9 +75,6 @@
     document.getElementById('pwa-close-x')?.addEventListener('click', hidePwaBanner);
   }
 
-  // ============================================================
-  // LOGIN EVENTS
-  // ============================================================
   function wireLoginEvents() {
     document.getElementById('role-tab-student').addEventListener('click', () => App.setLoginRole('student'));
     document.getElementById('role-tab-teacher').addEventListener('click', () => App.setLoginRole('teacher'));
@@ -119,12 +107,8 @@
     document.getElementById('pending-check-btn').addEventListener('click', App.checkPendingStatus);
   }
 
-  // ============================================================
-  // ADMIN EVENTS
-  // ============================================================
   function wireAdminEvents() {
-    document.querySelectorAll('.logout-btn').forEach(btn =>
-      btn.addEventListener('click', App.handleLogout));
+    document.querySelectorAll('.logout-btn').forEach(btn => btn.addEventListener('click', App.handleLogout));
 
     document.getElementById('sidebar-toggle').addEventListener('click', App.toggleSidebar);
     document.getElementById('sidebar-toggle-desktop').addEventListener('click', App.toggleSidebar);
@@ -134,37 +118,30 @@
       btn.addEventListener('click', () => App.switchAdminTab(btn.dataset.tab, btn));
     });
 
-    // ---- Roster Tab ----
+    // Roster Tab
     document.getElementById('roster-table-body').addEventListener('click', e => {
       const btn = e.target.closest('button[data-action="manage-roster"]');
-      if (btn) {
-        App.openSlidePanel(btn.dataset.id, 'roster');
-      }
+      if (btn) App.openSlidePanel(btn.dataset.id, 'roster');
     });
 
     document.getElementById('roster-search').addEventListener('input', App.debounce(App.filterRoster, 250));
     document.getElementById('roster-section-filter').addEventListener('change', App.filterRoster);
-    document.getElementById('roster-subject-filter').addEventListener('change', App.filterRoster);
+    document.getElementById('roster-subject-filter')?.addEventListener('change', App.filterRoster);
     
-    // Bulk Select Logic
     document.getElementById('roster-select-all').addEventListener('change', e => {
       document.querySelectorAll('#roster-table-body tr.roster-row').forEach(row => {
-        if (!row.classList.contains('hidden')) {
-          row.querySelector('.roster-checkbox').checked = e.target.checked;
-        }
+        if (!row.classList.contains('hidden')) row.querySelector('.roster-checkbox').checked = e.target.checked;
       });
       App.updateBulkActionBar();
     });
 
     document.getElementById('roster-table-body').addEventListener('change', e => {
-      if (e.target.classList.contains('roster-checkbox')) {
-        App.updateBulkActionBar();
-      }
+      if (e.target.classList.contains('roster-checkbox')) App.updateBulkActionBar();
     });
 
     document.getElementById('bulk-enroll-btn').addEventListener('click', App.executeBulkEnroll);
 
-    // ---- Grade Book Tab ----
+    // Grade Book Tab
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;
       App.loadAdminDashboard();
@@ -178,15 +155,11 @@
     const handleRowClick = e => {
       const tr = e.target.closest('[data-id][data-subject]');
       if (!tr) return;
-      const id = tr.dataset.id;
-      const subject = tr.dataset.subject;
-
+      const id = tr.dataset.id; const subject = tr.dataset.subject;
       const qBtn = e.target.closest('[data-quarter]');
       if (qBtn) { App.openAdminBreakdown(qBtn, id, subject, qBtn.dataset.quarter); return; }
-
       const manage = e.target.closest('[data-action="manage"]');
       if (manage) { App.openSlidePanel(id, subject); return; }
-
       const toggle = e.target.closest('[data-action="toggle"]');
       if (toggle) App.toggleMobileCard(tr.dataset.idx);
     };
@@ -210,41 +183,28 @@
     document.getElementById('save-teacher-name-btn').addEventListener('click', App.saveTeacherNameFromUI);
     document.getElementById('recompute-btn').addEventListener('click', App.recomputeAllGrades);
 
-    // ---- Add student modal (single) ----
+    // Add student modal (single)
     document.getElementById('open-add-student-btn').addEventListener('click', App.openAddStudentModal);
     document.getElementById('add-student-cancel-btn').addEventListener('click', App.closeAddStudentModal);
     document.getElementById('save-new-student-btn').addEventListener('click', App.saveNewStudent);
 
-    // ---- Bulk buttons ----
-    document.getElementById('open-bulk-students-btn').addEventListener('click', () => {
-      App.openImportModal();
-      document.getElementById('import-action').value = 'register';
-      App.toggleImportUI();
-    });
-    document.getElementById('open-bulk-grades-btn')?.addEventListener('click', () => {
-      App.openImportModal();
-      document.getElementById('import-action').value = 'grades';
-      App.toggleImportUI();
-    });
+    // Bulk buttons
+    document.getElementById('open-bulk-students-btn').addEventListener('click', () => App.openImportModal('students'));
+    document.getElementById('open-bulk-grades-btn')?.addEventListener('click', () => App.openImportModal('grades'));
 
-    // ---- Import wizard ----
-    document.getElementById('open-import-btn').addEventListener('click', App.openImportModal);
+    // Import wizard
+    document.getElementById('open-import-btn').addEventListener('click', () => App.openImportModal());
     document.getElementById('import-action').addEventListener('change', App.toggleImportUI);
     document.getElementById('preview-btn').addEventListener('click', App.previewDataTransfer);
     document.getElementById('confirm-btn').addEventListener('click', App.confirmDataTransfer);
     document.getElementById('import-cancel-btn').addEventListener('click', App.closeImportModal);
     document.getElementById('import-close-x').addEventListener('click', App.closeImportModal);
     document.getElementById('import-subject').addEventListener('change', () => {
-      if (document.getElementById('import-action').value === 'grades') {
-        App.populateGradeColumnMappings();
-      }
+      if (document.getElementById('import-action').value === 'grades') App.populateGradeColumnMappings();
     });
 
-    // ---- Registrations ----
-    document.getElementById('refresh-registrations-btn').addEventListener('click', () => {
-      App.loadPendingRegistrations();
-      App.showToast("Refreshed.");
-    });
+    // Registrations
+    document.getElementById('refresh-registrations-btn').addEventListener('click', () => { App.loadPendingRegistrations(); App.showToast("Refreshed."); });
     document.getElementById('pending-list').addEventListener('click', e => {
       const approveBtn = e.target.closest('button[data-action="approve"]');
       const rejectBtn = e.target.closest('button[data-action="reject"]');
@@ -259,19 +219,16 @@
     });
     document.getElementById('confirm-approve-btn').addEventListener('click', App.confirmApproval);
 
-    // ---- Slide panel ----
+    // Slide panel
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
     document.getElementById('slide-panel-backdrop').addEventListener('click', App.closeSlidePanel);
     document.getElementById('panel-save-info-btn').addEventListener('click', App.savePanelInfo);
     document.getElementById('panel-save-grades-btn').addEventListener('click', App.savePanelGrades);
     document.getElementById('panel-delete-btn').addEventListener('click', App.deleteStudentFromPanel);
-
     const saveEnrollmentsBtn = document.getElementById('panel-save-enrollments-btn');
-    if (saveEnrollmentsBtn) {
-      saveEnrollmentsBtn.addEventListener('click', App.savePanelEnrollments);
-    }
+    if (saveEnrollmentsBtn) saveEnrollmentsBtn.addEventListener('click', App.savePanelEnrollments);
 
-    // ---- Subjects ----
+    // Subjects
     document.getElementById('subjects-list-ui').addEventListener('click', e => {
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
@@ -280,14 +237,10 @@
     });
     document.getElementById('subject-submit-btn').addEventListener('click', App.handleSaveSubject);
     document.getElementById('subject-cancel-edit-btn').addEventListener('click', App.resetSubjectForm);
-    document.getElementById('add-category-btn').addEventListener('click', () => {
-      App.addCategoryRow('', '');
-    });
-    ['qw-1st','qw-2nd','qw-3rd','qw-4th'].forEach(id => {
-      document.getElementById(id).addEventListener('input', App.updateCategoryTotals);
-    });
+    document.getElementById('add-category-btn').addEventListener('click', () => App.addCategoryRow('', ''));
+    ['qw-1st','qw-2nd','qw-3rd','qw-4th'].forEach(id => document.getElementById(id).addEventListener('input', App.updateCategoryTotals));
 
-    // ---- Sections ----
+    // Sections
     document.getElementById('sections-list-ui').addEventListener('click', e => {
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
@@ -297,7 +250,7 @@
     document.getElementById('section-submit-btn').addEventListener('click', App.handleSaveSection);
     document.getElementById('section-cancel-edit-btn').addEventListener('click', App.resetSectionForm);
 
-    // ---- Class Record ----
+    // Class Record
     document.getElementById('cr-subject').addEventListener('change', App.loadClassRecord);
     document.getElementById('cr-quarter').addEventListener('change', App.loadClassRecord);
     document.getElementById('cr-refresh-btn').addEventListener('click', App.loadClassRecord);
@@ -315,7 +268,6 @@
     document.getElementById('assessment-cancel-btn').addEventListener('click', App.closeAssessmentModal);
     document.getElementById('assessment-save-btn').addEventListener('click', App.saveAssessment);
 
-    // Class record delegated events
     document.getElementById('cr-body').addEventListener('click', (e) => {
       const addBtn = e.target.closest('button[data-action="add-assessment"]');
       if (addBtn) {
@@ -331,17 +283,12 @@
       }
       const delBtn = e.target.closest('button[data-action="delete-assessment"]');
       if (delBtn) { App.deleteAssessment(Number(delBtn.dataset.id), delBtn.dataset.name); return; }
-
       const toggleBtn = e.target.closest('button[data-action="toggle-category"]');
       if (toggleBtn) { App.crToggleCategory(toggleBtn.dataset.categoryId); return; }
-
       if (e.target.closest('#cr-expand-all-btn')) { App.crExpandAll(); return; }
       if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
-
       const pageBtn = e.target.closest('button[data-cr-cat-page]');
-      if (pageBtn) {
-        App.crGotoCategoryPage(Number(pageBtn.dataset.crCatPage), pageBtn.dataset.categoryId);
-      }
+      if (pageBtn) { App.crGotoCategoryPage(Number(pageBtn.dataset.crCatPage), pageBtn.dataset.categoryId); }
     });
     document.getElementById('cr-body').addEventListener('focusin', (e) => {
       if (e.target.classList.contains('cr-score-input')) e.target.dataset.originalValue = e.target.value;
@@ -350,33 +297,25 @@
       if (e.target.classList.contains('cr-score-input')) App.saveScoreInline(e.target);
     });
 
-    // ---- Announcements / comments ----
+    // Announcements / comments
     document.getElementById('broadcast-btn').addEventListener('click', App.broadcastAnnouncement);
-    document.getElementById('refresh-announcements-btn').addEventListener('click', () => {
-      App.loadAnnouncementHistory();
-      App.showToast("History refreshed.");
-    });
+    document.getElementById('refresh-announcements-btn').addEventListener('click', () => { App.loadAnnouncementHistory(); App.showToast("History refreshed."); });
     document.getElementById('announcement-history').addEventListener('click', e => {
       const btn = e.target.closest('button[data-action="delete-ann"]');
       if (!btn) return;
       App.deleteAnnouncement(Number(btn.dataset.row));
     });
-
     document.getElementById('admin-send-comment-btn').addEventListener('click', App.submitAdminComment);
-    document.getElementById('admin-new-comment-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') App.submitAdminComment();
-    });
+    document.getElementById('admin-new-comment-input').addEventListener('keydown', e => { if (e.key === 'Enter') App.submitAdminComment(); });
     document.getElementById('clear-comments-btn').addEventListener('click', App.clearClassComments);
 
-    // ---- Analytics ----
+    // Analytics
     document.getElementById('analytics-subject-filter').addEventListener('change', App.refreshAnalytics);
     document.getElementById('analytics-section-filter').addEventListener('change', App.refreshAnalytics);
 
-    // ---- Backup ----
-    document.getElementById('csv-export-btn').addEventListener('click',
-      () => App.exportTableToCSV('student_records_backup.csv'));
-    document.getElementById('xlsx-export-btn').addEventListener('click',
-      () => App.exportTableToXLSX('student_records_backup.xlsx'));
+    // Backup
+    document.getElementById('csv-export-btn').addEventListener('click', () => App.exportTableToCSV('student_records_backup.csv'));
+    document.getElementById('xlsx-export-btn').addEventListener('click', () => App.exportTableToXLSX('student_records_backup.xlsx'));
     document.getElementById('backup-download-btn').addEventListener('click', App.downloadFullBackup);
     document.getElementById('backup-restore-btn').addEventListener('click', App.openBackupRestore);
     document.getElementById('backup-file-input').addEventListener('change', e => {
@@ -384,11 +323,8 @@
       if (file) App.handleBackupRestoreFile(file);
     });
 
-    // ---- Grading sheet ----
-    document.getElementById('gs-subject').addEventListener('change', () => {
-      App.gsPrefillDetails();
-      App.updateGradingSheetPreview();
-    });
+    // Grading sheet
+    document.getElementById('gs-subject').addEventListener('change', () => { App.gsPrefillDetails(); App.updateGradingSheetPreview(); });
     document.getElementById('gs-section').addEventListener('change', App.updateGradingSheetPreview);
     document.getElementById('gs-sort').addEventListener('change', App.updateGradingSheetPreview);
     document.getElementById('gs-semester').addEventListener('change', App.updateGradingSheetPreview);
@@ -397,35 +333,22 @@
     document.getElementById('gs-display-sy').addEventListener('input', App.debounce(App.updateGradingSheetPreview, 300));
     document.getElementById('gs-print-btn').addEventListener('click', App.printGradingSheets);
 
-    // ---- Sidebar special tab wiring ----
-    document.querySelector('[data-tab="sections"]').addEventListener('click', () => {
-      App.renderSectionsList();
-    });
-    document.querySelector('[data-tab="class-record"]').addEventListener('click', async () => {
-      await App.populateClassRecordFilters();
-      App.loadClassRecord();
-    });
+    // Sidebar special tab wiring
+    document.querySelector('[data-tab="sections"]').addEventListener('click', () => App.renderSectionsList());
+    document.querySelector('[data-tab="class-record"]').addEventListener('click', async () => { await App.populateClassRecordFilters(); App.loadClassRecord(); });
 
-    // ---- Profile tab ----
+    // Profile tab
     const profileSaveBtn = document.getElementById('profile-save-name-btn');
     if (profileSaveBtn) profileSaveBtn.addEventListener('click', App.saveProfileName);
     const profilePwBtn = document.getElementById('profile-change-pw-btn');
     if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
   }
 
-  // ============================================================
-  // STUDENT EVENTS
-  // ============================================================
   function wireStudentEvents() {
-    document.getElementById('student-subject-selector').addEventListener('change',
-      e => App.changeStudentSubject(e.target.value));
-    document.getElementById('student-sy-selector').addEventListener('change',
-      e => App.changeStudentSY(e.target.value));
+    document.getElementById('student-subject-selector').addEventListener('change', e => App.changeStudentSubject(e.target.value));
+    document.getElementById('student-sy-selector').addEventListener('change', e => App.changeStudentSY(e.target.value));
     document.getElementById('student-send-comment-btn').addEventListener('click', App.submitStudentComment);
-    document.getElementById('new-comment-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') App.submitStudentComment();
-    });
-
+    document.getElementById('new-comment-input').addEventListener('keydown', e => { if (e.key === 'Enter') App.submitStudentComment(); });
     document.getElementById('student-print-btn').addEventListener('click', App.printStudentGrades);
 
     document.getElementById('student-main-grades').addEventListener('click', e => {
@@ -440,9 +363,7 @@
       App.toggleBreakdownEdit(btn, btn.dataset.quarter, btn.dataset.subject);
     });
 
-    document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
-      App.showScreen(state.adminPin !== '' ? 'admin' : 'student');
-    });
+    document.getElementById('back-to-dashboard-btn').addEventListener('click', () => App.showScreen(state.adminPin !== '' ? 'admin' : 'student'));
     document.getElementById('print-breakdown-btn')?.addEventListener('click', () => window.print());
   }
 
@@ -462,17 +383,11 @@
     wireStudentEvents();
 
     let restored = false;
-    try {
-      restored = await App.restoreSession();
-    } catch (e) {
-      console.warn("Restore session error:", e);
-    }
+    try { restored = await App.restoreSession(); } catch (e) { console.warn("Restore session error:", e); }
 
     if (restored) {
       hideBootScreen();
-      App.fetchSubjects().then(function () {
-        if (App.state.adminPin) App.loadAdminDashboard();
-      });
+      App.fetchSubjects().then(function () { if (App.state.adminPin) App.loadAdminDashboard(); });
       App.loadComments();
     } else {
       App.setLoginRole('student');
