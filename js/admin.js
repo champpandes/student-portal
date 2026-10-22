@@ -151,11 +151,7 @@
 
   // ---------- Roster (Student Pool) ----------
   App.loadRoster = async function () {
-    const isAdmin = state.currentTeacher && state.currentTeacher.role === 'super_admin';
-    const addBtn = document.getElementById('open-add-student-btn');
-    if (addBtn) addBtn.classList.toggle('hidden-screen', !isAdmin);
-    const bulkBtn = document.getElementById('open-bulk-students-btn');
-    if (bulkBtn) bulkBtn.classList.toggle('hidden-screen', !isAdmin);
+
 
     const tbody = document.getElementById('roster-table-body');
     if (!tbody) return;
@@ -829,14 +825,14 @@
       }, { retries: 1 });
 
       if (res.success) {
-        App.showToast("Student " + name + " added to pool.");
+        App.showToast(res.message || "Student added to pool."); // <--- Update this line
         App.closeModal(document.getElementById('add-student-modal'));
         App.invalidateActiveCache();
         await App.loadAdminDashboard();
         if (App.loadRoster) await App.loadRoster();
         App.updateLastSavedTimestamp();
         succeeded = true;
-      } else {
+      }else {
         App.showToast(res.message || "Failed to save new student.", "error");
       }
     }, { text: 'Saving...' });
