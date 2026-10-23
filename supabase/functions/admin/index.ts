@@ -91,6 +91,24 @@ function publicTeacher(t: any) {
   return { id: t.id, email: t.email, displayName: t.display_name, role: t.role, status: t.status, isActive: t.is_active, createdAt: t.created_at, lastLoginAt: t.last_login_at };
 }
 
+async function buildSubjectsResponse() {
+  const subj = await sb.from("subjects").select("*").order("subject_name");
+  const cat = await sb.from("subject_categories").select("*").order("position");
+  
+  const subjects = [], descriptions: any = {}, weights: any = {}, categories: any = {}, quarterWeights: any = {};
+  (subj.data || []).forEach(r => {
+    subjects.push(r.subject_name); descriptions[r.subject_name] = r.description || ""; quarterWeights[r.subject_name] = r.quarter_weights; categories[r.subject_name] = [];
+    weights[r.subject_name] = { quizzes: r.weight_quizzes, participation: r.weight_participation, attendance: r.weight_attendance, exams: r.weight_exams };
+  });
+  (cat.data || []).forEach(c => { if (!categories[c.subject_name]) categories[c.subject_name] = []; categories[c.subject_name].push({ id: c.id, name: c.name, weight: c.weight, position: c.position }); });
+  return { success: true, subjects, descriptions, weights, categories, quarterWeights };
+}
+
+async function buildSectionsResponse() {
+  const sec = await sb.from("sections").select("name").order("name");
+  return { success: true, sections: (sec.data || []).map(s => s.name) };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
@@ -304,7 +322,8 @@ Deno.serve(async (req) => {
       } else if (subAction === "delete") {
         await sb.from("sections").delete().eq("name", name);
       }
-      return json({ success: true });
+      // BUG FIX: Return the updated sections list
+      return json(await buildSectionsResponse());
     }
 
     // ==========================================
@@ -346,17 +365,7 @@ Deno.serve(async (req) => {
 
     // SUBJECTS
     if (action === "getSubjects") {
-      let subjQ = scopeByTeacher(sb.from("subjects").select("*").order("subject_name"), auth.teacher?.id || null);
-      let catQ = scopeByTeacher(sb.from("subject_categories").select("*").order("position"), auth.teacher?.id || null);
-      const subj = await subjQ; const cat = await catQ;
-      
-      const subjects = [], descriptions: any = {}, weights: any = {}, categories: any = {}, quarterWeights: any = {};
-      (subj.data || []).forEach(r => {
-        subjects.push(r.subject_name); descriptions[r.subject_name] = r.description || ""; quarterWeights[r.subject_name] = r.quarter_weights; categories[r.subject_name] = [];
-        weights[r.subject_name] = { quizzes: r.weight_quizzes, participation: r.weight_participation, attendance: r.weight_attendance, exams: r.weight_exams };
-      });
-      (cat.data || []).forEach(c => { if (!categories[c.subject_name]) categories[c.subject_name] = []; categories[c.subject_name].push({ id: c.id, name: c.name, weight: c.weight, position: c.position }); });
-      return json({ success: true, subjects, descriptions, weights, categories, quarterWeights });
+      return json(await buildSubjectsResponse());
     }
 
     if (action === "manageSubject") {
@@ -370,10 +379,20 @@ Deno.serve(async (req) => {
         await sb.from("grades").delete().eq("subject_name", t);
         await sb.from("enrollments").delete().eq("subject_name", t);
         await sb.from("assessments").delete().eq("subject_name", t);
-        return json({ success: true });
+        return json(await buildSubjectsResponse());
       }
 
       const finalName = subAction === "update" ? String(body.newName) : String(body.subjectName);
+      
+      if (subAction === "update" && body.oldName && body.oldName !== finalName) {
+        // BUG FIX: Actually update the subjects table name
+        await sb.from("subjects").update({ subject_name: finalName }).eq("subject_name", body.oldName);
+        await sb.from("subject_categories").update({ subject_name: finalName }).eq("subject_name", body.oldName);
+        await sb.from("grades").update({ subject_name: finalName }).eq("subject_name", body.oldName);
+        await sb.from("enrollments").update({ subject_name: finalName }).eq("subject_name", body.oldName);
+        await sb.from("assessments").update({ subject_name: finalName }).eq("subject_name", body.oldName);
+      }
+
       const subjPayload: any = { subject_name: finalName, description: stripTags(body.description || ""), quarter_weights: body.quarterWeights };
       if (teacherId) subjPayload.teacher_id = teacherId;
       if (body.categories && body.categories.length > 0) {
@@ -384,13 +403,6 @@ Deno.serve(async (req) => {
       }
 
       await sb.from("subjects").upsert(subjPayload, { onConflict: "subject_name" });
-
-      if (subAction === "update" && body.oldName && body.oldName !== finalName) {
-        await sb.from("subject_categories").update({ subject_name: finalName }).eq("subject_name", body.oldName);
-        await sb.from("grades").update({ subject_name: finalName }).eq("subject_name", body.oldName);
-        await sb.from("enrollments").update({ subject_name: finalName }).eq("subject_name", body.oldName);
-        await sb.from("assessments").update({ subject_name: finalName }).eq("subject_name", body.oldName);
-      }
 
       if (body.categories) {
         let delQ = sb.from("subject_categories").delete().eq("subject_name", finalName);
@@ -404,12 +416,12 @@ Deno.serve(async (req) => {
         });
         await sb.from("subject_categories").insert(toInsert);
       }
-      return json({ success: true });
+      // BUG FIX: Return updated subjects
+      return json(await buildSubjectsResponse());
     }
 
     if (action === "getSections") {
-      const sec = await sb.from("sections").select("name").order("name");
-      return json({ success: true, sections: (sec.data || []).map(s => s.name) });
+      return json(await buildSectionsResponse());
     }
 
     // STUDENTS & ROSTER
@@ -461,7 +473,6 @@ Deno.serve(async (req) => {
       const list = body.studentsArray || [];
       if (list.length === 0) return json({ success: true, processed: 0 });
 
-      // VALIDATE SECTIONS
       const validSectionsRes = await sb.from("sections").select("name");
       const validSections = (validSectionsRes.data || []).map(s => s.name);
 
@@ -473,39 +484,22 @@ Deno.serve(async (req) => {
       }
 
       if (auth.teacher && auth.teacher.role === "super_admin") {
-        // ADMIN: Add directly to the pool
         for (const sData of list) {
           const sNo = String(sData.studentNumber || "").trim();
           const name = stripTags(String(sData.name || "").trim());
           let section = stripTags(String(sData.section || "").trim());
           if (sNo && name) {
-            await sb.from("students").upsert({ 
-              student_number: sNo, 
-              name, 
-              section: section || validSections[0] || "Section A", 
-              teacher_id: auth.teacher.id 
-            }, { onConflict: "student_number" });
+            await sb.from("students").upsert({ student_number: sNo, name, section: section || validSections[0] || "Section A", teacher_id: auth.teacher.id }, { onConflict: "student_number" });
           }
         }
         return json({ success: true, processed: list.length, message: `Added ${list.length} students to pool.` });
       } else {
-        // TEACHER: Submit requests to Admin
         const rows = list.map((sData: any) => {
           const sNo = String(sData.studentNumber || "").trim();
           const name = stripTags(String(sData.name || "").trim());
           const section = stripTags(String(sData.section || "").trim());
-          return {
-            timestamp: new Date().toISOString(),
-            student_number: sNo,
-            name: name,
-            section: section,
-            enrolled_subjects: [],
-            status: 'pending',
-            reviewed_at: '',
-            teacher_id: auth.teacher?.id || null
-          };
+          return { timestamp: new Date().toISOString(), student_number: sNo, name, section, enrolled_subjects: [], status: 'pending', reviewed_at: '', teacher_id: auth.teacher?.id || null };
         });
-        
         await sb.from("pending_registrations").insert(rows);
         return json({ success: true, processed: list.length, message: `Submitted ${list.length} requests to Admin for approval.` });
       }

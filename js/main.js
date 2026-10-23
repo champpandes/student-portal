@@ -219,6 +219,26 @@
     });
     document.getElementById('confirm-approve-btn').addEventListener('click', App.confirmApproval);
 
+    // Teachers Tab
+    const refreshTeachersBtn = document.getElementById('refresh-teachers-btn');
+    if (refreshTeachersBtn) {
+      refreshTeachersBtn.addEventListener('click', () => {
+        App.renderTeacherManagementTab();
+        App.showToast('Refreshed.');
+      });
+    }
+
+    const pendingTeachersList = document.getElementById('pending-teachers-list');
+    const allTeachersList = document.getElementById('teachers-list');
+    [pendingTeachersList, allTeachersList].forEach(el => {
+      if (!el) return;
+      el.addEventListener('click', e => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        App.handleTeacherAction(btn.dataset.action, btn.dataset);
+      });
+    });
+
     // Slide panel
     document.getElementById('panel-close-btn').addEventListener('click', App.closeSlidePanel);
     document.getElementById('slide-panel-backdrop').addEventListener('click', App.closeSlidePanel);
@@ -289,14 +309,6 @@
       if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
       const pageBtn = e.target.closest('button[data-cr-cat-page]');
       if (pageBtn) { App.crGotoCategoryPage(Number(pageBtn.dataset.crCatPage), pageBtn.dataset.categoryId); }
-
-      // NEW: Handle Category Tab Clicks
-      const tabBtn = e.target.closest('button[data-action="switch-category"]');
-      if (tabBtn) {
-        App.crSetActiveCategory(tabBtn.dataset.categoryId);
-        return;
-      }
-
     });
     document.getElementById('cr-body').addEventListener('focusin', (e) => {
       if (e.target.classList.contains('cr-score-input')) e.target.dataset.originalValue = e.target.value;
