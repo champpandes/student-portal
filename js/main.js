@@ -141,6 +141,10 @@
 
     document.getElementById('bulk-enroll-btn').addEventListener('click', App.executeBulkEnroll);
 
+    // Pending Requests Modal
+    document.getElementById('open-pending-requests-btn').addEventListener('click', App.openTeacherPendingRequests);
+    document.getElementById('close-pending-requests-btn').addEventListener('click', App.closeTeacherPendingRequests);
+
     // Grade Book Tab
     document.getElementById('admin-subject-filter').addEventListener('change', e => {
       state.activeAdminSubject = e.target.value;

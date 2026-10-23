@@ -137,12 +137,12 @@
             <button data-tab="analytics" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📈</span> <span class="sidebar-text">Analytics</span>
             </button>
-            <button data-tab="registrations" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
+            <button data-tab="registrations" class="admin-tab-btn hidden-screen w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
               <span>📝</span> <span class="sidebar-text">Registrations</span>
               <span id="pending-badge" class="hidden ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md"></span>
             </button>
             <button data-tab="teachers" id="tab-btn-teachers" class="admin-tab-btn hidden-screen w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
-             <span>👨‍🏫</span> <span class="sidebar-text">Teachers</span>
+              <span>👨‍🏫</span> <span class="sidebar-text">Teachers</span>
               <span id="pending-teacher-badge" class="hidden ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md"></span>
             </button>
             <button data-tab="profile" class="admin-tab-btn hidden-screen w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-slate-800 text-slate-400 hover:text-white">
@@ -659,6 +659,17 @@
     </div>
   </div>
 
+  <div id="pending-requests-modal" role="dialog" aria-modal="true" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-lg space-y-4">
+      <h3 class="text-lg font-black text-slate-900">My Pending Student Requests</h3>
+      <p class="text-xs text-slate-500 font-medium mb-2">These students are waiting for the Admin to approve them into the global pool.</p>
+      <div id="teacher-pending-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-1"></div>
+      <div class="flex gap-2 pt-2">
+        <button id="close-pending-requests-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div id="import-modal" role="dialog" aria-modal="true" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 md:p-8 w-full max-w-2xl max-h-[90vh] flex flex-col justify-between">
       <div class="overflow-y-auto pr-1 space-y-6">
@@ -666,61 +677,39 @@
           <div><h3 class="text-lg font-black text-slate-900">Bulk Import Wizard</h3></div>
           <button id="import-close-x" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold flex items-center justify-center">&times;</button>
         </div>
-        
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div id="import-action-wrapper">
             <label for="import-action" class="block text-xs font-bold text-slate-600 mb-1">Target Action</label>
-            <select id="import-action" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
-              <option value="register">Register Students</option>
-              <option value="grades">Upload Grades</option>
-            </select>
+            <select id="import-action" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600"><option value="register">Register Students</option><option value="grades">Upload Grades</option></select>
           </div>
-          
           <div id="import-section-container">
             <label for="import-section" class="block text-xs font-bold text-slate-600 mb-1">Target Section</label>
-            <select id="import-section" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
-              <option value="">Loading sections...</option>
-            </select>
+            <select id="import-section" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600"><option value="">Loading sections...</option></select>
           </div>
-
           <div id="import-subject-container">
             <label for="import-subject" class="block text-xs font-bold text-slate-600 mb-1">Target Subject</label>
             <select id="import-subject" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600"></select>
           </div>
-
-          <div id="import-quarter-container" class="hidden">
-            <label for="import-quarter" class="block text-xs font-bold text-slate-600 mb-1">Target Quarter</label>
-            <select id="import-quarter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
-              <option value="1st">1st Quarter</option>
-              <option value="2nd">2nd Quarter</option>
-              <option value="3rd">3rd Quarter</option>
-              <option value="4th">4th Quarter</option>
-            </select>
-          </div>
+          <div id="import-quarter-container" class="hidden"><label for="import-quarter" class="block text-xs font-bold text-slate-600 mb-1">Target Quarter</label><select id="import-quarter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600"><option value="1st">1st Quarter</option><option value="2nd">2nd Quarter</option><option value="3rd">3rd Quarter</option><option value="4th">4th Quarter</option></select></div>
         </div>
-
         <div><label for="csv-file-input" class="block text-xs font-bold text-slate-600 mb-1">Option A: Upload CSV File</label><input type="file" id="csv-file-input" accept=".csv" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"></div>
         <div class="text-center font-bold text-slate-300 text-xs">OR</div>
         <div><label for="smart-paste-input" class="block text-xs font-bold text-slate-600 mb-1">Option B: Smart Paste 📋</label><textarea id="smart-paste-input" rows="4" placeholder="Highlight your data in Google Sheets or Excel, press Ctrl+C, click here, and press Ctrl+V." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono outline-none focus:border-indigo-600"></textarea></div>
-        
         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
           <div class="text-[11px] font-black uppercase text-slate-400">Column Mapping</div>
           <div id="col-mapping-register" class="grid grid-cols-2 gap-3">
             <div><label for="col-id-reg" class="block text-[10px] font-bold text-slate-500 mb-1">ID Col</label><input type="text" id="col-id-reg" placeholder="A" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase"></div>
             <div><label for="col-name" class="block text-[10px] font-bold text-slate-500 mb-1">Name Col</label><input type="text" id="col-name" placeholder="B" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase"></div>
           </div>
-          
           <div id="col-mapping-grades" class="hidden space-y-3">
             <div><label for="col-id-grades" class="block text-[10px] font-bold text-slate-500 mb-1">Student ID Column</label><input type="text" id="col-id-grades" placeholder="A" class="w-24 bg-white border border-slate-200 rounded-xl p-2 text-center text-xs font-bold uppercase"></div>
             <div><div class="text-[10px] font-black uppercase text-slate-400 mb-2">Grade Category Columns</div><div id="grade-category-cols" class="space-y-2"></div></div>
           </div>
         </div>
-        
         <div id="preview-section" class="hidden space-y-2">
           <div class="flex items-center justify-between"><div class="text-xs font-bold text-slate-700">Preview Parsed Data:</div><div id="import-delim-banner" class="hidden text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"></div></div>
           <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl"><table class="w-full text-left text-xs"><thead id="preview-thead" class="bg-slate-100 text-slate-600"></thead><tbody id="preview-table-body" class="divide-y divide-slate-100"></tbody></table></div>
         </div>
-        
         <div id="progress-container" class="hidden space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
           <div class="flex justify-between items-center text-xs font-bold text-slate-700"><span id="progress-count">Processing records...</span><span id="progress-percentage">0%</span></div>
           <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden"><div id="progress-bar-fill" class="bg-indigo-600 h-full w-0 transition-all duration-200"></div></div>
@@ -735,22 +724,8 @@
       </div>
     </div>
   </div>
-  <!-- ==================== TEACHER PENDING REQUESTS MODAL ==================== -->
-  <div id="pending-requests-modal" role="dialog" aria-modal="true" class="hidden-screen fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-lg space-y-4">
-      <h3 class="text-lg font-black text-slate-900">My Pending Student Requests</h3>
-      <p class="text-xs text-slate-500 font-medium mb-2">These students are waiting for the Admin to approve them into the global pool.</p>
-      
-      <div id="teacher-pending-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-        <!-- Populated dynamically -->
-      </div>
-      
-      <div class="flex gap-2 pt-2">
-        <button id="close-pending-requests-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold text-xs">Close</button>
-      </div>
-    </div>
-  </div>
 
+  <!-- Scripts -->
   <script src="js/config.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/api.js"></script>
