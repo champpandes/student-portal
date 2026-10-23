@@ -292,6 +292,7 @@
     document.getElementById('assessment-cancel-btn').addEventListener('click', App.closeAssessmentModal);
     document.getElementById('assessment-save-btn').addEventListener('click', App.saveAssessment);
 
+    // Class record delegated events
     document.getElementById('cr-body').addEventListener('click', (e) => {
       const addBtn = e.target.closest('button[data-action="add-assessment"]');
       if (addBtn) {
@@ -307,8 +308,14 @@
       }
       const delBtn = e.target.closest('button[data-action="delete-assessment"]');
       if (delBtn) { App.deleteAssessment(Number(delBtn.dataset.id), delBtn.dataset.name); return; }
-      const toggleBtn = e.target.closest('button[data-action="toggle-category"]');
-      if (toggleBtn) { App.crToggleCategory(toggleBtn.dataset.categoryId); return; }
+      
+      // NEW: Handle Category Tab Clicks
+      const tabBtn = e.target.closest('button[data-action="switch-category"]');
+      if (tabBtn) {
+        App.crSetActiveCategory(tabBtn.dataset.categoryId);
+        return;
+      }
+
       if (e.target.closest('#cr-expand-all-btn')) { App.crExpandAll(); return; }
       if (e.target.closest('#cr-collapse-all-btn')) { App.crCollapseAll(); return; }
       const pageBtn = e.target.closest('button[data-cr-cat-page]');
@@ -413,6 +420,7 @@
     if (sidebar) sidebar.classList.remove('collapsed');
 
     if (typeof App.resetSubjectForm === 'function') App.resetSubjectForm();
+    if (typeof App.resetSectionFilter === 'function') App.resetSectionForm(); // Just in case
     if (typeof App.resetSectionForm === 'function') App.resetSectionForm();
   }
 

@@ -284,12 +284,12 @@
     } else if (students.length === 0) {
       html += '<div class="p-8 text-center text-slate-400 text-sm italic">No students match the current filter.</div>';
     } else {
-      // FIX: Use border-separate to allow sticky columns to work properly
-      html += '<div class="overflow-x-auto relative"><table class="w-full text-left text-sm border-separate border-spacing-0">';
+      // FIX: Use border-separate and explicit inline styles for sticky columns
+      html += '<div class="overflow-x-auto relative"><table class="w-full text-left text-sm border-separate border-spacing-0 min-w-max">';
       html += '<thead><tr class="text-slate-500 text-[10px] font-black uppercase tracking-wider">';
       
       // STICKY LEFT COLUMN
-      html += '<th class="p-3 min-w-[180px] sticky left-0 z-20 bg-slate-50 border-b border-r border-slate-200 shadow-[1px_0_0_0_#e2e8f0]">Student</th>';
+      html += '<th style="position: sticky; left: 0; z-index: 20;" class="p-3 min-w-[180px] bg-slate-50 border-b border-r border-slate-200 shadow-[1px_0_0_0_#e2e8f0]">Student</th>';
 
       assessments.forEach(a => {
         html += '<th class="p-3 text-center min-w-[100px] bg-slate-50 border-b border-slate-200">' +
@@ -305,7 +305,7 @@
       });
       
       // STICKY RIGHT COLUMN
-      html += '<th class="p-3 text-center min-w-[80px] sticky right-0 z-20 bg-slate-50 border-b border-l border-slate-200 shadow-[-1px_0_0_0_#e2e8f0]">Avg</th>';
+      html += '<th style="position: sticky; right: 0; z-index: 20;" class="p-3 text-center min-w-[80px] bg-slate-50 border-b border-l border-slate-200 shadow-[-1px_0_0_0_#e2e8f0]">Avg</th>';
       html += '</tr></thead>';
 
       html += '<tbody>';
@@ -313,7 +313,7 @@
         html += '<tr class="group hover:bg-slate-50/40 transition-colors">';
         
         // STICKY LEFT COLUMN
-        html += '<td class="p-3 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-b border-r border-slate-100 shadow-[1px_0_0_0_#e2e8f0]"><div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div><div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div></td>';
+        html += '<td style="position: sticky; left: 0; z-index: 10;" class="p-3 bg-white group-hover:bg-slate-50 border-b border-r border-slate-100 shadow-[1px_0_0_0_#e2e8f0]"><div class="font-bold text-slate-800 text-xs">' + App.esc(stu.name) + '</div><div class="text-[10px] text-slate-400 font-semibold">' + App.esc(stu.student_number) + ' &bull; ' + App.esc(stu.section || '-') + '</div></td>';
 
         assessments.forEach(a => {
           const val = scoreMap[a.id + '|' + stu.student_number];
@@ -330,7 +330,7 @@
         const avgColor = avg === '-' ? 'text-slate-400' : (Number(avg) >= 75 ? 'text-emerald-600' : 'text-rose-600');
         
         // STICKY RIGHT COLUMN
-        html += '<td class="p-3 text-center sticky right-0 z-10 bg-indigo-50 group-hover:bg-indigo-100 border-b border-l border-slate-100 shadow-[-1px_0_0_0_#e2e8f0]"><span class="font-black text-sm ' + avgColor + '">' + avg + '</span></td>';
+        html += '<td style="position: sticky; right: 0; z-index: 10;" class="p-3 text-center bg-indigo-50 group-hover:bg-indigo-100 border-b border-l border-slate-100 shadow-[-1px_0_0_0_#e2e8f0]"><span class="font-black text-sm ' + avgColor + '">' + avg + '</span></td>';
         html += '</tr>';
       });
       html += '</tbody></table></div>';
