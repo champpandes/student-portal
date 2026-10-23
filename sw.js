@@ -2,7 +2,7 @@
 // Service Worker — Champ Class Portal PWA
 // ============================================================
 
-const CACHE_VERSION = 'v4.1.3';
+const CACHE_VERSION = 'v4.1.4';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
