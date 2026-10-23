@@ -123,6 +123,9 @@
     const secTab = document.querySelector('[data-tab="sections"]');
     if (secTab) secTab.classList.toggle('hidden-screen', !isSuper);
 
+    const profileTab = document.querySelector('[data-tab="profile"]');
+    if (profileTab) profileTab.classList.remove('hidden-screen');
+
     const addBtn = document.getElementById('open-add-student-btn');
     if (addBtn) {
       addBtn.classList.remove('hidden-screen');
@@ -146,7 +149,6 @@
     if (App.loadPendingRegistrations) App.loadPendingRegistrations();
     if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
 
-    // First-login walkthrough (also covers the auto-login after first-user registration)
     setTimeout(() => {
       if (App.startWalkthrough && state.currentTeacher && !state.currentTeacher.hasSeenWalkthrough) {
         App.startWalkthrough();
