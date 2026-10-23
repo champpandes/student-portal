@@ -79,7 +79,6 @@
     document.getElementById('role-tab-student').addEventListener('click', () => App.setLoginRole('student'));
     document.getElementById('role-tab-teacher').addEventListener('click', () => App.setLoginRole('teacher'));
     document.getElementById('login-show-toggle').addEventListener('click', App.toggleLoginVisibility);
-    document.getElementById('legacy-pin-toggle').addEventListener('click', App.toggleLegacyPin);
     document.getElementById('open-teacher-register-btn').addEventListener('click', App.openTeacherRegisterModal);
     document.getElementById('register-teacher-cancel-btn').addEventListener('click', App.closeTeacherRegisterModal);
     document.getElementById('submit-teacher-reg-btn').addEventListener('click', App.submitTeacherRegistration);

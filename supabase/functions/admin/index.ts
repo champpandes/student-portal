@@ -83,10 +83,6 @@ async function verifyPassword(password: string, hash: string, salt: string): Pro
     return diff === 0;
   } catch { return false; }
 }
-async function sha256(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return bytesToHex(new Uint8Array(buf));
-}
 function publicTeacher(t: any) {
   return { id: t.id, email: t.email, displayName: t.display_name, role: t.role, status: t.status, isActive: t.is_active, hasSeenWalkthrough: t.has_seen_walkthrough, createdAt: t.created_at, lastLoginAt: t.last_login_at };
 }
@@ -164,37 +160,6 @@ Deno.serve(async (req) => {
       return json({ success: true, sessionToken: token, teacher: publicTeacher(teacher) });
     }
 
-    if (action === "adminLogin") {
-      const input = String(body.pin || "");
-      const deviceId = String(body.deviceId || "unknown").slice(0, 64);
-      if (!input) return json({ success: false, message: "Enter your PIN." });
-
-      const lockRows = await sb.from("login_attempts").select("*").eq("device_id", deviceId);
-      const existing = (lockRows.data && lockRows.data.length) ? lockRows.data[0] : null;
-      const now = new Date();
-
-      if (existing && existing.locked_until && new Date(existing.locked_until) > now) {
-        const secsLeft = Math.ceil((new Date(existing.locked_until).getTime() - now.getTime()) / 1000);
-        return json({ success: false, message: `Too many failed attempts. Try again in ${Math.ceil(secsLeft / 60)} minutes.` });
-      }
-
-      const rows = await sb.from("settings").select("value").eq("key", "admin_pin_hash").limit(1);
-      if (!rows.data || rows.data.length === 0) return json({ success: false, message: "Admin PIN not configured." });
-
-      const hash = await sha256(input);
-      if (hash === rows.data[0].value) {
-        await sb.from("login_attempts").upsert({ device_id: deviceId, attempts: 0, locked_until: null, updated_at: now.toISOString() }, { onConflict: "device_id" });
-        return json({ success: true });
-      }
-
-      const curAttempts = (existing?.attempts || 0) + 1;
-      let lockedUntil: string | null = null;
-      if (curAttempts >= 5) lockedUntil = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
-      
-      await sb.from("login_attempts").upsert({ device_id: deviceId, attempts: curAttempts, locked_until: lockedUntil, updated_at: now.toISOString() }, { onConflict: "device_id" });
-      return json({ success: false, message: lockedUntil ? "Locked out for 15 minutes." : `Invalid PIN. ${5 - curAttempts} attempts remaining.` });
-    }
-
     if (action === "getPublicTeachers") {
       const t = await sb.from("teachers").select("id, display_name").eq("status", "approved").eq("is_active", true).order("display_name");
       return json({ success: true, teachers: (t.data || []).map(r => ({ id: r.id, displayName: r.display_name })) });
@@ -255,7 +220,7 @@ Deno.serve(async (req) => {
     }
 
     // ==========================================
-    // 2. AUTH CHECK
+    // 2. AUTH CHECK (session token only)
     // ==========================================
     let auth = null;
     if (body.sessionToken) {
@@ -263,19 +228,6 @@ Deno.serve(async (req) => {
       if (sess.data) {
         const t = await sb.from("teachers").select("*").eq("id", sess.data.teacher_id).single();
         if (t.data && t.data.is_active) auth = { teacher: t.data };
-      }
-    }
-    if (!auth) {
-      const pin = String(body?.pin || "").trim();
-      if (pin) {
-        const pinRows = await sb.from("settings").select("value").eq("key", "admin_pin_hash").limit(1);
-        if (pinRows.data && pinRows.data.length > 0) {
-          const hash = await sha256(pin);
-          if (hash === pinRows.data[0].value) {
-            const saRes = await sb.from("teachers").select("*").eq("role", "super_admin").eq("status", "approved").eq("is_active", true).limit(1);
-            auth = { teacher: (saRes.data && saRes.data.length > 0) ? saRes.data[0] : null };
-          }
-        }
       }
     }
     if (!auth) return json({ success: false, message: "Not authenticated." });
@@ -340,7 +292,7 @@ Deno.serve(async (req) => {
     // ==========================================
     // 4. AUTHENTICATED ROUTES
     // ==========================================
-    if (action === "getMe") return json({ success: true, teacher: auth.teacher ? publicTeacher(auth.teacher) : null, legacy: !auth.teacher });
+    if (action === "getMe") return json({ success: true, teacher: auth.teacher ? publicTeacher(auth.teacher) : null, legacy: false });
     if (action === "teacherLogout") {
       const token = String(body.sessionToken || "").trim();
       if (token) await sb.from("teacher_sessions").delete().eq("token", token);

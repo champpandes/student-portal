@@ -45,9 +45,8 @@ App.state = {
   // Session (transient, per-tab)
   adminPin: "",
   sessionToken: "",
-  currentTeacher: null,          // ← new
-  legacyPinMode: false,          // ← new (true when using the fallback PIN)
-  teacherName: "",             // ← add this line
+  currentTeacher: null,
+  teacherName: "",
 
   // UI
   pendingImportData: [],

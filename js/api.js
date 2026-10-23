@@ -63,10 +63,6 @@ async function callAdmin(payload) {
 
     markWalkthroughSeen: async () => callAdmin({ action: 'markWalkthroughSeen' }),
 
-    adminLogin: async (p) => callAdmin({
-      action: 'adminLogin', pin: p.pin, deviceId: p.deviceId
-    }),
-
     // ============================================================
     // SUPER ADMIN — TEACHER MANAGEMENT
     // ============================================================
