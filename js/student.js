@@ -21,34 +21,80 @@
       return;
     }
 
-    let html = '<div class="overflow-x-auto w-full">';
-    html += '<table class="w-full text-left border-collapse">';
-    html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-400 text-[11px] font-black uppercase tracking-wider">';
-    html += '<th class="p-4">Subject</th>';
-    html += '<th class="p-4 text-center">1st Qtr</th><th class="p-4 text-center">2nd Qtr</th><th class="p-4 text-center">3rd Qtr</th><th class="p-4 text-center">4th Qtr</th>';
-    html += '<th class="p-4 text-center">Final</th><th class="p-4 text-center">Remarks</th>';
-    html += '</tr></thead><tbody class="divide-y divide-slate-100 text-sm">';
+    const student = state.currentStudentData;
+    const credit = App.DEVELOPER_CREDIT;
 
+    const remarksCell = (remarks) => {
+      if (remarks === 'Passed') return '<span class="font-bold text-emerald-700">Passed</span>';
+      if (remarks === 'Failed') return '<span class="font-bold text-rose-700">Failed</span>';
+      return '<span class="text-slate-400">-</span>';
+    };
+
+    let rowsHtml = '';
     subjects.forEach(([subjName, data]) => {
       const g = data.grades;
-      
+      const clean = subjName.replace(/\(SY.*?\)/i, '').trim();
+
       const qCell = (quarter, val) => {
         const display = (val === undefined || val === null || val === '') ? '-' : val;
-        return '<td class="p-4 text-center col-q col-q-' + quarter.toLowerCase() + '">' +
-          '<button type="button" data-quarter="' + quarter + '" data-subject="' + App.esc(subjName) + '" class="text-indigo-600 font-bold hover:text-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded px-1">' +
+        return '<td class="p-2.5 text-center border border-slate-400">' +
+          '<button type="button" data-quarter="' + quarter + '" data-subject="' + App.esc(subjName) + '" class="text-slate-800 font-bold hover:text-indigo-600 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded px-1">' +
             App.esc(display) +
           '</button></td>';
       };
 
-      html += '<tr class="hover:bg-slate-50/50 transition-colors">';
-      html += '<td class="p-4 font-bold text-slate-800">' + App.esc(subjName) + '</td>';
-      html += qCell('1st', g.q1) + qCell('2nd', g.q2) + qCell('3rd', g.q3) + qCell('4th', g.q4);
-      html += '<td class="p-4 text-center font-black text-lg">' + (App.esc(g.final) || '-') + '</td>';
-      html += '<td class="p-4 text-center">' + App.remarksBadge(g.remarks) + '</td>';
-      html += '</tr>';
+      rowsHtml += '<tr class="hover:bg-slate-50 transition-colors">' +
+        '<td class="p-2.5 border border-slate-400 font-bold text-slate-800">' + App.esc(clean) + '</td>' +
+        qCell('1st', g.q1) + qCell('2nd', g.q2) + qCell('3rd', g.q3) + qCell('4th', g.q4) +
+        '<td class="p-2.5 text-center border border-slate-400 font-black text-slate-900">' + (App.esc(g.final) || '-') + '</td>' +
+        '<td class="p-2.5 text-center border border-slate-400 font-bold text-slate-700">' + App.getEquivalentGrade(g.final) + '</td>' +
+        '<td class="p-2.5 text-center border border-slate-400">' + remarksCell(g.remarks) + '</td>' +
+      '</tr>';
     });
 
-    html += '</tbody></table></div>';
+    const html =
+      '<div class="p-6 md:p-8">' +
+        // ---- Document header ----
+        '<div class="text-center mb-5">' +
+          '<div class="font-bold text-base text-slate-900">' + App.esc(credit.school) + '</div>' +
+          '<div class="text-xs text-slate-600">' + App.esc(credit.schoolLocation) + '</div>' +
+          '<div class="font-bold text-sm text-slate-900 mt-3 underline">STUDENT GRADE REPORT</div>' +
+        '</div>' +
+        // ---- Student info block ----
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-700 mb-4 pb-3 border-b border-slate-200">' +
+          '<div><b>Student:</b> ' + App.esc(student.name) + '</div>' +
+          '<div><b>ID:</b> ' + App.esc(student.studentNumber) + '</div>' +
+          '<div><b>Section:</b> ' + App.esc(student.section || '-') + '</div>' +
+        '</div>' +
+        // ---- Hint ----
+        '<div class="text-[11px] text-slate-500 mb-3 italic">Tip: click any quarter grade to see its breakdown.</div>' +
+        // ---- Bordered table ----
+        '<div class="overflow-x-auto">' +
+          '<table class="w-full border-collapse text-sm">' +
+            '<thead>' +
+              '<tr class="bg-slate-100">' +
+                '<th class="p-2.5 border border-slate-400 text-left text-[11px] font-black uppercase tracking-wider text-slate-700">Subject</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">1st</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">2nd</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">3rd</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">4th</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">Final</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">EQV</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">Remarks</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody>' + rowsHtml + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        // ---- Footer ----
+        '<div class="mt-6 pt-4 border-t border-slate-200 text-[10px] text-slate-500">' +
+          'Generated: ' + new Date().toLocaleString() +
+        '</div>' +
+        '<div class="mt-2 text-[9px] text-slate-400 text-center">' +
+          'Web Application developed by <b>' + App.esc(credit.developer) + '</b> &bull; ' + App.esc(credit.school) +
+        '</div>' +
+      '</div>';
+
     container.innerHTML = html;
   };
 

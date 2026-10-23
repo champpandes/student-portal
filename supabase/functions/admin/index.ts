@@ -243,6 +243,23 @@ Deno.serve(async (req) => {
       return json({ success: true, pending: true });
     }
 
+    // ------------------------------------------------------------
+    // Public read of curriculum metadata (needed by the student
+    // breakdown view). Students don't have a teacher session, so
+    // this must sit above the auth gate. If a teacher session IS
+    // present, the response is scoped to that teacher as before.
+    // ------------------------------------------------------------
+    if (action === "getSubjects") {
+      let teacherId: string | null = null;
+      if (body.sessionToken) {
+        try {
+          const sess = await sb.from("teacher_sessions").select("teacher_id").eq("token", body.sessionToken).single();
+          if (sess.data) teacherId = sess.data.teacher_id;
+        } catch { /* not a teacher session (student fake token) — fall through */ }
+      }
+      return json(await buildSubjectsResponse(teacherId));
+    }
+
     // ==========================================
     // 2. AUTH CHECK
     // ==========================================
@@ -364,10 +381,6 @@ Deno.serve(async (req) => {
     }
 
     // SUBJECTS
-    if (action === "getSubjects") {
-      return json(await buildSubjectsResponse(auth.teacher?.id || null));
-    }
-
     if (action === "manageSubject") {
       const subAction = String(body.subAction || "add");
       const teacherId = auth.teacher?.id || null;
