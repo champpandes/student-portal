@@ -97,7 +97,7 @@
     }
   };
 
-  App.approveRegistration = function (studentNumber) {
+  App.approveRegistration = async function (studentNumber) {
     const item = state._pendingCache.find(p => p.studentNumber === studentNumber);
     if (!item) {
       App.showToast("Pending registration not found. Try refreshing.", "error");
@@ -110,6 +110,12 @@
     document.getElementById('approve-error').classList.add('hidden');
 
     const sel = document.getElementById('approve-student-section');
+    sel.innerHTML = '<option value="">Loading sections...</option>';
+
+    // FIX: Force fetch the latest sections before opening the modal
+    sessionStorage.removeItem('sp_sections_cache');
+    await App.fetchAllSectionsForDropdowns();
+    
     const sections = state.sectionsCache || [];
     sel.innerHTML = '<option value="">Select section...</option>' +
       sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
@@ -140,7 +146,7 @@
           pin: state.adminPin,
           studentNumber: studentNumber,
           section: section,
-          subjects: [] // Empty array because they go to the pool
+          subjects: []
         }, { retries: 1 });
 
         if (res.success) {
