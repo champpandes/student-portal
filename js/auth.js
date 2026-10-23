@@ -114,7 +114,6 @@
   App.afterTeacherLogin = function () {
     const isSuper = state.currentTeacher && state.currentTeacher.role === 'super_admin';
     
-    // Hide tabs for non-admins
     const teacherTab = document.getElementById('tab-btn-teachers');
     if (teacherTab) teacherTab.classList.toggle('hidden-screen', !isSuper);
 
@@ -124,7 +123,6 @@
     const secTab = document.querySelector('[data-tab="sections"]');
     if (secTab) secTab.classList.toggle('hidden-screen', !isSuper);
 
-    // Show/hide Add Student buttons
     const addBtn = document.getElementById('open-add-student-btn');
     if (addBtn) {
       addBtn.classList.remove('hidden-screen');
@@ -238,7 +236,10 @@
           App.saveSession({ role: 'student', studentNumber: res.studentNumber });
 
           setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
-          App.initializeStudentDropdowns(Object.keys(res.subjects));
+          
+          // NEW: Just render the dashboard directly
+          App.renderStudentDashboard();
+          
           App.showToast('Logged in as ' + res.name);
           App.showScreen('student');
         }
@@ -336,7 +337,10 @@
       state.currentStudentData = res;
       state.sessionToken = App.newSessionToken();
       setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
-      App.initializeStudentDropdowns(Object.keys(res.subjects));
+      
+      // NEW: Just render the dashboard directly
+      App.renderStudentDashboard();
+      
       App.showScreen('student');
       return true;
     }

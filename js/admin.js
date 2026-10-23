@@ -266,7 +266,8 @@
       }, { retries: 1 });
 
       if (res.success) {
-        App.showToast(`Successfully enrolled ${studentNumbers.length} students in ${subject}.`);
+        // Show the dynamic message from the server (handles partial success)
+        App.showToast(res.message || `Successfully enrolled ${res.processed} students.`);
         App.loadRoster();
       } else {
         App.showToast(res.message || 'Failed to enroll.', 'error');

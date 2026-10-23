@@ -94,25 +94,14 @@ function publicTeacher(t: any) {
 async function buildSubjectsResponse(teacherId: string | null) {
   let subjQ = scopeByTeacher(sb.from("subjects").select("*").order("subject_name"), teacherId);
   let catQ = scopeByTeacher(sb.from("subject_categories").select("*").order("position"), teacherId);
-  
-  const subj = await subjQ; 
-  const cat = await catQ;
+  const subj = await subjQ; const cat = await catQ;
   
   const subjects: string[] = [], descriptions: any = {}, weights: any = {}, categories: any = {}, quarterWeights: any = {};
-  
   (subj.data || []).forEach((r: any) => {
-    subjects.push(r.subject_name); 
-    descriptions[r.subject_name] = r.description || ""; 
-    quarterWeights[r.subject_name] = r.quarter_weights; 
-    categories[r.subject_name] = [];
+    subjects.push(r.subject_name); descriptions[r.subject_name] = r.description || ""; quarterWeights[r.subject_name] = r.quarter_weights; categories[r.subject_name] = [];
     weights[r.subject_name] = { quizzes: r.weight_quizzes, participation: r.weight_participation, attendance: r.weight_attendance, exams: r.weight_exams };
   });
-  
-  (cat.data || []).forEach((c: any) => { 
-    if (!categories[c.subject_name]) categories[c.subject_name] = []; 
-    categories[c.subject_name].push({ id: c.id, name: c.name, weight: c.weight, position: c.position }); 
-  });
-  
+  (cat.data || []).forEach((c: any) => { if (!categories[c.subject_name]) categories[c.subject_name] = []; categories[c.subject_name].push({ id: c.id, name: c.name, weight: c.weight, position: c.position }); });
   return { success: true, subjects, descriptions, weights, categories, quarterWeights };
 }
 
@@ -334,7 +323,6 @@ Deno.serve(async (req) => {
       } else if (subAction === "delete") {
         await sb.from("sections").delete().eq("name", name);
       }
-      // BUG FIX: Return the updated sections list
       return json(await buildSectionsResponse());
     }
 
@@ -391,13 +379,12 @@ Deno.serve(async (req) => {
         await sb.from("grades").delete().eq("subject_name", t);
         await sb.from("enrollments").delete().eq("subject_name", t);
         await sb.from("assessments").delete().eq("subject_name", t);
-        return json(await buildSubjectsResponse());
+        return json(await buildSubjectsResponse(teacherId));
       }
 
       const finalName = subAction === "update" ? String(body.newName) : String(body.subjectName);
       
       if (subAction === "update" && body.oldName && body.oldName !== finalName) {
-        // BUG FIX: Actually update the subjects table name
         await sb.from("subjects").update({ subject_name: finalName }).eq("subject_name", body.oldName);
         await sb.from("subject_categories").update({ subject_name: finalName }).eq("subject_name", body.oldName);
         await sb.from("grades").update({ subject_name: finalName }).eq("subject_name", body.oldName);
@@ -428,8 +415,7 @@ Deno.serve(async (req) => {
         });
         await sb.from("subject_categories").insert(toInsert);
       }
-      // BUG FIX: Return updated subjects
-      return json(await buildSubjectsResponse());
+      return json(await buildSubjectsResponse(teacherId));
     }
 
     if (action === "getSections") {
@@ -541,15 +527,43 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    // BUG FIX: Check for existing enrollments before inserting
     if (action === "bulkEnrollStudents") {
       const studentNumbers = body.studentNumbers || [];
       const subjectName = String(body.subjectName || "");
-      const enrollments = studentNumbers.map((sNo: string) => ({ student_number: sNo, subject_name: subjectName, teacher_id: auth.teacher?.id || null }));
-      const gradeRows = studentNumbers.map((sNo: string) => ({ student_number: sNo, subject_name: subjectName, q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [], teacher_id: auth.teacher?.id || null }));
+      
+      if (studentNumbers.length === 0 || !subjectName) return json({ success: false, message: "Missing data." });
+
+      // Find who is already enrolled
+      const existingRes = await sb.from("enrollments")
+        .select("student_number")
+        .eq("subject_name", subjectName)
+        .in("student_number", studentNumbers);
+      
+      const existingSet = new Set((existingRes.data || []).map((e: any) => e.student_number));
+      
+      const newStudents = studentNumbers.filter((sNo: string) => !existingSet.has(sNo));
+      const skippedCount = existingSet.size;
+
+      if (newStudents.length === 0) {
+        return json({ success: false, message: "All selected students are already enrolled in this subject." });
+      }
+
+      // Only enroll the new ones
+      const enrollments = newStudents.map((sNo: string) => ({ student_number: sNo, subject_name: subjectName, teacher_id: auth.teacher?.id || null }));
+      const gradeRows = newStudents.map((sNo: string) => ({ student_number: sNo, subject_name: subjectName, q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [], teacher_id: auth.teacher?.id || null }));
 
       await sb.from("enrollments").upsert(enrollments, { onConflict: "student_number,subject_name", ignoreDuplicates: true });
       await sb.from("grades").upsert(gradeRows, { onConflict: "student_number,subject_name", ignoreDuplicates: true });
-      return json({ success: true });
+      
+      return json({ 
+        success: true, 
+        processed: newStudents.length, 
+        skipped: skippedCount,
+        message: skippedCount > 0 
+          ? `Enrolled ${newStudents.length} students. Skipped ${skippedCount} (already enrolled).` 
+          : `Successfully enrolled ${newStudents.length} students.`
+      });
     }
 
     if (action === "syncStudentEnrollments") {

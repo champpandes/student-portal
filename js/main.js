@@ -364,8 +364,6 @@
   }
 
   function wireStudentEvents() {
-    document.getElementById('student-subject-selector').addEventListener('change', e => App.changeStudentSubject(e.target.value));
-    document.getElementById('student-sy-selector').addEventListener('change', e => App.changeStudentSY(e.target.value));
     document.getElementById('student-print-btn').addEventListener('click', App.printStudentGrades);
 
     document.getElementById('student-main-grades').addEventListener('click', e => {
@@ -382,6 +380,9 @@
 
     document.getElementById('back-to-dashboard-btn').addEventListener('click', () => {
       App.showScreen(state.currentTeacher ? 'admin' : 'student');
+      if (!state.currentTeacher) {
+        App.renderStudentDashboard();
+      }
     });
     
     document.getElementById('print-breakdown-btn')?.addEventListener('click', () => window.print());
@@ -420,7 +421,6 @@
     if (sidebar) sidebar.classList.remove('collapsed');
 
     if (typeof App.resetSubjectForm === 'function') App.resetSubjectForm();
-    if (typeof App.resetSectionFilter === 'function') App.resetSectionForm(); // Just in case
     if (typeof App.resetSectionForm === 'function') App.resetSectionForm();
   }
 
