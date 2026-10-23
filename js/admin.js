@@ -800,4 +800,40 @@
     }, { text: 'Saving...' });
   };
 
+    // ---------- Teacher Pending Requests ----------
+  App.openTeacherPendingRequests = async function () {
+    const modal = document.getElementById('pending-requests-modal');
+    const list = document.getElementById('teacher-pending-list');
+    
+    list.innerHTML = '<div class="text-center text-slate-400 py-6 text-sm animate-pulse">Loading requests...</div>';
+    App.openModal(modal);
+
+    try {
+      const res = await App.apiCall({ action: 'getPendingRegistrations' });
+      if (!res.success) throw new Error(res.message || 'Failed to fetch.');
+
+      if (!res.pending || res.pending.length === 0) {
+        list.innerHTML = '<div class="text-center text-emerald-600 font-bold py-8 text-sm">🎉 No pending requests! All your students are approved.</div>';
+        return;
+      }
+
+      list.innerHTML = res.pending.map(item => 
+        '<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex justify-between items-center">' +
+          '<div>' +
+            '<div class="font-bold text-sm text-slate-800">' + App.esc(item.name) + '</div>' +
+            '<div class="text-xs text-slate-500 font-semibold">' + App.esc(item.studentNumber) + ' &bull; ' + App.esc(item.section || 'No Section') + '</div>' +
+          '</div>' +
+          '<span class="text-[10px] font-black uppercase text-amber-600 bg-amber-100 px-2 py-1 rounded">Pending</span>' +
+        '</div>'
+      ).join('');
+
+    } catch (e) {
+      list.innerHTML = '<div class="text-center text-rose-500 py-6 text-sm">Error: ' + e.message + '</div>';
+    }
+  };
+
+  App.closeTeacherPendingRequests = function () {
+    App.closeModal(document.getElementById('pending-requests-modal'));
+  };
+
 })(window.App);
