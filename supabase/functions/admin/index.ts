@@ -91,16 +91,28 @@ function publicTeacher(t: any) {
   return { id: t.id, email: t.email, displayName: t.display_name, role: t.role, status: t.status, isActive: t.is_active, createdAt: t.created_at, lastLoginAt: t.last_login_at };
 }
 
-async function buildSubjectsResponse() {
-  const subj = await sb.from("subjects").select("*").order("subject_name");
-  const cat = await sb.from("subject_categories").select("*").order("position");
+async function buildSubjectsResponse(teacherId: string | null) {
+  let subjQ = scopeByTeacher(sb.from("subjects").select("*").order("subject_name"), teacherId);
+  let catQ = scopeByTeacher(sb.from("subject_categories").select("*").order("position"), teacherId);
   
-  const subjects = [], descriptions: any = {}, weights: any = {}, categories: any = {}, quarterWeights: any = {};
-  (subj.data || []).forEach(r => {
-    subjects.push(r.subject_name); descriptions[r.subject_name] = r.description || ""; quarterWeights[r.subject_name] = r.quarter_weights; categories[r.subject_name] = [];
+  const subj = await subjQ; 
+  const cat = await catQ;
+  
+  const subjects: string[] = [], descriptions: any = {}, weights: any = {}, categories: any = {}, quarterWeights: any = {};
+  
+  (subj.data || []).forEach((r: any) => {
+    subjects.push(r.subject_name); 
+    descriptions[r.subject_name] = r.description || ""; 
+    quarterWeights[r.subject_name] = r.quarter_weights; 
+    categories[r.subject_name] = [];
     weights[r.subject_name] = { quizzes: r.weight_quizzes, participation: r.weight_participation, attendance: r.weight_attendance, exams: r.weight_exams };
   });
-  (cat.data || []).forEach(c => { if (!categories[c.subject_name]) categories[c.subject_name] = []; categories[c.subject_name].push({ id: c.id, name: c.name, weight: c.weight, position: c.position }); });
+  
+  (cat.data || []).forEach((c: any) => { 
+    if (!categories[c.subject_name]) categories[c.subject_name] = []; 
+    categories[c.subject_name].push({ id: c.id, name: c.name, weight: c.weight, position: c.position }); 
+  });
+  
   return { success: true, subjects, descriptions, weights, categories, quarterWeights };
 }
 
@@ -365,7 +377,7 @@ Deno.serve(async (req) => {
 
     // SUBJECTS
     if (action === "getSubjects") {
-      return json(await buildSubjectsResponse());
+      return json(await buildSubjectsResponse(auth.teacher?.id || null));
     }
 
     if (action === "manageSubject") {
