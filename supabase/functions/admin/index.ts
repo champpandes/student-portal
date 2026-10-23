@@ -88,7 +88,7 @@ async function sha256(text: string): Promise<string> {
   return bytesToHex(new Uint8Array(buf));
 }
 function publicTeacher(t: any) {
-  return { id: t.id, email: t.email, displayName: t.display_name, role: t.role, status: t.status, isActive: t.is_active, createdAt: t.created_at, lastLoginAt: t.last_login_at };
+  return { id: t.id, email: t.email, displayName: t.display_name, role: t.role, status: t.status, isActive: t.is_active, hasSeenWalkthrough: t.has_seen_walkthrough, createdAt: t.created_at, lastLoginAt: t.last_login_at };
 }
 
 async function buildSubjectsResponse(teacherId: string | null) {
@@ -243,12 +243,6 @@ Deno.serve(async (req) => {
       return json({ success: true, pending: true });
     }
 
-    // ------------------------------------------------------------
-    // Public read of curriculum metadata (needed by the student
-    // breakdown view). Students don't have a teacher session, so
-    // this must sit above the auth gate. If a teacher session IS
-    // present, the response is scoped to that teacher as before.
-    // ------------------------------------------------------------
     if (action === "getSubjects") {
       let teacherId: string | null = null;
       if (body.sessionToken) {
@@ -540,14 +534,12 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
-    // BUG FIX: Check for existing enrollments before inserting
     if (action === "bulkEnrollStudents") {
       const studentNumbers = body.studentNumbers || [];
       const subjectName = String(body.subjectName || "");
       
       if (studentNumbers.length === 0 || !subjectName) return json({ success: false, message: "Missing data." });
 
-      // Find who is already enrolled
       const existingRes = await sb.from("enrollments")
         .select("student_number")
         .eq("subject_name", subjectName)
@@ -562,7 +554,6 @@ Deno.serve(async (req) => {
         return json({ success: false, message: "All selected students are already enrolled in this subject." });
       }
 
-      // Only enroll the new ones
       const enrollments = newStudents.map((sNo: string) => ({ student_number: sNo, subject_name: subjectName, teacher_id: auth.teacher?.id || null }));
       const gradeRows = newStudents.map((sNo: string) => ({ student_number: sNo, subject_name: subjectName, q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [], teacher_id: auth.teacher?.id || null }));
 

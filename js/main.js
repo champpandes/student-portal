@@ -309,7 +309,6 @@
       const delBtn = e.target.closest('button[data-action="delete-assessment"]');
       if (delBtn) { App.deleteAssessment(Number(delBtn.dataset.id), delBtn.dataset.name); return; }
       
-      // NEW: Handle Category Tab Clicks
       const tabBtn = e.target.closest('button[data-action="switch-category"]');
       if (tabBtn) {
         App.crSetActiveCategory(tabBtn.dataset.categoryId);
@@ -361,6 +360,12 @@
     if (profileSaveBtn) profileSaveBtn.addEventListener('click', App.saveProfileName);
     const profilePwBtn = document.getElementById('profile-change-pw-btn');
     if (profilePwBtn) profilePwBtn.addEventListener('click', App.changeMyPassword);
+
+    // Walkthrough replay
+    const replayTourBtn = document.getElementById('profile-replay-tour-btn');
+    if (replayTourBtn) replayTourBtn.addEventListener('click', () => {
+      if (App.startWalkthrough) App.startWalkthrough(true);
+    });
   }
 
   function wireStudentEvents() {

@@ -145,6 +145,13 @@
     if (App.loadRoster) App.loadRoster();
     if (App.loadPendingRegistrations) App.loadPendingRegistrations();
     if (App.renderTeacherManagementTab) App.renderTeacherManagementTab();
+
+    // First-login walkthrough (also covers the auto-login after first-user registration)
+    setTimeout(() => {
+      if (App.startWalkthrough && state.currentTeacher && !state.currentTeacher.hasSeenWalkthrough) {
+        App.startWalkthrough();
+      }
+    }, 700);
   };
 
   App.handleLogin = async function () {
@@ -237,7 +244,6 @@
 
           setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
           
-          // NEW: Just render the dashboard directly
           App.renderStudentDashboard();
           
           App.showToast('Logged in as ' + res.name);
@@ -338,7 +344,6 @@
       state.sessionToken = App.newSessionToken();
       setText('student-info-header', 'ID: ' + res.studentNumber + ' • ' + res.name);
       
-      // NEW: Just render the dashboard directly
       App.renderStudentDashboard();
       
       App.showScreen('student');

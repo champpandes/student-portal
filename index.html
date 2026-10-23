@@ -442,6 +442,11 @@
             <button id="profile-change-pw-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20">Change Password</button>
           </div>
         </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+          <h3 class="text-base font-black text-slate-900 mb-1">Portal Tour</h3>
+          <p class="text-xs text-slate-500 mb-4">Replay the guided walkthrough of the portal's features.</p>
+          <button id="profile-replay-tour-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20">🔄 Replay Tour</button>
+        </div>
       </div>
 
       <!-- ===== TAB: Import & Backup ===== -->
@@ -496,7 +501,6 @@
     </header>
     <main class="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
       
-      <!-- Simplifed Student View Header -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h3 class="text-base font-black text-slate-900">My Grades</h3>
@@ -505,7 +509,6 @@
         <button id="student-print-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 whitespace-nowrap flex items-center gap-2">🖨️ Print Grades</button>
       </div>
       
-      <!-- The new table container -->
       <div id="student-main-grades" class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"></div>
 
     </main>
@@ -748,6 +751,7 @@
   <script src="js/registrations.js"></script>
   <script src="js/teachers.js"></script>
   <script src="js/profile.js"></script>
+  <script src="js/walkthrough.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
