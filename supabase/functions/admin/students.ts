@@ -1,277 +1,223 @@
-(function (App) {
-  'use strict';
+import { sb, scopeByTeacher, determineRemarks, stripTags, AuthContext } from "./utils.ts";
 
-  const state = App.state;
+export async function getAllGradesScoped(p: any, auth: AuthContext) {
+  const teacherId = auth.teacher?.id || null;
+  const subject = String(p.subject || "");
 
-  // No longer needed since we removed the dropdowns
-  App.initializeStudentDropdowns = function () {};
+  let gq = sb.from("grades").select("*").order("student_number", { ascending: true });
+  if (subject && subject !== "All") gq = gq.eq("subject_name", subject);
+  gq = scopeByTeacher(gq, teacherId);
 
-  App.renderStudentDashboard = function () {
-    const container = document.getElementById('student-main-grades');
-    if (!container) return;
+  const gRows = await gq;
+  if (!gRows.data) return [];
 
-    if (!state.currentStudentData || !state.currentStudentData.subjects) {
-      container.innerHTML = '<div class="p-8 text-center text-slate-400 font-bold">No subjects assigned.</div>';
-      return;
-    }
+  let sq = sb.from("students").select("student_number,name,section");
+  const sRows = await sq;
 
-    const subjects = Object.entries(state.currentStudentData.subjects);
-    if (subjects.length === 0) {
-      container.innerHTML = '<div class="p-8 text-center text-slate-400 font-bold">You are not enrolled in any subjects yet. Please contact your teacher.</div>';
-      return;
-    }
+  const sMap: Record<string, any> = {};
+  (sRows.data || []).forEach((s: any) => { sMap[s.student_number] = s; });
 
-    let html = '<div class="overflow-x-auto w-full">';
-    html += '<table class="w-full text-left border-collapse">';
-    html += '<thead><tr class="bg-slate-50 border-b border-slate-200 text-slate-400 text-[11px] font-black uppercase tracking-wider">';
-    html += '<th class="p-4">Subject</th>';
-    html += '<th class="p-4 text-center">1st Qtr</th><th class="p-4 text-center">2nd Qtr</th><th class="p-4 text-center">3rd Qtr</th><th class="p-4 text-center">4th Qtr</th>';
-    html += '<th class="p-4 text-center">Final</th><th class="p-4 text-center">Remarks</th>';
-    html += '</tr></thead><tbody class="divide-y divide-slate-100 text-sm">';
+  const results: any[] = [];
+  const seen = new Set();
 
-    subjects.forEach(([subjName, data]) => {
-      const g = data.grades;
-      
-      const qCell = (quarter, val) => {
-        const display = (val === undefined || val === null || val === '') ? '-' : val;
-        return '<td class="p-4 text-center col-q col-q-' + quarter.toLowerCase() + '">' +
-          '<button type="button" data-quarter="' + quarter + '" data-subject="' + App.esc(subjName) + '" class="text-indigo-600 font-bold hover:text-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded px-1">' +
-            App.esc(display) +
-          '</button></td>';
-      };
-
-      html += '<tr class="hover:bg-slate-50/50 transition-colors">';
-      html += '<td class="p-4 font-bold text-slate-800">' + App.esc(subjName) + '</td>';
-      html += qCell('1st', g.q1) + qCell('2nd', g.q2) + qCell('3rd', g.q3) + qCell('4th', g.q4);
-      html += '<td class="p-4 text-center font-black text-lg">' + (App.esc(g.final) || '-') + '</td>';
-      html += '<td class="p-4 text-center">' + App.remarksBadge(g.remarks) + '</td>';
-      html += '</tr>';
+  gRows.data.forEach((r: any) => {
+    const sNo = String(r.student_number);
+    const stu = sMap[sNo] || {};
+    seen.add(sNo);
+    results.push({
+      studentNumber: sNo, name: stu.name || "", section: stu.section || "Section A",
+      subject: r.subject_name, q1: r.q1, q2: r.q2, q3: r.q3, q4: r.q4,
+      final: r.final, remarks: r.remarks || determineRemarks(r.final)
     });
+  });
 
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-  };
-
-  App.printStudentGrades = function () {
-    if (!state.currentStudentData || !state.currentStudentData.subjects) {
-      App.showToast("No grades to print yet.", "error");
-      return;
-    }
-
-    const student = state.currentStudentData;
-    const credit = App.DEVELOPER_CREDIT;
-    const subjects = Object.entries(student.subjects);
-
-    if (subjects.length === 0) {
-      App.showToast("No subjects to print.", "error");
-      return;
-    }
-
-    let rowsHtml = '';
-    subjects.forEach(([subjName, data]) => {
-      const g = data.grades;
-      const clean = subjName.replace(/\(SY.*?\)/i, '').trim();
-      rowsHtml += '<tr>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:left;">' + App.esc(clean) + '</td>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:center;">' + (App.esc(g.q1) || '-') + '</td>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:center;">' + (App.esc(g.q2) || '-') + '</td>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:center;">' + (App.esc(g.q3) || '-') + '</td>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:center;">' + (App.esc(g.q4) || '-') + '</td>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:center; font-weight:bold;">' + (App.esc(g.final) || '-') + '</td>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:center; font-weight:bold;">' + App.getEquivalentGrade(g.final) + '</td>' +
-        '<td style="border:1px solid #000; padding:6px; text-align:center;">' + (App.esc(g.remarks) || '-') + '</td>' +
-      '</tr>';
-    });
-
-    const html =
-      '<div class="gs-print-doc">' +
-        '<div style="text-align:center; font-weight:bold; font-size:15px;">' + App.esc(credit.school) + '</div>' +
-        '<div style="text-align:center; font-size:11px; margin-bottom:2px;">' + App.esc(credit.schoolLocation) + '</div>' +
-        '<div style="text-align:center; font-weight:bold; font-size:13px; margin-bottom:16px; text-decoration:underline;">STUDENT GRADE REPORT</div>' +
-        '<table style="width:100%; font-size:12px; margin-bottom:14px;">' +
-          '<tr>' +
-            '<td style="text-align:left; padding:3px 0;"><b>Student:</b> ' + App.esc(student.name) + '</td>' +
-            '<td style="text-align:right; padding:3px 0;"><b>ID:</b> ' + App.esc(student.studentNumber) + '</td>' +
-          '</tr>' +
-          '<tr>' +
-            '<td style="text-align:left; padding:3px 0;"><b>Section:</b> ' + App.esc(student.section || '-') + '</td>' +
-          '</tr>' +
-        '</table>' +
-        '<table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:16px;">' +
-          '<thead>' +
-            '<tr>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:left;">Subject</th>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:center; width:50px;">1st</th>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:center; width:50px;">2nd</th>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:center; width:50px;">3rd</th>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:center; width:50px;">4th</th>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:center; width:50px;">Final</th>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:center; width:50px;">EQV</th>' +
-              '<th style="border:1px solid #000; padding:6px; background:#f1f5f9; text-align:center; width:70px;">Remarks</th>' +
-            '</tr>' +
-          '</thead>' +
-          '<tbody>' + rowsHtml + '</tbody>' +
-        '</table>' +
-        '<div style="font-size:10px; color:#666; margin-top:30px; padding-top:10px; border-top:1px solid #ccc;">' +
-          'Generated: ' + new Date().toLocaleString() +
-        '</div>' +
-        '<div style="font-size:9px; color:#888; margin-top:8px; text-align:center;">' +
-          'Web Application developed by <b>' + App.esc(credit.developer) + '</b>' +
-          ' &bull; ' + App.esc(credit.school) +
-        '</div>' +
-      '</div>';
-
-    const printArea = document.getElementById('student-print-area');
-    if (!printArea) return;
-    printArea.innerHTML = html;
-    window.print();
-  };
-
-  App.openAdminBreakdown = async function (cell, studentNumber, subject, quarter) {
-    const original = cell.textContent;
-    cell.textContent = "...";
-    try {
-      const res = await App.apiCall({
-        action: "getStudent", studentNumber: studentNumber
-      }, { retries: 1 });
-
-      if (res && res.studentNumber) {
-        state.currentStudentData = res;
-        App.openBreakdown(quarter, subject);
-      } else {
-        App.showToast((res && res.message) || "Could not load breakdown.", "error");
-      }
-    } catch (e) {
-      App.showToast("Could not load breakdown.", "error");
-    } finally {
-      cell.textContent = original;
-    }
-  };
-
-  App.openBreakdown = function (quarter, subject) {
-    const qNum = quarter.replace(/\D/g, '');
-    const breakdowns = state.currentStudentData.subjects[subject].breakdowns || [];
-    const breakdown = breakdowns.find(b => String(b.quarter).indexOf(qNum) !== -1);
-
-    document.getElementById('breakdown-title').textContent = quarter + ' Quarter Details';
-    document.getElementById('breakdown-subject-label').textContent =
-      subject.replace(/\(SY.*?\)/i, '').trim() + ' Component View';
-
-    const cats = state.subjectCategories[subject] || [];
-    if (cats.length === 0) {
-      document.getElementById('breakdown-content').innerHTML =
-        '<div class="p-8 text-center text-slate-400 font-bold">No categories configured for this subject. Add categories in the Subjects tab.</div>';
-      App.showScreen('breakdown');
-      return;
-    }
-
-    const catValues = (breakdown && breakdown.categories) ? breakdown.categories : {};
-    const val = (id) => {
-      const v = catValues[String(id)];
-      if (v === undefined || v === null || v === '') return '-';
-      return v;
-    };
-    const totalVal = (breakdown && breakdown.total !== undefined && breakdown.total !== '')
-      ? breakdown.total : '-';
-
-    let html = '<div id="breakdown-grid-row" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;">';
-    cats.forEach(c => {
-      html += '<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center min-h-[100px]" data-field="' + c.id + '">' +
-        '<span class="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 sm:mb-2 text-center leading-tight">' +
-          App.esc(c.name) + ' (' + App.esc(c.weight) + '%)' +
-        '</span>' +
-        '<span class="text-xl sm:text-2xl font-black text-slate-800 value-text">' + App.esc(val(c.id)) + '</span>' +
-      '</div>';
-    });
-    html += '</div>';
-
-    html += '<div class="mt-3 bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-4 flex items-center justify-between">' +
-      '<span class="text-xs sm:text-sm font-black text-indigo-600 uppercase tracking-wider">Weighted Total</span>' +
-      '<span class="text-3xl sm:text-4xl font-black text-indigo-700" id="bd-total">' + App.esc(totalVal) + '</span>' +
-    '</div>';
-
-    if (state.adminPin !== "" || state.currentTeacher) {
-      html += '<div class="mt-8 pt-6 border-t border-slate-100 flex justify-end no-print">' +
-        '<button data-action="toggle-edit" data-quarter="' + App.esc(quarter) + '" data-subject="' + App.esc(subject) + '" ' +
-                'class="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm">' +
-          'Edit Breakdown' +
-        '</button>' +
-      '</div>';
-    }
-
-    document.getElementById('breakdown-content').innerHTML = html;
-    App.showScreen('breakdown');
-  };
-
-  App.toggleBreakdownEdit = async function (btn, quarter, subject) {
-    const grid = document.getElementById('breakdown-grid-row');
-    const isEditing = btn.textContent.indexOf('Save') === -1;
-    const cats = state.subjectCategories[subject] || [];
-
-    if (cats.length === 0) return;
-
-    if (isEditing) {
-      cats.forEach(c => {
-        const t = grid.querySelector('div[data-field="' + c.id + '"] .value-text');
-        const current = t.textContent === '-' ? '' : t.textContent;
-        t.innerHTML = '<input type="number" data-cat-id="' + c.id + '" ' +
-          'class="w-20 border-2 border-indigo-200 rounded-lg px-2 py-1 text-center bg-white outline-none text-base" ' +
-          'value="' + App.esc(current) + '">';
-      });
-      btn.textContent = "Save Changes";
-      btn.className = "w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-semibold transition-colors text-sm";
-      return;
-    }
-
-    const originalText = btn.textContent;
-    const originalClass = btn.className;
-    btn.disabled = true;
-    btn.classList.add('opacity-60', 'cursor-wait');
-    btn.innerHTML = '<span class="inline-flex items-center gap-2"><span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span><span>Saving...</span></span>';
-
-    try {
-      const entries = cats.map(c => {
-        const inp = grid.querySelector('input[data-cat-id="' + c.id + '"]');
-        const raw = inp ? inp.value.trim() : '';
-        return { categoryId: c.id, value: raw === '' ? '' : Number(raw) };
-      });
-
-      const res = await App.apiCall({
-        action: "saveBreakdown",
-        pin: state.adminPin,
-        studentNumber: state.currentStudentData.studentNumber,
-        subject: subject,
-        quarter: quarter,
-        entries: entries
-      }, { retries: 1 });
-
-      if (res.success) {
-        document.getElementById('bd-total').textContent = res.newTotal;
-        cats.forEach(c => {
-          const t = grid.querySelector('div[data-field="' + c.id + '"] .value-text');
-          const e = entries.find(x => String(x.categoryId) === String(c.id));
-          t.textContent = (e.value === '' || e.value === null) ? '-' : e.value;
+  if (subject === "All") {
+    for (const sNo of Object.keys(sMap)) {
+      if (!seen.has(sNo)) {
+        const stu = sMap[sNo];
+        results.push({
+          studentNumber: sNo, name: stu.name || "", section: stu.section || "Section A",
+          subject: "No subjects enrolled", q1: "", q2: "", q3: "", q4: "", final: "", remarks: ""
         });
-        App.showToast("Breakdown updated.");
-        App.invalidateActiveCache();
-        App.updateLastSavedTimestamp();
-        await App.loadAdminDashboard();
-
-        btn.textContent = "Edit Breakdown";
-        btn.className = "w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl hover:bg-slate-50 shadow-sm font-semibold transition-colors text-sm";
-      } else {
-        App.showToast(res.message || "Failed to save.", "error");
-        btn.textContent = originalText;
-        btn.className = originalClass;
       }
-    } catch (e) {
-      App.showToast(e.message || "Failed to save.", "error");
-      btn.textContent = originalText;
-      btn.className = originalClass;
-    } finally {
-      btn.disabled = false;
-      btn.classList.remove('opacity-60', 'cursor-wait');
     }
-  };
+  }
 
-})(window.App);
+  return results.filter((r: any) => !(String(r.studentNumber).includes("T-")));
+}
+
+export async function addStudent(p: any, auth: AuthContext, isBulk: boolean) {
+  if (auth.teacher && auth.teacher.role !== 'super_admin') return { success: false, message: "Only the Super Admin can add students to the pool." };
+
+  const list = isBulk ? (p.studentsArray || []) : [p.studentData];
+  let processed = 0;
+  for (const sData of list) {
+    if (!sData) continue;
+    const sNo = String(sData.studentNumber || "").trim();
+    const name = stripTags(String(sData.name || "").trim());
+    const section = stripTags(String(sData.section || "Section A"));
+    if (!sNo || !name) continue;
+
+    const studentPayload: any = { student_number: sNo, name, section };
+    if (auth.teacher) studentPayload.teacher_id = auth.teacher.id;
+
+    let { error } = await sb.from("students").upsert(studentPayload, { onConflict: "student_number" });
+    if (error) throw error;
+    processed++;
+  }
+  return { success: true, processed };
+}
+
+export async function syncStudentEnrollments(p: any, auth: AuthContext) {
+  const sNo = String(p.studentNumber || "");
+  const newSubjects: string[] = p.subjects || [];
+  const teacherId = auth.teacher?.id || null;
+
+  let q = sb.from("enrollments").select("subject_name").eq("student_number", sNo);
+  if (teacherId) q = q.eq("teacher_id", teacherId);
+  const current = await q;
+  const currentSubjects = (current.data || []).map((e: any) => e.subject_name);
+
+  const toAdd = newSubjects.filter(s => !currentSubjects.includes(s));
+  const toRemove = currentSubjects.filter(s => !newSubjects.includes(s));
+
+  if (toRemove.length > 0) {
+    let delQ = sb.from("enrollments").delete().eq("student_number", sNo).in("subject_name", toRemove);
+    if (teacherId) delQ = delQ.eq("teacher_id", teacherId);
+    await delQ;
+    
+    let delG = sb.from("grades").delete().eq("student_number", sNo).in("subject_name", toRemove);
+    if (teacherId) delG = delG.eq("teacher_id", teacherId);
+    await delG;
+  }
+
+  if (toAdd.length > 0) {
+    const rows = toAdd.map(s => {
+      const row: any = { student_number: sNo, subject_name: s };
+      if (teacherId) row.teacher_id = teacherId;
+      return row;
+    });
+    await sb.from("enrollments").insert(rows);
+
+    const gradeRows = toAdd.map(s => {
+      const row: any = { student_number: sNo, subject_name: s, q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [] };
+      if (teacherId) row.teacher_id = teacherId;
+      return row;
+    });
+    await sb.from("grades").upsert(gradeRows, { onConflict: "student_number,subject_name" });
+  }
+  return { success: true };
+}
+
+export async function bulkEnrollStudents(p: any, auth: AuthContext) {
+  const studentNumbers = p.studentNumbers || [];
+  const subjectName = String(p.subjectName || "");
+  const teacherId = auth.teacher?.id || null;
+
+  if (studentNumbers.length === 0 || !subjectName) return { success: false, message: "Missing data." };
+
+  const enrollments = studentNumbers.map((sNo: string) => ({
+    student_number: sNo, subject_name: subjectName, teacher_id: teacherId
+  }));
+
+  const gradeRows = studentNumbers.map((sNo: string) => ({
+    student_number: sNo, subject_name: subjectName, 
+    q1: "", q2: "", q3: "", q4: "", final: "", remarks: "", breakdowns: [], teacher_id: teacherId
+  }));
+
+  // ignoreDuplicates prevents errors if a student is already enrolled
+  await sb.from("enrollments").upsert(enrollments, { onConflict: "student_number,subject_name", ignoreDuplicates: true });
+  await sb.from("grades").upsert(gradeRows, { onConflict: "student_number,subject_name", ignoreDuplicates: true });
+
+  return { success: true };
+}
+
+export async function updateStudentInfo(p: any) {
+  const oldId = String(p.oldStudentNumber || "");
+  const newId = String(p.newData?.studentNumber || oldId);
+  const newName = stripTags(p.newData?.name || "");
+  const newSection = stripTags(p.newData?.section || "");
+
+  let { error } = await sb.from("students").update({ student_number: newId, name: newName, section: newSection }).eq("student_number", oldId);
+  if (error) throw error;
+
+  if (oldId !== newId) {
+    await sb.from("grades").update({ student_number: newId }).eq("student_number", oldId);
+    await sb.from("enrollments").update({ student_number: newId }).eq("student_number", oldId);
+    await sb.from("scores").update({ student_number: newId }).eq("student_number", oldId);
+    await sb.from("pending_registrations").update({ student_number: newId }).eq("student_number", oldId);
+    await sb.from("comments").update({ student_number: newId }).eq("student_number", oldId);
+  }
+  if (newName) await sb.from("comments").update({ student_name: newName }).eq("student_number", newId);
+
+  return { success: true };
+}
+
+export async function deleteStudent(p: any) {
+  const sNo = String(p.studentNumber || "");
+  await sb.from("scores").delete().eq("student_number", sNo);
+  await sb.from("grades").delete().eq("student_number", sNo);
+  await sb.from("enrollments").delete().eq("student_number", sNo);
+  await sb.from("comments").delete().eq("student_number", sNo);
+  await sb.from("pending_registrations").delete().eq("student_number", sNo);
+  await sb.from("students").delete().eq("student_number", sNo);
+  return { success: true };
+}
+
+export async function getStudent(p: any) {
+  const sNo = String(p.studentNumber || '');
+  if (!sNo) return { success: false, message: 'No student number.' };
+  const sRows = await sb.from("students").select("*").eq("student_number", sNo);
+  
+  if (!sRows.data || sRows.data.length === 0) {
+    const pRows = await sb.from("pending_registrations").select("*").eq("student_number", sNo).order("id", { ascending: false }).limit(1);
+    if (pRows.data && pRows.data.length > 0) {
+      const pr = pRows.data[0];
+      if (pr.status === "pending") return { success: false, pending: true, message: "Your registration is awaiting teacher approval.", submittedName: pr.name };
+      if (pr.status === "rejected") return { success: false, rejected: true, message: "Your registration was not approved. Please contact your teacher." };
+    }
+    return { success: false, message: "Student not found." };
+  }
+  
+  const s = sRows.data[0];
+  const gRows = await sb.from("grades").select("*").eq("student_number", sNo);
+  const subjects: any = {};
+  (gRows.data || []).forEach((g: any) => {
+    const q1 = g.q1 === "" ? null : Number(g.q1);
+    const q2 = g.q2 === "" ? null : Number(g.q2);
+    const q3 = g.q3 === "" ? null : Number(g.q3);
+    const q4 = g.q4 === "" ? null : Number(g.q4);
+    const fin = (g.final !== "" && g.final !== null && g.final !== undefined) ? Number(g.final) : "";
+    subjects[g.subject_name] = {
+      grades: { q1, q2, q3, q4, final: fin, remarks: g.remarks || determineRemarks(fin) },
+      breakdowns: Array.isArray(g.breakdowns) ? g.breakdowns : []
+    };
+  });
+  return { success: true, studentNumber: s.student_number, name: s.name, section: s.section, subjects };
+}
+
+export async function registerStudent(p: any) {
+  const sNo = String(p.studentData?.studentNumber || "").trim();
+  const name = stripTags(String(p.studentData?.name || "").trim());
+  const teacherId = String(p.studentData?.teacherId || "").trim();
+  if (!sNo || !name) return { success: false, message: "Please enter your name and student number." };
+  if (!teacherId) return { success: false, message: "Please select a teacher." };
+
+  const teacherRes = await sb.from("teachers").select("id, status, is_active").eq("id", teacherId).limit(1);
+  if (!teacherRes.data || teacherRes.data.length === 0 || teacherRes.data[0].status !== "approved" || !teacherRes.data[0].is_active) {
+    return { success: false, message: "Selected teacher is not available." };
+  }
+
+  const enrolled = await sb.from("students").select("student_number").eq("student_number", sNo);
+  if (enrolled.data && enrolled.data.length > 0) return { success: false, message: "You are already enrolled. Please log in instead." };
+  
+  const pend = await sb.from("pending_registrations").select("id").eq("student_number", sNo).eq("status", "pending");
+  if (pend.data && pend.data.length > 0) return { success: false, message: "You already have a pending registration. Please wait for teacher approval." };
+
+  const ins = await sb.from("pending_registrations").insert({
+    timestamp: new Date().toISOString(), student_number: sNo, name, section: '',
+    enrolled_subjects: [], status: 'pending', reviewed_at: '', teacher_id: teacherId
+  });
+  if (ins.error) throw ins.error;
+  return { success: true, pending: true, message: "Registration submitted. Awaiting teacher approval." };
+}
