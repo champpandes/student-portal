@@ -13,7 +13,6 @@
   let active = false;
   let resizeHandler = null;
 
-  // ---------- Tour content ----------
   function buildSteps() {
     const isSuper = state.currentTeacher && state.currentTeacher.role === 'super_admin';
 
@@ -30,7 +29,8 @@
         { target: '[data-tab="grading-sheet"]',title: '🖨️ Grading Sheets',     body: 'Print official grade sheets ready for submission.' },
         { target: '[data-tab="analytics"]',    title: '📈 Analytics',          body: 'Track class performance and spot at-risk students early.' },
         { target: '[data-tab="import"]',       title: '⚡ Import & Backup',     body: 'Download full data backups here. Do this before any major change.' },
-        { target: null, title: '🎉 You\'re all set!', body: 'You can replay this tour anytime from your Profile tab. Now get started by creating your first section.' }
+        { target: '[data-tab="profile"]',      title: '👤 My Profile',         body: 'Your account details live here. You can update your display name, change your password, and replay this tour anytime.' },
+        { target: null, title: '🎉 You\'re all set!', body: 'Now get started by creating your first section. You can replay this tour from My Profile whenever you need a refresher.' }
       ];
     }
 
@@ -43,11 +43,11 @@
       { target: '[data-tab="grading-sheet"]',title: '🖨️ Grading Sheets',     body: 'Print official grade sheets ready for submission.' },
       { target: '[data-tab="analytics"]',    title: '📈 Analytics',          body: 'Track class performance and spot at-risk students.' },
       { target: '[data-tab="import"]',       title: '⚡ Import & Backup',     body: 'Download full data backups here.' },
-      { target: null, title: '🎉 You\'re ready!', body: 'You can replay this tour from your Profile tab. Start by creating a subject, then add students.' }
+      { target: '[data-tab="profile"]',      title: '👤 My Profile',         body: 'Your account details live here. Update your display name, change your password, or replay this tour anytime.' },
+      { target: null, title: '🎉 You\'re ready!', body: 'Start by creating a subject, then add students. You can replay this tour from My Profile whenever you need it.' }
     ];
   }
 
-  // ---------- Helpers ----------
   function ensureSidebarOpen() {
     const sidebar = document.getElementById('admin-sidebar');
     if (!sidebar) return;
@@ -90,7 +90,6 @@
     });
   }
 
-  // ---------- Render ----------
   function renderCurrentStep() {
     if (!active) return;
     const step = steps[currentIndex];
@@ -163,7 +162,6 @@
     }, waitMs);
   }
 
-  // ---------- Public API ----------
   App.startWalkthrough = function (force) {
     if (!state.currentTeacher) return;
     if (!force && state.currentTeacher.hasSeenWalkthrough) return;
