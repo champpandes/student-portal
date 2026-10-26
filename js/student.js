@@ -30,67 +30,116 @@
       return '<span class="text-slate-400">-</span>';
     };
 
-    let rowsHtml = '';
+    let desktopRowsHtml = '';
+    let mobileCardsHtml = '';
+
     subjects.forEach(([subjName, data]) => {
       const g = data.grades;
       const clean = subjName.replace(/\(SY.*?\)/i, '').trim();
 
+      // --- Desktop Table Row ---
       const qCell = (quarter, val) => {
         const display = (val === undefined || val === null || val === '') ? '-' : val;
-        return '<td class="p-2.5 text-center border border-slate-400">' +
+        return '<td class="p-2.5 text-center border border-slate-400 whitespace-nowrap">' +
           '<button type="button" data-quarter="' + quarter + '" data-subject="' + App.esc(subjName) + '" class="text-slate-800 font-bold hover:text-indigo-600 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded px-1">' +
             App.esc(display) +
           '</button></td>';
       };
 
-      rowsHtml += '<tr class="hover:bg-slate-50 transition-colors">' +
-        '<td class="p-2.5 border border-slate-400 font-bold text-slate-800">' + App.esc(clean) + '</td>' +
+      desktopRowsHtml += '<tr class="hover:bg-slate-50 transition-colors">' +
+        '<td class="p-2.5 border border-slate-400 font-bold text-slate-800 whitespace-nowrap">' + App.esc(clean) + '</td>' +
         qCell('1st', g.q1) + qCell('2nd', g.q2) + qCell('3rd', g.q3) + qCell('4th', g.q4) +
-        '<td class="p-2.5 text-center border border-slate-400 font-black text-slate-900">' + (App.esc(g.final) || '-') + '</td>' +
-        '<td class="p-2.5 text-center border border-slate-400 font-bold text-slate-700">' + App.getEquivalentGrade(g.final) + '</td>' +
-        '<td class="p-2.5 text-center border border-slate-400">' + remarksCell(g.remarks) + '</td>' +
+        '<td class="p-2.5 text-center border border-slate-400 font-black text-slate-900 whitespace-nowrap">' + (App.esc(g.final) || '-') + '</td>' +
+        '<td class="p-2.5 text-center border border-slate-400 font-bold text-slate-700 whitespace-nowrap">' + App.getEquivalentGrade(g.final) + '</td>' +
+        '<td class="p-2.5 text-center border border-slate-400 whitespace-nowrap">' + remarksCell(g.remarks) + '</td>' +
       '</tr>';
+
+      // --- Mobile Stacked Card ---
+      const mqBox = (quarter, label, val) => {
+        const display = (val === undefined || val === null || val === '') ? '-' : val;
+        return '<div class="bg-slate-50 rounded-xl p-2 border border-slate-100 flex flex-col items-center justify-center">' +
+          '<span class="text-[10px] font-bold text-slate-400 uppercase mb-1">' + label + '</span>' +
+          '<button type="button" data-quarter="' + quarter + '" data-subject="' + App.esc(subjName) + '" class="text-base font-black text-slate-800 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded px-2">' +
+            App.esc(display) +
+          '</button></div>';
+      };
+
+      mobileCardsHtml += 
+        '<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-4">' +
+          '<div class="bg-slate-100 border-b border-slate-200 px-4 py-3">' +
+            '<h4 class="font-black text-slate-800 text-sm">' + App.esc(clean) + '</h4>' +
+          '</div>' +
+          '<div class="p-4">' +
+            '<div class="grid grid-cols-4 gap-2 mb-4">' +
+              mqBox('1st', '1st', g.q1) +
+              mqBox('2nd', '2nd', g.q2) +
+              mqBox('3rd', '3rd', g.q3) +
+              mqBox('4th', '4th', g.q4) +
+            '</div>' +
+            '<div class="flex items-center justify-between border-t border-slate-100 pt-3">' +
+              '<div class="flex flex-col items-center">' +
+                '<span class="text-[10px] font-bold text-slate-400 uppercase mb-1">Final</span>' +
+                '<span class="font-black text-slate-900 text-lg">' + (App.esc(g.final) || '-') + '</span>' +
+              '</div>' +
+              '<div class="flex flex-col items-center">' +
+                '<span class="text-[10px] font-bold text-slate-400 uppercase mb-1">EQV</span>' +
+                '<span class="font-bold text-slate-700">' + App.getEquivalentGrade(g.final) + '</span>' +
+              '</div>' +
+              '<div class="flex flex-col items-end">' +
+                '<span class="text-[10px] font-bold text-slate-400 uppercase mb-1">Remarks</span>' +
+                '<span class="text-xs">' + remarksCell(g.remarks) + '</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
     });
 
     const html =
-      '<div class="p-6 md:p-8">' +
+      '<div class="p-4 sm:p-6 md:p-8">' +
         // ---- Document header ----
         '<div class="text-center mb-5">' +
-          '<div class="font-bold text-base text-slate-900">' + App.esc(credit.school) + '</div>' +
-          '<div class="text-xs text-slate-600">' + App.esc(credit.schoolLocation) + '</div>' +
-          '<div class="font-bold text-sm text-slate-900 mt-3 underline">STUDENT GRADE REPORT</div>' +
+          '<div class="font-bold text-sm sm:text-base text-slate-900">' + App.esc(credit.school) + '</div>' +
+          '<div class="text-[10px] sm:text-xs text-slate-600">' + App.esc(credit.schoolLocation) + '</div>' +
+          '<div class="font-bold text-xs sm:text-sm text-slate-900 mt-3 underline">STUDENT GRADE REPORT</div>' +
         '</div>' +
         // ---- Student info block ----
-        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-700 mb-4 pb-3 border-b border-slate-200">' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2 text-[11px] sm:text-xs text-slate-700 mb-4 pb-3 border-b border-slate-200">' +
           '<div><b>Student:</b> ' + App.esc(student.name) + '</div>' +
           '<div><b>ID:</b> ' + App.esc(student.studentNumber) + '</div>' +
           '<div><b>Section:</b> ' + App.esc(student.section || '-') + '</div>' +
         '</div>' +
         // ---- Hint ----
-        '<div class="text-[11px] text-slate-500 mb-3 italic">Tip: click any quarter grade to see its breakdown.</div>' +
-        // ---- Bordered table ----
-        '<div class="overflow-x-auto">' +
-          '<table class="w-full border-collapse text-sm">' +
+        '<div class="text-[10px] sm:text-[11px] text-slate-500 mb-3 italic">Tip: click any quarter grade to see its breakdown.</div>' +
+        
+        // ---- DESKTOP TABLE (Hidden on Mobile) ----
+        '<div class="hidden md:block overflow-x-auto w-full">' +
+          '<table class="w-full border-collapse text-xs sm:text-sm">' +
             '<thead>' +
               '<tr class="bg-slate-100">' +
-                '<th class="p-2.5 border border-slate-400 text-left text-[11px] font-black uppercase tracking-wider text-slate-700">Subject</th>' +
-                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">1st</th>' +
-                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">2nd</th>' +
-                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">3rd</th>' +
-                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">4th</th>' +
-                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">Final</th>' +
-                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">EQV</th>' +
-                '<th class="p-2.5 border border-slate-400 text-center text-[11px] font-black uppercase tracking-wider text-slate-700">Remarks</th>' +
+                '<th class="p-2.5 border border-slate-400 text-left text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">Subject</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">1st</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">2nd</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">3rd</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">4th</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">Final</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">EQV</th>' +
+                '<th class="p-2.5 border border-slate-400 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-700 whitespace-nowrap">Remarks</th>' +
               '</tr>' +
             '</thead>' +
-            '<tbody>' + rowsHtml + '</tbody>' +
+            '<tbody>' + desktopRowsHtml + '</tbody>' +
           '</table>' +
         '</div>' +
+
+        // ---- MOBILE CARDS (Hidden on Desktop) ----
+        '<div class="block md:hidden mt-2">' +
+          mobileCardsHtml +
+        '</div>' +
+
         // ---- Footer ----
-        '<div class="mt-6 pt-4 border-t border-slate-200 text-[10px] text-slate-500">' +
+        '<div class="mt-6 pt-4 border-t border-slate-200 text-[9px] sm:text-[10px] text-slate-500">' +
           'Generated: ' + new Date().toLocaleString() +
         '</div>' +
-        '<div class="mt-2 text-[9px] text-slate-400 text-center">' +
+        '<div class="mt-2 text-[8px] sm:text-[9px] text-slate-400 text-center">' +
           'Web Application developed by <b>' + App.esc(credit.developer) + '</b> &bull; ' + App.esc(credit.school) +
         '</div>' +
       '</div>';
