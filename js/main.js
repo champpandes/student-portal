@@ -369,6 +369,7 @@
     // Bulk Scores Modal
     document.getElementById('bulk-scores-close-x')?.addEventListener('click', () => App.closeModal(document.getElementById('bulk-scores-modal')));
     document.getElementById('bulk-scores-cancel-btn')?.addEventListener('click', () => App.closeModal(document.getElementById('bulk-scores-modal')));
+    document.getElementById('bulk-scores-input')?.addEventListener('input', App.debounce(App.parseBulkText, 300)); // NEW: Auto-parse on paste
     document.getElementById('bulk-scores-preview-btn')?.addEventListener('click', App.previewBulkScores);
     document.getElementById('bulk-scores-save-btn')?.addEventListener('click', App.saveBulkScores);
 

@@ -478,6 +478,7 @@
     document.getElementById('bulk-scores-assessment-name').dataset.total = totalPoints;
     
     document.getElementById('bulk-scores-input').value = '';
+    document.getElementById('bulk-scores-mapping').classList.add('hidden');
     document.getElementById('bulk-scores-preview-container').classList.add('hidden');
     document.getElementById('bulk-scores-preview-btn').classList.remove('hidden');
     document.getElementById('bulk-scores-save-btn').classList.add('hidden');
@@ -486,56 +487,134 @@
     App.openModal(document.getElementById('bulk-scores-modal'));
   };
 
+  // Helper: split text into rows and columns based on the most likely delimiter
+  function parsePastedData(text) {
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length === 0) return [];
+
+    // Detect delimiter by counting characters in the first few lines
+    const delims = ['\t', ',', ';', '|'];
+    let bestDelim = '\t';
+    let bestCount = 0;
+
+    delims.forEach(d => {
+      const count = lines.slice(0, 5).reduce((sum, line) => sum + (line.split(d).length - 1), 0);
+      if (count > bestCount) { bestCount = count; bestDelim = d; }
+    });
+
+    return lines.map(line => {
+      // Basic CSV split handling quotes (e.g. "Dela Cruz, Juan")
+      const out = [];
+      let cell = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"' && line[i + 1] === '"') { cell += '"'; i++; }
+        else if (c === '"') { inQuotes = !inQuotes; }
+        else if (c === bestDelim && !inQuotes) { out.push(cell.trim()); cell = ''; }
+        else { cell += c; }
+      }
+      out.push(cell.trim());
+      return out;
+    });
+  }
+
+  // Triggered when the user types/pastes into the textarea
+  App.parseBulkText = function () {
+    const text = document.getElementById('bulk-scores-input').value;
+    if (!text.trim()) {
+      document.getElementById('bulk-scores-mapping').classList.add('hidden');
+      return;
+    }
+
+    const rows = parsePastedData(text);
+    if (rows.length === 0) return;
+
+    const maxCols = Math.max(...rows.map(r => r.length));
+    if (maxCols < 2) {
+      App.showToast("Could not detect multiple columns. Try copying from Excel or adding commas.", "error");
+      return;
+    }
+
+    const mapScore = document.getElementById('bulk-map-score');
+    const mapIdentity = document.getElementById('bulk-map-identity');
+    
+    // Populate Dropdowns
+    let optionsHTML = '';
+    for (let i = 0; i < maxCols; i++) {
+      optionsHTML += '<option value="' + i + '">Column ' + (i + 1) + '</option>';
+    }
+    mapScore.innerHTML = optionsHTML;
+    mapIdentity.innerHTML = optionsHTML;
+
+    // Smart Auto-Detection
+    const maxPoints = Number(document.getElementById('bulk-scores-assessment-name').dataset.total);
+    
+    // Guess Score Column: Look for the column with the most pure numbers <= maxPoints
+    let bestScoreIdx = 0;
+    let maxNumericMatches = -1;
+    for (let col = 0; col < maxCols; col++) {
+      let matches = 0;
+      rows.forEach(r => {
+        const val = r[col];
+        if (val && !isNaN(val) && Number(val) >= 0 && Number(val) <= maxPoints) matches++;
+      });
+      if (matches > maxNumericMatches) { maxNumericMatches = matches; bestScoreIdx = col; }
+    }
+    mapScore.value = bestScoreIdx;
+
+    // Guess Identity Column: Usually the column with the most letters (not the score column)
+    let bestIdIdx = (bestScoreIdx === 0) ? 1 : 0;
+    mapIdentity.value = bestIdIdx;
+
+    document.getElementById('bulk-scores-mapping').classList.remove('hidden');
+    document.getElementById('bulk-scores-preview-container').classList.add('hidden'); // Hide old preview if they change data
+    document.getElementById('bulk-scores-preview-btn').classList.remove('hidden');
+    document.getElementById('bulk-scores-save-btn').classList.add('hidden');
+  };
+
   App.previewBulkScores = function () {
     const text = document.getElementById('bulk-scores-input').value;
-    const maxPoints = Number(document.getElementById('bulk-scores-assessment-name').dataset.total);
     if (!text.trim()) return App.showToast("Paste some data first.", "error");
 
-    const lines = text.split('\n').filter(l => l.trim());
+    const scoreIdx = Number(document.getElementById('bulk-map-score').value);
+    const identityIdx = Number(document.getElementById('bulk-map-identity').value);
+    const maxPoints = Number(document.getElementById('bulk-scores-assessment-name').dataset.total);
+
+    if (scoreIdx === identityIdx) {
+      return App.showToast("Please select different columns for Score and Name/ID.", "error");
+    }
+
+    const rows = parsePastedData(text);
     const roster = state._classRecord.students || [];
     const matched = [];
     const unmatched = [];
 
-    lines.forEach(line => {
-      // 1. Grab the LAST number on the line as the score
-      const scoreMatch = line.match(/([0-9.]+)\s*$/);
-      if (!scoreMatch) { unmatched.push(line); return; }
-      
-      const scoreStr = scoreMatch[1];
-      const score = Number(scoreStr);
-      
-      // 2. Everything before the score is the identifier
-      let identifier = line.substring(0, line.length - scoreStr.length).trim();
-      // Clean up any trailing commas, tabs, or spaces
-      identifier = identifier.replace(/[,\-\s\t]+$/, '').trim().toLowerCase();
-      
-      if (!identifier) { unmatched.push(line); return; }
+    rows.forEach(cols => {
+      const scoreStr = cols[scoreIdx];
+      const identityStr = cols[identityIdx];
 
-      // 3. The Smart Matcher (Checks ID, Name, or both!)
+      if (!scoreStr || !identityStr) return; // Skip empty rows
+
+      const score = Number(scoreStr);
+      if (isNaN(score) || score < 0 || score > maxPoints) {
+        unmatched.push(cols.join(', ') + " (Invalid score)");
+        return;
+      }
+
+      const cleanId = identityStr.toLowerCase().replace(/\s+/g, ' ');
+
+      // Smart Match: Find by ID or Name
       let student = roster.find(s => {
         const sNo = String(s.student_number).toLowerCase();
         const sName = String(s.name).toLowerCase().replace(/\s+/g, ' ');
-
-        // Exact match (if they only pasted ID or only Name)
-        if (sNo === identifier || sName === identifier) return true;
-
-        // If the line contains BOTH name and ID, check if the ID is inside the line
-        if (sNo.length > 3 && identifier.includes(sNo)) return true;
-
-        // Check if the Name is inside the line (e.g., "dela cruz, juan")
-        if (sName.length > 4 && identifier.includes(sName)) return true;
-
-        return false;
+        return sNo === cleanId || sName === cleanId || (cleanId.length > 4 && sName.includes(cleanId));
       });
 
       if (student) {
-        if (score < 0 || score > maxPoints) {
-          unmatched.push(line + " (Score exceeds max: " + maxPoints + ")");
-        } else {
-          matched.push({ student, score });
-        }
+        matched.push({ student, score });
       } else {
-        unmatched.push(line);
+        unmatched.push(cols.join(', ') + " (Student not found)");
       }
     });
 
@@ -555,7 +634,7 @@
 
     if (unmatched.length > 0) {
       tbody.insertAdjacentHTML('beforeend', 
-        '<tr><td colspan="2" class="p-2 bg-rose-50 text-rose-600 text-xs font-bold">Unmatched lines (check names/IDs or score limits):</td></tr>' +
+        '<tr><td colspan="2" class="p-2 bg-rose-50 text-rose-600 text-xs font-bold">Unmatched lines:</td></tr>' +
         unmatched.map(u => '<tr><td colspan="2" class="p-2 text-rose-400 text-xs font-mono border-b border-rose-100">' + App.esc(u) + '</td></tr>').join('')
       );
     }
