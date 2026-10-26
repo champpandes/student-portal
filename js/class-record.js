@@ -549,22 +549,58 @@
 
     // Smart Auto-Detection
     const maxPoints = Number(document.getElementById('bulk-scores-assessment-name').dataset.total);
-    
-    // Guess Score Column: Look for the column with the most pure numbers <= maxPoints
-    let bestScoreIdx = 0;
-    let maxNumericMatches = -1;
-    for (let col = 0; col < maxCols; col++) {
-      let matches = 0;
-      rows.forEach(r => {
-        const val = r[col];
-        if (val && !isNaN(val) && Number(val) >= 0 && Number(val) <= maxPoints) matches++;
-      });
-      if (matches > maxNumericMatches) { maxNumericMatches = matches; bestScoreIdx = col; }
-    }
-    mapScore.value = bestScoreIdx;
+    let scoreColScores = new Array(maxCols).fill(0);
+    let identityColScores = new Array(maxCols).fill(0);
 
-    // Guess Identity Column: Usually the column with the most letters (not the score column)
-    let bestIdIdx = (bestScoreIdx === 0) ? 1 : 0;
+    rows.forEach(r => {
+      for (let col = 0; col < maxCols; col++) {
+        const val = String(r[col] || '').trim();
+        if (!val) continue;
+
+        // Check if it looks like a score (pure number, or fraction like 20/30)
+        // Matches "20", "20.5", "20/30", "20 / 30"
+        if (/^\d+(\.\d+)?\s*(\/\s*\d+(\.\d+)?)?$/.test(val)) {
+           const numMatch = val.match(/^(\d+(\.\d+)?)/);
+           // Ensure the number is within the max points limit (prevents matching student IDs)
+           if (numMatch && Number(numMatch[1]) <= maxPoints) {
+              scoreColScores[col] += 10;
+           }
+        } else if (/[a-zA-Z]/.test(val)) {
+           scoreColScores[col] -= 10; // Letters mean it's definitely not a score
+        }
+
+        // Check if it looks like an identity (Name or ID)
+        if (/[a-zA-Z]/.test(val)) {
+           identityColScores[col] += 10; // Has letters, likely a name
+        }
+        if (/\d+-\d+/.test(val)) {
+           identityColScores[col] += 5; // Has dashes with numbers, likely an ID like 26-02439
+        }
+      }
+    });
+    
+    // Find the best score column
+    let bestScoreIdx = 0;
+    let maxScoreVal = -Infinity;
+    for (let col = 0; col < maxCols; col++) {
+       if (scoreColScores[col] > maxScoreVal) {
+          maxScoreVal = scoreColScores[col];
+          bestScoreIdx = col;
+       }
+    }
+    
+    // Find the best identity column
+    let bestIdIdx = 0;
+    let maxIdVal = -Infinity;
+    for (let col = 0; col < maxCols; col++) {
+       if (col === bestScoreIdx) continue; // Don't pick the same column
+       if (identityColScores[col] > maxIdVal) {
+          maxIdVal = identityColScores[col];
+          bestIdIdx = col;
+       }
+    }
+
+    mapScore.value = bestScoreIdx;
     mapIdentity.value = bestIdIdx;
 
     document.getElementById('bulk-scores-mapping').classList.remove('hidden');
@@ -596,7 +632,10 @@
 
       if (!scoreStr || !identityStr) return; // Skip empty rows
 
-      const score = Number(scoreStr);
+      // Extract first number from fraction (e.g., "20 / 30" -> 20, or just "20" -> 20)
+      const scoreMatch = String(scoreStr).match(/([0-9.]+)/);
+      const score = scoreMatch ? Number(scoreMatch[1]) : NaN;
+
       if (isNaN(score) || score < 0 || score > maxPoints) {
         unmatched.push(cols.join(', ') + " (Invalid score)");
         return;
@@ -604,11 +643,14 @@
 
       const cleanId = identityStr.toLowerCase().replace(/\s+/g, ' ');
 
-      // Smart Match: Find by ID or Name
+      // Smart Match: Find by ID or Name (includes reverse-check for middle initials/spaces)
       let student = roster.find(s => {
         const sNo = String(s.student_number).toLowerCase();
         const sName = String(s.name).toLowerCase().replace(/\s+/g, ' ');
-        return sNo === cleanId || sName === cleanId || (cleanId.length > 4 && sName.includes(cleanId));
+        return sNo === cleanId || 
+               sName === cleanId || 
+               (sName.length > 4 && cleanId.includes(sName)) || 
+               (cleanId.length > 4 && sName.includes(cleanId));
       });
 
       if (student) {
