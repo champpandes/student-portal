@@ -4,6 +4,17 @@
   const state = App.state;
 
   // ============================================================
+  // Sections cache invalidation — always use the SAME key
+  // ============================================================
+  function sectionsCacheKey() {
+    return 'sp_sections_cache_' + (App.state.currentTeacher?.id || 'anon');
+  }
+
+  App.invalidateSectionsCache = function () {
+    try { sessionStorage.removeItem(sectionsCacheKey()); } catch (e) {}
+  };
+
+  // ============================================================
   // Fetch + populate
   // ============================================================
   App.fetchSubjects = async function () {
@@ -120,29 +131,47 @@
   };
 
   App.populateSectionDropdownsUI = function (sections) {
-    const fallback = ["Section A", "Section B", "Block 1", "Block 2"];
-    const list = (sections && sections.length > 0) ? sections : fallback;
-    const optionsHTML = list.map(sec =>
-      '<option value="' + App.esc(sec) + '">' + App.esc(sec) + '</option>').join('');
+    const list = Array.isArray(sections) ? sections : [];
+    const isAdmin = App.state.currentTeacher && App.state.currentTeacher.role === 'super_admin';
 
     const regSec = document.getElementById('reg-student-section');
     const addSec = document.getElementById('new-student-section');
     const panelSec = document.getElementById('panel-student-section');
+    const approveSec = document.getElementById('approve-student-section');
+    const importSec = document.getElementById('import-section');
+
+    // ---------- Empty state: no fake sections, ever ----------
+    if (list.length === 0) {
+      const teacherMsg = '<option value="">No sections yet — Admin will assign on approval</option>';
+      const adminMsg = '<option value="">No sections yet — create one in the Sections tab</option>';
+      const msg = isAdmin ? adminMsg : teacherMsg;
+
+      if (regSec) regSec.innerHTML = msg;
+      if (addSec) addSec.innerHTML = msg;
+      if (panelSec) panelSec.innerHTML = msg;
+      if (approveSec) approveSec.innerHTML = adminMsg;
+      if (importSec) importSec.innerHTML = msg;
+      return;
+    }
+
+    // ---------- Populated state ----------
+    const optionsHTML = list.map(sec =>
+      '<option value="' + App.esc(sec) + '">' + App.esc(sec) + '</option>').join('');
 
     if (regSec) regSec.innerHTML = '<option value="">Select section...</option>' + optionsHTML;
     if (addSec) addSec.innerHTML = '<option value="">Select section...</option>' + optionsHTML;
     if (panelSec) panelSec.innerHTML = optionsHTML;
+    if (approveSec) approveSec.innerHTML = '<option value="">Select section...</option>' + optionsHTML;
+    if (importSec) importSec.innerHTML = '<option value="">Select a section...</option>' + optionsHTML;
 
-    if (sections && sections.length > 0) {
-      state.sectionsCache = sections;
-      if (App.populateAnalyticsFilters) {
-        App.populateAnalyticsFilters(state.availableSubjects, sections);
-      }
+    state.sectionsCache = list;
+    if (App.populateAnalyticsFilters) {
+      App.populateAnalyticsFilters(state.availableSubjects, list);
     }
   };
 
   App.fetchAllSectionsForDropdowns = async function () {
-    const CACHE_KEY = 'sp_sections_cache_' + (App.state.currentTeacher?.id || 'anon');
+    const CACHE_KEY = sectionsCacheKey();
     const TTL_MS = 5 * 60 * 1000;
 
     try {
@@ -164,7 +193,7 @@
       sessionStorage.setItem(CACHE_KEY, JSON.stringify({ sections, cachedAt: Date.now() }));
       App.populateSectionDropdownsUI(sections);
     } catch (e) {
-      console.warn("Could not load sections; using fallback.", e);
+      console.warn("Could not load sections.", e);
       App.populateSectionDropdownsUI([]);
     }
   };
@@ -383,13 +412,11 @@ App.handleSaveSubject = async function () {
   let succeeded = false;
 
   await App.withButtonLoading(btn, async () => {
-    // First attempt — ask server to check for orphaned data.
     let res = await App.apiCall(
       Object.assign({}, basePayload, { confirmDelete: false }),
       { retries: 1 }
     );
 
-    // Server replied "some categories you removed still have data".
     if (res && res.needsConfirm) {
       const lines = res.deleting
         .filter(d => d.assessments > 0)
@@ -412,7 +439,6 @@ App.handleSaveSubject = async function () {
         return;
       }
 
-      // Second attempt — user confirmed.
       res = await App.apiCall(
         Object.assign({}, basePayload, { confirmDelete: true }),
         { retries: 1 }
@@ -478,7 +504,6 @@ App.handleSaveSubject = async function () {
         App.showToast(res.message || "Failed to delete subject.", "error");
       }
     } finally {
-      // Old buttons were replaced by renderSubjectsListUI; this is defensive
       btns.forEach(b => {
         if (document.contains(b)) {
           b.disabled = false;

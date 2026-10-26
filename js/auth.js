@@ -218,7 +218,7 @@
     App.invalidateAllCache();
     
     sessionStorage.removeItem('sp_subjects_cache');
-    sessionStorage.removeItem('sp_sections_cache');
+    if (App.invalidateSectionsCache) App.invalidateSectionsCache();
 
     const loginInput = document.getElementById('login-input');
     if (loginInput) loginInput.value = '';
@@ -235,7 +235,6 @@
     const session = App.loadSession();
     if (!session) return false;
 
-    // Legacy PIN sessions are no longer supported — force re-login with email/password
     if (session.role === 'teacher' && session.pin && !session.sessionToken) {
       App.clearSession();
       return false;

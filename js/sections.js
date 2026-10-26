@@ -5,9 +5,6 @@
 
   let editingOriginalName = '';
 
-  // ============================================================
-  // Render the section list
-  // ============================================================
   App.renderSectionsList = function () {
     const list = document.getElementById('sections-list-ui');
     if (!list) return;
@@ -31,9 +28,6 @@
     ).join('');
   };
 
-  // ============================================================
-  // Reset form
-  // ============================================================
   App.resetSectionForm = function () {
     document.getElementById('new-section-input').value = '';
     document.getElementById('editing-original-section').value = '';
@@ -45,9 +39,6 @@
     document.getElementById('section-cancel-edit-btn').classList.add('hidden');
   };
 
-  // ============================================================
-  // Prepare edit
-  // ============================================================
   App.prepareEditSection = function (name) {
     document.getElementById('new-section-input').value = name;
     document.getElementById('editing-original-section').value = name;
@@ -61,9 +52,6 @@
     document.getElementById('new-section-input').select();
   };
 
-  // ============================================================
-  // Save (add or rename)
-  // ============================================================
   App.handleSaveSection = async function () {
     const btn = document.getElementById('section-submit-btn');
     const name = document.getElementById('new-section-input').value.trim();
@@ -92,7 +80,7 @@
 
       if (res.sections) {
         state.sectionsCache = res.sections;
-        sessionStorage.removeItem('sp_sections_cache');
+        App.invalidateSectionsCache();   // ← was: sessionStorage.removeItem('sp_sections_cache')
       }
 
       App.populateSectionDropdownsUI(state.sectionsCache);
@@ -102,15 +90,11 @@
       succeeded = true;
     }, { text: 'Saving...' });
 
-    // Reset only AFTER withButtonLoading finishes restoring the button
     if (succeeded) {
       App.resetSectionForm();
     }
   };
 
-  // ============================================================
-  // Delete
-  // ============================================================
   App.handleDeleteSection = async function (name) {
     if (!confirm("Delete section '" + name + "'?\n\nStudents already assigned to this section will not be affected, but no new students can be enrolled into it.\n\nProceed?")) return;
 
@@ -133,7 +117,7 @@
 
       if (res.sections) {
         state.sectionsCache = res.sections;
-        sessionStorage.removeItem('sp_sections_cache');
+        App.invalidateSectionsCache();   // ← was: sessionStorage.removeItem('sp_sections_cache')
       }
 
       App.populateSectionDropdownsUI(state.sectionsCache);

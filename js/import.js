@@ -27,13 +27,10 @@
     // POPULATE SECTIONS DROPDOWN
     const secSelect = document.getElementById('import-section');
     if (secSelect) {
-      sessionStorage.removeItem('sp_sections_cache');
+      App.invalidateSectionsCache();
       secSelect.innerHTML = '<option value="">Loading sections...</option>';
-      
-      App.fetchAllSectionsForDropdowns().then(() => {
-        secSelect.innerHTML = '<option value="">Select a section...</option>' + 
-          (state.sectionsCache || []).map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
-      });
+      App.fetchAllSectionsForDropdowns();
+      // populateSectionDropdownsUI (called inside fetchAllSectionsForDropdowns) handles import-section
     }
 
     // SMART MODAL LOGIC

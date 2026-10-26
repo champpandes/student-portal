@@ -88,7 +88,7 @@
     }
 
     if (tabName === 'sections') {
-      sessionStorage.removeItem('sp_sections_cache');
+      App.invalidateSectionsCache();   // ← was: sessionStorage.removeItem('sp_sections_cache')
       if (App.fetchAllSectionsForDropdowns) {
         App.fetchAllSectionsForDropdowns().then(() => {
           if (App.renderSectionsList) App.renderSectionsList();
@@ -175,7 +175,6 @@
     const list = Object.values(uniqueStudents);
     list.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Populate Section Filter
     const sections = [...new Set(list.map(s => s.section))].sort();
     const secFilter = document.getElementById('roster-section-filter');
     if (secFilter) {
@@ -184,7 +183,6 @@
       if (sections.includes(curr)) secFilter.value = curr;
     }
 
-    // Populate Bulk Subject Dropdown
     const bulkSubj = document.getElementById('bulk-subject-select');
     if (bulkSubj) {
       bulkSubj.innerHTML = '<option value="">Select subject to enroll...</option>' + state.availableSubjects.map(s => `<option value="${App.esc(s)}">${App.esc(s)}</option>`).join('');
@@ -230,7 +228,6 @@
       else row.classList.add('hidden');
     });
 
-    // Uncheck hidden boxes
     document.getElementById('roster-select-all').checked = false;
     document.querySelectorAll('.roster-checkbox').forEach(cb => cb.checked = false);
     App.updateBulkActionBar();
@@ -266,7 +263,6 @@
       }, { retries: 1 });
 
       if (res.success) {
-        // Show the dynamic message from the server (handles partial success)
         App.showToast(res.message || `Successfully enrolled ${res.processed} students.`);
         App.loadRoster();
       } else {
@@ -777,7 +773,7 @@
     document.getElementById('new-student-name').value = '';
     
     // Force a fresh fetch of sections so the dropdown is always up-to-date
-    sessionStorage.removeItem('sp_sections_cache');
+    App.invalidateSectionsCache();
     await App.fetchAllSectionsForDropdowns();
     
     document.getElementById('new-student-section').value = '';
@@ -797,14 +793,19 @@
     
     const isAdmin = state.currentTeacher && state.currentTeacher.role === 'super_admin';
     const secEl = document.getElementById('new-student-section');
-    const sec = secEl ? secEl.value : '';
+    const sec = secEl ? secEl.value.trim() : '';
 
-    if (!id || !name || (isAdmin && !sec)) {
-      App.showToast("Fill all required fields.", "error");
+    if (!id || !name) {
+      App.showToast("Fill in the student number and name.", "error");
       return;
     }
 
-    let succeeded = false;
+    // Admin must pick a section (adds directly to pool).
+    // Teacher's section is optional — captured as a suggestion for admin.
+    if (isAdmin && !sec) {
+      App.showToast("Create a section first (Sections tab), then select it here.", "error");
+      return;
+    }
 
     await App.withButtonLoading(btn, async () => {
       const res = await App.apiCall({
@@ -812,7 +813,7 @@
         studentData: { 
           studentNumber: id, 
           name: name, 
-          section: isAdmin ? sec : 'Pending Assignment', 
+          section: sec || 'Pending Assignment',
           enrolledSubjects: [] 
         }
       }, { retries: 1 });
@@ -824,7 +825,6 @@
         await App.loadAdminDashboard();
         if (App.loadRoster) await App.loadRoster();
         App.updateLastSavedTimestamp();
-        succeeded = true;
       } else {
         App.showToast(res.message || "Failed to save new student.", "error");
       }

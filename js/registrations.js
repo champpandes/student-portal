@@ -112,14 +112,25 @@
     const sel = document.getElementById('approve-student-section');
     sel.innerHTML = '<option value="">Loading sections...</option>';
 
-    // FIX: Force fetch the latest sections before opening the modal
-    sessionStorage.removeItem('sp_sections_cache');
-    await App.fetchAllSectionsForDropdowns();
-    
-    const sections = state.sectionsCache || [];
-    sel.innerHTML = '<option value="">Select section...</option>' +
-      sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
-    sel.value = item.section && sections.indexOf(item.section) !== -1 ? item.section : '';
+    // Always fetch fresh — no cache for critical approvals
+    let sections = [];
+    try {
+      const res = await App.apiCall({ action: "getSections" });
+      sections = Array.isArray(res) ? res : (res && res.sections ? res.sections : []);
+      state.sectionsCache = sections;
+      App.invalidateSectionsCache();
+      App.populateSectionDropdownsUI(sections);
+    } catch (e) {
+      console.warn("Failed to load sections for approval:", e);
+    }
+
+    if (sections.length === 0) {
+      sel.innerHTML = '<option value="">No sections yet — create one in the Sections tab first</option>';
+    } else {
+      sel.innerHTML = '<option value="">Select section...</option>' +
+        sections.map(s => '<option value="' + App.esc(s) + '">' + App.esc(s) + '</option>').join('');
+      sel.value = item.section && sections.indexOf(item.section) !== -1 ? item.section : '';
+    }
 
     App.openModal(document.getElementById('approve-modal'));
   };
@@ -127,11 +138,20 @@
   App.confirmApproval = async function () {
     const btn = document.getElementById('confirm-approve-btn');
     const studentNumber = document.getElementById('approve-pending-student-number').value;
-    const section = document.getElementById('approve-student-section').value.trim();
+    const sel = document.getElementById('approve-student-section');
+    const section = sel.value.trim();
     
     const errorBox = document.getElementById('approve-error');
     errorBox.classList.add('hidden');
     errorBox.textContent = '';
+
+    // Detect empty dropdown (no sections exist at all)
+    const realOptions = Array.from(sel.options).filter(o => o.value !== '').length;
+    if (realOptions === 0) {
+      errorBox.textContent = 'No sections exist yet. Create one in the Sections tab first.';
+      errorBox.classList.remove('hidden');
+      return;
+    }
 
     if (!section) {
       errorBox.textContent = 'Please select a section.';
