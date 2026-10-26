@@ -88,7 +88,7 @@
     }
 
     if (tabName === 'sections') {
-      App.invalidateSectionsCache();   // ← was: sessionStorage.removeItem('sp_sections_cache')
+      App.invalidateSectionsCache();
       if (App.fetchAllSectionsForDropdowns) {
         App.fetchAllSectionsForDropdowns().then(() => {
           if (App.renderSectionsList) App.renderSectionsList();
@@ -682,6 +682,10 @@
         document.getElementById('panel-subject-label').textContent = newSubject;
         App.showToast("Profile updated.");
         App.updateLastSavedTimestamp();
+        
+        // FIX: Update the snapshot so it doesn't think you have unsaved changes
+        App.snapshotModal(document.getElementById('slide-panel'));
+        
       } else {
         App.showToast(res.message || "Failed to save.", "error");
       }
@@ -706,6 +710,9 @@
         App.invalidateActiveCache();
         if (App.loadRoster) await App.loadRoster();
         await App.loadAdminDashboard();
+        
+        // FIX: Update snapshot before closing
+        App.snapshotModal(document.getElementById('slide-panel'));
         App.closeSlidePanel();
       } else {
         App.showToast(res.message || "Failed to update.", "error");
@@ -737,6 +744,10 @@
         if (App.loadRoster) await App.loadRoster();
         App.showToast("Grades saved.");
         App.updateLastSavedTimestamp();
+        
+        // FIX: Update the snapshot
+        App.snapshotModal(document.getElementById('slide-panel'));
+        
       } else {
         App.showToast(res.message || "Failed to save.", "error");
       }
@@ -772,7 +783,6 @@
     document.getElementById('new-student-id').value = '';
     document.getElementById('new-student-name').value = '';
     
-    // Force a fresh fetch of sections so the dropdown is always up-to-date
     App.invalidateSectionsCache();
     await App.fetchAllSectionsForDropdowns();
     
@@ -800,8 +810,6 @@
       return;
     }
 
-    // Admin must pick a section (adds directly to pool).
-    // Teacher's section is optional — captured as a suggestion for admin.
     if (isAdmin && !sec) {
       App.showToast("Create a section first (Sections tab), then select it here.", "error");
       return;

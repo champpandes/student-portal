@@ -9,6 +9,7 @@
   state._crCollapsed = {};
   state._crCategoryPages = {};
   state._crActiveCategoryId = null;
+  state._crBlankFilter = null; // Tracks if we are filtering for blanks in an assessment
 
   App.populateClassRecordFilters = async function () {
     const sel = document.getElementById('cr-subject');
@@ -51,6 +52,7 @@
       state._crFilters.section = 'All';
       state._crCollapsed = {};
       state._crCategoryPages = {};
+      state._crBlankFilter = null;
       
       if (res.categories && res.categories.length > 0) {
         state._crActiveCategoryId = String(res.categories[0].id);
@@ -84,6 +86,7 @@
 
   App.crSetActiveCategory = function (categoryId) {
     state._crActiveCategoryId = String(categoryId);
+    state._crBlankFilter = null; // Reset filter on category change
     App.renderClassRecord();
   };
 
@@ -206,13 +209,15 @@
 
   App._crFilterSummary = function (visible, total) {
     const f = state._crFilters;
-    const hasFilter = f.search || (f.section && f.section !== 'All');
+    const hasFilter = f.search || (f.section && f.section !== 'All') || state._crBlankFilter;
     if (!hasFilter) return '';
-    return '<div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-xs font-bold text-indigo-700 mb-4">' +
-      'Showing <b>' + visible + '</b> of <b>' + total + '</b> students' +
-      (f.search ? ' · Search: "' + App.esc(f.search) + '"' : '') +
-      (f.section && f.section !== 'All' ? ' · Section: ' + App.esc(f.section) : '') +
-      '</div>';
+    
+    let msg = 'Showing <b>' + visible + '</b> of <b>' + total + '</b> students';
+    if (state._crBlankFilter) msg += ' · <span class="text-rose-600 font-black">Filtering Blanks</span>';
+    if (f.search) msg += ' · Search: "' + App.esc(f.search) + '"';
+    if (f.section && f.section !== 'All') msg += ' · Section: ' + App.esc(f.section);
+
+    return '<div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-xs font-bold text-indigo-700 mb-4">' + msg + '</div>';
   };
 
   App._crCategoryPaginationUI = function (categoryId, currentPage, totalPages) {
@@ -261,14 +266,23 @@
       return (Math.round((got / total) * 100 * 100) / 100).toFixed(2);
     };
 
-    const total = allStudents.length;
+    // Apply Blank Filter if active
+    let displayStudents = allStudents;
+    if (state._crBlankFilter) {
+      displayStudents = allStudents.filter(stu => {
+        const val = scoreMap[state._crBlankFilter + '|' + stu.student_number];
+        return (val === undefined || val === null || val === '');
+      });
+    }
+
+    const total = displayStudents.length;
     const pageSize = state._crPageSize;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     let page = Number(state._crCategoryPages[catId] || 1);
     if (page > totalPages) page = totalPages;
     state._crCategoryPages[catId] = page;
     const startIdx = (page - 1) * pageSize;
-    const students = allStudents.slice(startIdx, startIdx + pageSize);
+    const students = displayStudents.slice(startIdx, startIdx + pageSize);
 
     let html = '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">';
 
@@ -291,14 +305,16 @@
       html += '<th style="position: sticky; left: 0; z-index: 20;" class="p-3 min-w-[180px] bg-slate-50 border-b border-r border-slate-200 shadow-[1px_0_0_0_#e2e8f0]">Student</th>';
 
       assessments.forEach(a => {
-        html += '<th class="p-3 text-center min-w-[100px] bg-slate-50 border-b border-slate-200">' +
+        html += '<th class="p-3 text-center min-w-[120px] bg-slate-50 border-b border-slate-200">' +
           '<div class="flex flex-col items-center gap-1">' +
             '<span class="text-slate-700 text-xs font-black normal-case">' + App.esc(a.name) + '</span>' +
             '<span class="text-[10px] text-slate-400 font-bold">/' + App.esc(a.total_points) + '</span>' +
             '<div class="flex items-center gap-1 mt-1">' +
               '<button type="button" data-action="edit-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" data-category-id="' + a.category_id + '" data-category-name="' + App.esc(cat.name) + '" class="text-[10px] text-slate-500 hover:text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">Edit</button>' +
               '<button type="button" data-action="delete-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50">×</button>' +
-              '<button type="button" data-action="bulk-scores" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" class="text-[10px] text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">📋 Paste</button>' +
+              '<button type="button" data-action="bulk-scores" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" class="text-[10px] text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">📋</button>' +
+              '<button type="button" data-action="filter-blanks" data-id="' + a.id + '" class="text-[10px] font-bold px-1.5 py-0.5 rounded ' + (state._crBlankFilter === a.id ? 'bg-rose-100 text-rose-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200') + '" title="Show Blanks Only">🔍</button>' +
+              '<button type="button" data-action="fill-zeros" data-id="' + a.id + '" class="text-[10px] text-amber-600 hover:text-amber-800 font-bold px-1.5 py-0.5 rounded hover:bg-amber-50" title="Fill Blanks with 0">🪄</button>' +
             '</div>' +
           '</div>' +
         '</th>';
@@ -455,6 +471,46 @@
     }
   };
 
+  App.crFillZeros = async function (assessmentId) {
+    const rec = state._classRecord;
+    if (!rec) return;
+    
+    const studentsToFill = [];
+    rec.students.forEach(stu => {
+      const scoreObj = rec.scores.find(s => s.assessment_id === assessmentId && s.student_number === stu.student_number);
+      if (!scoreObj || scoreObj.score === '' || scoreObj.score === null) {
+        studentsToFill.push(stu.student_number);
+      }
+    });
+
+    if (studentsToFill.length === 0) {
+      return App.showToast("No blank scores found for this assessment.", "info");
+    }
+
+    if (!confirm(`Fill 0 for ${studentsToFill.length} students who have blank scores?`)) return;
+
+    const items = studentsToFill.map(sNo => ({ assessmentId, studentNumber: sNo, score: 0 }));
+    
+    // Optimistic UI update
+    items.forEach(i => {
+      const idx = rec.scores.findIndex(s => s.assessment_id === i.assessmentId && s.student_number === i.studentNumber);
+      if (idx >= 0) rec.scores[idx].score = 0;
+      else rec.scores.push(i);
+    });
+    
+    // If filter is active, clear it so they can see the zeros
+    if (state._crBlankFilter === assessmentId) state._crBlankFilter = null;
+    App.renderClassRecord();
+    
+    const res = await App.apiCall({ action: 'saveScoresBatch', pin: state.adminPin, items });
+    if (!res.success) {
+      App.showToast("Failed to save some scores.", "error");
+      App.loadClassRecord(); // Reload to fix state
+    } else {
+      App.showToast(`Filled 0 for ${items.length} students.`);
+    }
+  };
+
   App.applyClassRecord = async function () {
     const subject = document.getElementById('cr-subject').value;
     const quarter = document.getElementById('cr-quarter').value;
@@ -487,12 +543,10 @@
     App.openModal(document.getElementById('bulk-scores-modal'));
   };
 
-  // Helper: split text into rows and columns based on the most likely delimiter
   function parsePastedData(text) {
     const lines = text.split('\n').filter(l => l.trim());
     if (lines.length === 0) return [];
 
-    // Detect delimiter by counting characters in the first few lines
     const delims = ['\t', ',', ';', '|'];
     let bestDelim = '\t';
     let bestCount = 0;
@@ -503,7 +557,6 @@
     });
 
     return lines.map(line => {
-      // Basic CSV split handling quotes (e.g. "Dela Cruz, Juan")
       const out = [];
       let cell = '';
       let inQuotes = false;
@@ -519,7 +572,6 @@
     });
   }
 
-  // Triggered when the user types/pastes into the textarea
   App.parseBulkText = function () {
     const text = document.getElementById('bulk-scores-input').value;
     if (!text.trim()) {
@@ -539,7 +591,6 @@
     const mapScore = document.getElementById('bulk-map-score');
     const mapIdentity = document.getElementById('bulk-map-identity');
     
-    // Populate Dropdowns
     let optionsHTML = '';
     for (let i = 0; i < maxCols; i++) {
       optionsHTML += '<option value="' + i + '">Column ' + (i + 1) + '</option>';
@@ -547,7 +598,6 @@
     mapScore.innerHTML = optionsHTML;
     mapIdentity.innerHTML = optionsHTML;
 
-    // Smart Auto-Detection
     const maxPoints = Number(document.getElementById('bulk-scores-assessment-name').dataset.total);
     let scoreColScores = new Array(maxCols).fill(0);
     let identityColScores = new Array(maxCols).fill(0);
@@ -557,29 +607,24 @@
         const val = String(r[col] || '').trim();
         if (!val) continue;
 
-        // Check if it looks like a score (pure number, or fraction like 20/30)
-        // Matches "20", "20.5", "20/30", "20 / 30"
         if (/^\d+(\.\d+)?\s*(\/\s*\d+(\.\d+)?)?$/.test(val)) {
            const numMatch = val.match(/^(\d+(\.\d+)?)/);
-           // Ensure the number is within the max points limit (prevents matching student IDs)
            if (numMatch && Number(numMatch[1]) <= maxPoints) {
               scoreColScores[col] += 10;
            }
         } else if (/[a-zA-Z]/.test(val)) {
-           scoreColScores[col] -= 10; // Letters mean it's definitely not a score
+           scoreColScores[col] -= 10; 
         }
 
-        // Check if it looks like an identity (Name or ID)
         if (/[a-zA-Z]/.test(val)) {
-           identityColScores[col] += 10; // Has letters, likely a name
+           identityColScores[col] += 10; 
         }
         if (/\d+-\d+/.test(val)) {
-           identityColScores[col] += 5; // Has dashes with numbers, likely an ID like 26-02439
+           identityColScores[col] += 5; 
         }
       }
     });
     
-    // Find the best score column
     let bestScoreIdx = 0;
     let maxScoreVal = -Infinity;
     for (let col = 0; col < maxCols; col++) {
@@ -589,11 +634,10 @@
        }
     }
     
-    // Find the best identity column
     let bestIdIdx = 0;
     let maxIdVal = -Infinity;
     for (let col = 0; col < maxCols; col++) {
-       if (col === bestScoreIdx) continue; // Don't pick the same column
+       if (col === bestScoreIdx) continue; 
        if (identityColScores[col] > maxIdVal) {
           maxIdVal = identityColScores[col];
           bestIdIdx = col;
@@ -604,9 +648,40 @@
     mapIdentity.value = bestIdIdx;
 
     document.getElementById('bulk-scores-mapping').classList.remove('hidden');
-    document.getElementById('bulk-scores-preview-container').classList.add('hidden'); // Hide old preview if they change data
+    document.getElementById('bulk-scores-preview-container').classList.add('hidden'); 
     document.getElementById('bulk-scores-preview-btn').classList.remove('hidden');
     document.getElementById('bulk-scores-save-btn').classList.add('hidden');
+  };
+
+  App._findStudentMatch = function(textToSearch, roster) {
+    if (!textToSearch) return null;
+    
+    const cleanTarget = String(textToSearch).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanTarget.length < 3) return null;
+
+    const targetWords = String(textToSearch).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1);
+
+    return roster.find(s => {
+      const sNoRaw = String(s.student_number).toLowerCase();
+      const sNameRaw = String(s.name).toLowerCase();
+      const cleanName = sNameRaw.replace(/[^a-z0-9]/g, '');
+      const cleanNo = sNoRaw.replace(/[^a-z0-9]/g, '');
+
+      if (cleanTarget === cleanNo) return true;
+      if (cleanTarget === cleanName) return true;
+      
+      if (cleanNo.length > 3 && cleanTarget.includes(cleanNo)) return true;
+      if (cleanName.length > 3 && cleanTarget.includes(cleanName)) return true;
+      if (cleanTarget.length > 3 && cleanName.includes(cleanTarget)) return true;
+
+      if (targetWords.length > 0) {
+        const sWordsStr = sNameRaw.replace(/[^a-z0-9 ]/g, ' ');
+        const matchesAllWords = targetWords.every(w => sWordsStr.includes(w));
+        if (matchesAllWords) return true;
+      }
+
+      return false;
+    });
   };
 
   App.previewBulkScores = function () {
@@ -630,9 +705,8 @@
       const scoreStr = cols[scoreIdx];
       const identityStr = cols[identityIdx];
 
-      if (!scoreStr || !identityStr) return; // Skip empty rows
+      if (!scoreStr || !identityStr) return; 
 
-      // Extract first number from fraction (e.g., "20 / 30" -> 20, or just "20" -> 20)
       const scoreMatch = String(scoreStr).match(/([0-9.]+)/);
       const score = scoreMatch ? Number(scoreMatch[1]) : NaN;
 
@@ -641,17 +715,12 @@
         return;
       }
 
-      const cleanId = identityStr.toLowerCase().replace(/\s+/g, ' ');
-
-      // Smart Match: Find by ID or Name (includes reverse-check for middle initials/spaces)
-      let student = roster.find(s => {
-        const sNo = String(s.student_number).toLowerCase();
-        const sName = String(s.name).toLowerCase().replace(/\s+/g, ' ');
-        return sNo === cleanId || 
-               sName === cleanId || 
-               (sName.length > 4 && cleanId.includes(sName)) || 
-               (cleanId.length > 4 && sName.includes(cleanId));
-      });
+      let student = App._findStudentMatch(identityStr, roster);
+      
+      if (!student) {
+        const fallbackText = cols.filter((_, i) => i !== scoreIdx).join(' ');
+        student = App._findStudentMatch(fallbackText, roster);
+      }
 
       if (student) {
         matched.push({ student, score });
@@ -709,7 +778,6 @@
         App.showToast('Successfully saved ' + payload.length + ' scores.');
         App.closeModal(document.getElementById('bulk-scores-modal'));
         
-        // Update in-memory state and re-render
         if (state._classRecord && state._classRecord.scores) {
           payload.forEach(p => {
             const idx = state._classRecord.scores.findIndex(s => s.assessment_id === p.assessmentId && s.student_number === p.studentNumber);

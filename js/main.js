@@ -314,6 +314,22 @@
         return;
       }
 
+      // NEW: Show blanks filter
+      const blankBtn = e.target.closest('button[data-action="filter-blanks"]');
+      if (blankBtn) {
+        const id = Number(blankBtn.dataset.id);
+        state._crBlankFilter = (state._crBlankFilter === id) ? null : id;
+        App.renderClassRecord();
+        return;
+      }
+
+      // NEW: Fill zeros
+      const fillBtn = e.target.closest('button[data-action="fill-zeros"]');
+      if (fillBtn) {
+        App.crFillZeros(Number(fillBtn.dataset.id));
+        return;
+      }
+
       const tabBtn = e.target.closest('button[data-action="switch-category"]');
       if (tabBtn) {
         App.crSetActiveCategory(tabBtn.dataset.categoryId);
@@ -334,11 +350,11 @@
       if (e.target.classList.contains('cr-score-input')) App.saveScoreInline(e.target);
     });
 
-    // NEW: Press Enter to save and move to the next student in the same column
+    // Press Enter to save and move to the next student in the same column
     document.getElementById('cr-body').addEventListener('keydown', (e) => {
       if (e.target.classList.contains('cr-score-input')) {
         if (e.key === 'Enter' || e.key === 'NumpadEnter') {
-          e.preventDefault(); // Stop any form submission or default behavior
+          e.preventDefault();
           
           const currentInput = e.target;
           const assessmentId = currentInput.dataset.assessmentId;
@@ -346,7 +362,6 @@
           
           let nextRow = currentRow.nextElementSibling;
           
-          // Skip any weird rows that don't have score inputs
           while (nextRow && !nextRow.querySelector('.cr-score-input')) {
              nextRow = nextRow.nextElementSibling;
           }
@@ -354,12 +369,11 @@
           if (nextRow) {
             const nextInput = nextRow.querySelector(`.cr-score-input[data-assessment-id="${assessmentId}"]`);
             if (nextInput) {
-              currentInput.blur(); // This triggers the existing focusout event to save the score
-              nextInput.focus();   // Move focus to the next student
-              nextInput.select();  // Highlight the current value (if any) so typing overwrites it
+              currentInput.blur();
+              nextInput.focus();
+              nextInput.select();
             }
           } else {
-            // If it's the very last student in the list, just blur to save
             currentInput.blur();
           }
         }
@@ -369,7 +383,7 @@
     // Bulk Scores Modal
     document.getElementById('bulk-scores-close-x')?.addEventListener('click', () => App.closeModal(document.getElementById('bulk-scores-modal')));
     document.getElementById('bulk-scores-cancel-btn')?.addEventListener('click', () => App.closeModal(document.getElementById('bulk-scores-modal')));
-    document.getElementById('bulk-scores-input')?.addEventListener('input', App.debounce(App.parseBulkText, 300)); // NEW: Auto-parse on paste
+    document.getElementById('bulk-scores-input')?.addEventListener('input', App.debounce(App.parseBulkText, 300));
     document.getElementById('bulk-scores-preview-btn')?.addEventListener('click', App.previewBulkScores);
     document.getElementById('bulk-scores-save-btn')?.addEventListener('click', App.saveBulkScores);
 
