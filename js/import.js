@@ -382,14 +382,27 @@
 
       App.showToast("Import complete!");
       App.invalidateActiveCache();
-      
-      // Refresh both views so the new students appear immediately
-      await App.loadAdminDashboard();
-      if (App.loadRoster) await App.loadRoster();
-      if (App.loadPendingRegistrations) App.loadPendingRegistrations();
-      
-      App.updateLastSavedTimestamp();
 
+      // 1. Reset the roster filters so the new students aren't hidden by the current view
+      const secFilter = document.getElementById('roster-section-filter');
+      if (secFilter) secFilter.value = 'All';
+      const searchFilter = document.getElementById('roster-search');
+      if (searchFilter) searchFilter.value = '';
+
+      // 2. Refresh everything safely
+      try {
+        await App.loadAdminDashboard();
+      } catch (e) { console.warn("Dashboard refresh failed", e); }
+      
+      try {
+        if (App.loadRoster) await App.loadRoster();
+      } catch (e) { console.warn("Roster refresh failed", e); }
+      
+      try {
+        if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+      } catch (e) { console.warn("Registrations refresh failed", e); }
+
+      App.updateLastSavedTimestamp();
     } catch (error) {
       App.showToast("Import error: " + error.message, "error");
       status.textContent = error.message || "Import failed.";
