@@ -116,11 +116,16 @@
   }
 
   function detectDelimiter(text) {
-    const candidates = ['\t', ',', ';', '|'];
     const lines = String(text || '').split('\n').filter(l => l.trim()).slice(0, 5);
     if (lines.length === 0) return '\t';
 
-    let best = '\t';
+    // NEW: If the pasted text contains a TAB character anywhere, 
+    // it almost certainly came from Excel/Sheets. Force TAB as the delimiter.
+    if (text.includes('\t')) return '\t';
+
+    // Fallback to counting for pure CSV files
+    const candidates = [',', ';', '|'];
+    let best = ',';
     let bestCount = 0;
     candidates.forEach(d => {
       const count = lines.reduce((sum, line) => {
