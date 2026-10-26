@@ -139,8 +139,10 @@
         '<div class="mt-6 pt-4 border-t border-slate-200 text-[9px] sm:text-[10px] text-slate-500">' +
           'Generated: ' + new Date().toLocaleString() +
         '</div>' +
-        '<div class="mt-2 text-[8px] sm:text-[9px] text-slate-400 text-center">' +
-          'Web Application developed by <b>' + App.esc(credit.developer) + '</b> &bull; ' + App.esc(credit.school) +
+        // NEW: Split into two lines
+        '<div class="mt-2 text-[8px] sm:text-[9px] text-slate-400 text-center flex flex-col gap-0.5">' +
+          '<div>Web Application developed by <b>' + App.esc(credit.developer) + '</b></div>' +
+          '<div>' + App.esc(credit.school) + '</div>' +
         '</div>' +
       '</div>';
 
@@ -210,9 +212,9 @@
         '<div style="font-size:10px; color:#666; margin-top:30px; padding-top:10px; border-top:1px solid #ccc;">' +
           'Generated: ' + new Date().toLocaleString() +
         '</div>' +
-        '<div style="font-size:9px; color:#888; margin-top:8px; text-align:center;">' +
-          'Web Application developed by <b>' + App.esc(credit.developer) + '</b>' +
-          ' &bull; ' + App.esc(credit.school) +
+        '<div style="font-size:9px; color:#888; margin-top:8px; text-align:center; display:flex; flex-direction:column; gap:2px;">' +
+          '<div>Web Application developed by <b>' + App.esc(credit.developer) + '</b></div>' +
+          '<div>' + App.esc(credit.school) + '</div>' +
         '</div>' +
       '</div>';
 
