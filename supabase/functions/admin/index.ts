@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
     }
 
     // ==========================================
-    // 2. AUTH CHECK (session token only)
+    // 2. AUTH CHECK
     // ==========================================
     let auth = null;
     if (body.sessionToken) {
@@ -584,7 +584,7 @@ Deno.serve(async (req) => {
         let raw = 0, anyValue = false;
         cats.forEach((c: any) => { const v = valuesById[String(c.id)]; if (v !== "" && v !== null && v !== undefined && !isNaN(v)) { raw += Number(v) * (Number(c.weight) / 100); anyValue = true; } });
         
-        let qScore: any = anyValue ? transmuteGrade(raw) : (row[qKey] !== "" && !isNaN(row[qKey]) ? Number(row[qKey]) : 0);
+        let qScore: any = anyValue ? transmuteGrade(raw) : (row[qKey] !== "" && !isNaN(row[qKey]) ? Number(row[qKey]) : "");
         lastNewTotal = qScore;
 
         const targetLabel = QUARTER_ORDINAL[qNum] || qNum;
@@ -630,27 +630,57 @@ Deno.serve(async (req) => {
         const qw = qwMap[subjName]; const cats = catsBySubject[subjName] || []; let fixed = 0;
         for (const row of bySubject[subjName]) {
           const updates: any = {}; let rowChanged = false;
-          const clamped: any = {};
-          ["q1", "q2", "q3", "q4"].forEach(k => { const v = row[k]; if (v === "" || v === null || v === undefined || isNaN(v)) { clamped[k] = v; return; } const n = Number(v); if (n > 0 && n < 60) { clamped[k] = 60; rowChanged = true; } else { clamped[k] = n; } });
+          const clamped: any = { q1: row.q1, q2: row.q2, q3: row.q3, q4: row.q4 };
+          const qMap = { "1": "q1", "2": "q2", "3": "q3", "4": "q4" };
 
-          if (Array.isArray(row.breakdowns) && row.breakdowns.length > 0) {
-            const newBds: any[] = []; let bdsChanged = false;
+          if (Array.isArray(row.breakdowns)) {
+            const newBds: any[] = [];
             for (const bd of row.breakdowns) {
               const qNum = String(bd.quarter || "").replace(/\D/g, "");
               const normalized = QUARTER_ORDINAL[qNum] || bd.quarter;
               let total = bd.total;
+              let anyValue = false;
+              
               if (cats.length > 0 && bd.categories && typeof bd.categories === "object") {
-                let raw = 0, anyValue = false;
-                cats.forEach((c: any) => { const v = bd.categories[String(c.id)]; if (v !== "" && v !== null && v !== undefined && !isNaN(v)) { raw += Number(v) * (Number(c.weight) / 100); anyValue = true; } });
-                if (anyValue) { const newTotal = transmuteGrade(raw); if (String(newTotal) !== String(total)) { total = newTotal; bdsChanged = true; } }
+                let raw = 0;
+                cats.forEach((c: any) => { 
+                  const v = bd.categories[String(c.id)]; 
+                  if (v !== "" && v !== null && v !== undefined && !isNaN(v) && Number(v) > 0) { 
+                    raw += Number(v) * (Number(c.weight) / 100); 
+                    anyValue = true; 
+                  } 
+                });
+                if (anyValue) { 
+                  const newTotal = transmuteGrade(raw); 
+                  if (String(newTotal) !== String(total)) { total = newTotal; rowChanged = true; } 
+                } else {
+                  if (total !== "") { total = ""; rowChanged = true; }
+                }
               }
-              if (normalized !== bd.quarter) bdsChanged = true;
+              
+              if (normalized !== bd.quarter) rowChanged = true;
               newBds.push({ ...bd, quarter: normalized, total });
+              
+              // Clear the quarter grade if no valid scores in breakdown
+              if (!anyValue) {
+                 const qKey = qMap[qNum];
+                 if (qKey && clamped[qKey] !== "") { clamped[qKey] = ""; rowChanged = true; }
+              }
             }
-            if (bdsChanged) { updates.breakdowns = newBds; rowChanged = true; }
+            if (rowChanged) updates.breakdowns = newBds;
           }
 
-          ["q1", "q2", "q3", "q4"].forEach(k => { if (String(row[k]) !== String(clamped[k])) { updates[k] = String(clamped[k] === "" ? "" : clamped[k]); rowChanged = true; } });
+          // Clamp existing quarter grades
+          ["q1", "q2", "q3", "q4"].forEach(k => { 
+            const v = clamped[k]; 
+            if (v === "" || v === null || v === undefined || isNaN(v) || Number(v) === 0) { 
+              if (String(row[k]) !== "") { updates[k] = ""; rowChanged = true; }
+            } else {
+              const n = Number(v);
+              if (n > 0 && n < 60) { updates[k] = "60"; rowChanged = true; clamped[k] = 60; }
+            }
+          });
+
           const newFinal = computeWeightedFinal(clamped.q1, clamped.q2, clamped.q3, clamped.q4, qw);
           const newRemarks = determineRemarks(newFinal);
           if (String(row.final) !== String(newFinal)) { updates.final = String(newFinal === "" ? "" : newFinal); rowChanged = true; }
@@ -681,12 +711,13 @@ Deno.serve(async (req) => {
         if (scoreRes.ok) scores = await scoreRes.json();
       }
 
-      let enrQ = scopeByTeacher(sb.from("enrollments").select("student_number").eq("subject_name", subject), auth.teacher?.id || null);
-      let studentNumbers = ((await enrQ).data || []).map(e => e.student_number);
-      if (studentNumbers.length === 0) {
-        let gq = scopeByTeacher(sb.from("grades").select("student_number").eq("subject_name", subject), auth.teacher?.id || null);
-        studentNumbers = ((await gq).data || []).map(g => g.student_number);
-      }
+      let enrQ = sb.from("enrollments").select("student_number").eq("subject_name", subject);
+      const enrNumbers = ((await enrQ).data || []).map(e => String(e.student_number));
+      
+      let gq = sb.from("grades").select("student_number").eq("subject_name", subject);
+      const gradeNumbers = ((await gq).data || []).map(g => String(g.student_number));
+
+      const studentNumbers = Array.from(new Set([...enrNumbers, ...gradeNumbers]));
 
       let students: any[] = [];
       if (studentNumbers.length > 0) {

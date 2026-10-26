@@ -150,10 +150,8 @@
       App.loadAdminDashboard();
     });
     document.getElementById('section-filter').addEventListener('change', App.applyAdminFilters);
-
-    document.querySelectorAll('.quarter-pill').forEach(pill => {
-      pill.addEventListener('click', () => App.filterByQuarter(pill.dataset.quarter));
-    });
+    document.getElementById('admin-search').addEventListener('input', App.debounce(App.applyAdminFilters, 250));
+    document.getElementById('admin-sort').addEventListener('change', App.applyAdminFilters);
 
     const handleRowClick = e => {
       const tr = e.target.closest('[data-id][data-subject]');

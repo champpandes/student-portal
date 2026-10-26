@@ -529,15 +529,30 @@
     }
   };
 
-  // ---------- Filters ----------
+  // ---------- Filters (NEW Search & Sort) ----------
   App.applyAdminFilters = function () {
     const search = (document.getElementById('admin-search')?.value || '').toLowerCase().trim();
     const sec = document.getElementById('section-filter').value;
-    const filtered = state.currentAdminData.filter(s =>
-      (s.name.toLowerCase().indexOf(search) !== -1 ||
-       String(s.studentNumber).indexOf(search) !== -1) &&
+    const sort = document.getElementById('admin-sort')?.value || 'name-asc';
+
+    let filtered = state.currentAdminData.filter(s =>
+      (s.name.toLowerCase().indexOf(search) !== -1 || String(s.studentNumber).indexOf(search) !== -1) &&
       (sec === "All" || s.section === sec)
     );
+
+    filtered.sort((a, b) => {
+       if (sort === 'name-asc') return a.name.localeCompare(b.name);
+       if (sort === 'name-desc') return b.name.localeCompare(a.name);
+       if (sort === 'no-asc') return String(a.studentNumber).localeCompare(String(b.studentNumber));
+       if (sort === 'no-desc') return String(b.studentNumber).localeCompare(String(a.studentNumber));
+       if (sort === 'grade-desc') {
+         const aF = Number(a.final) || 0;
+         const bF = Number(b.final) || 0;
+         return bF - aF;
+       }
+       return 0;
+    });
+
     App.renderAdminTable(filtered);
     App.renderAdminMobileCards(filtered);
   };
@@ -556,7 +571,7 @@
     }
   };
 
-  // ---------- Sorting ----------
+  // ---------- Sorting (Table Headers) ----------
   App.sortByStudentNo = function () {
     sortDirNo *= -1;
     state.currentAdminData.sort((a, b) => {
@@ -683,7 +698,6 @@
         App.showToast("Profile updated.");
         App.updateLastSavedTimestamp();
         
-        // FIX: Update the snapshot so it doesn't think you have unsaved changes
         App.snapshotModal(document.getElementById('slide-panel'));
         
       } else {
@@ -711,7 +725,6 @@
         if (App.loadRoster) await App.loadRoster();
         await App.loadAdminDashboard();
         
-        // FIX: Update snapshot before closing
         App.snapshotModal(document.getElementById('slide-panel'));
         App.closeSlidePanel();
       } else {
@@ -745,7 +758,6 @@
         App.showToast("Grades saved.");
         App.updateLastSavedTimestamp();
         
-        // FIX: Update the snapshot
         App.snapshotModal(document.getElementById('slide-panel'));
         
       } else {
