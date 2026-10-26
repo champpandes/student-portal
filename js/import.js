@@ -382,7 +382,12 @@
 
       App.showToast("Import complete!");
       App.invalidateActiveCache();
+      
+      // Refresh both views so the new students appear immediately
       await App.loadAdminDashboard();
+      if (App.loadRoster) await App.loadRoster();
+      if (App.loadPendingRegistrations) App.loadPendingRegistrations();
+      
       App.updateLastSavedTimestamp();
 
     } catch (error) {
