@@ -497,31 +497,36 @@
     const unmatched = [];
 
     lines.forEach(line => {
-      // Extract the score (usually the last number in the line)
+      // 1. Grab the LAST number on the line as the score
       const scoreMatch = line.match(/([0-9.]+)\s*$/);
       if (!scoreMatch) { unmatched.push(line); return; }
       
       const scoreStr = scoreMatch[1];
       const score = Number(scoreStr);
       
-      // Everything before the score is the identifier
+      // 2. Everything before the score is the identifier
       let identifier = line.substring(0, line.length - scoreStr.length).trim();
-      // Remove trailing commas/dashes/spaces
-      identifier = identifier.replace(/[,\-\s]+$/, '').trim();
+      // Clean up any trailing commas, tabs, or spaces
+      identifier = identifier.replace(/[,\-\s\t]+$/, '').trim().toLowerCase();
+      
+      if (!identifier) { unmatched.push(line); return; }
 
-      // Clean identifier for comparison (lowercase, remove extra spaces)
-      const cleanId = identifier.toLowerCase().replace(/\s+/g, ' ');
+      // 3. The Smart Matcher (Checks ID, Name, or both!)
+      let student = roster.find(s => {
+        const sNo = String(s.student_number).toLowerCase();
+        const sName = String(s.name).toLowerCase().replace(/\s+/g, ' ');
 
-      // Try to find the student
-      let student = roster.find(s => 
-        String(s.student_number).toLowerCase() === cleanId || 
-        String(s.name).toLowerCase().replace(/\s+/g, ' ') === cleanId
-      );
+        // Exact match (if they only pasted ID or only Name)
+        if (sNo === identifier || sName === identifier) return true;
 
-      // Fallback: If they pasted "Dela Cruz, Juan 95" but roster has "Dela Cruz, Juan P."
-      if (!student && cleanId.length > 4) {
-        student = roster.find(s => String(s.name).toLowerCase().includes(cleanId));
-      }
+        // If the line contains BOTH name and ID, check if the ID is inside the line
+        if (sNo.length > 3 && identifier.includes(sNo)) return true;
+
+        // Check if the Name is inside the line (e.g., "dela cruz, juan")
+        if (sName.length > 4 && identifier.includes(sName)) return true;
+
+        return false;
+      });
 
       if (student) {
         if (score < 0 || score > maxPoints) {
@@ -563,7 +568,6 @@
       saveBtn.classList.remove('hidden');
       saveBtn.textContent = 'Save ' + matched.length + ' Scores';
       
-      // Save data to a temp state variable
       saveBtn.dataset.payload = JSON.stringify(matched.map(m => ({
         assessmentId: Number(document.getElementById('bulk-scores-assessment-name').dataset.id),
         studentNumber: m.student.student_number,
