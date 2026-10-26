@@ -319,11 +319,45 @@
       const pageBtn = e.target.closest('button[data-cr-cat-page]');
       if (pageBtn) { App.crGotoCategoryPage(Number(pageBtn.dataset.crCatPage), pageBtn.dataset.categoryId); }
     });
+    
     document.getElementById('cr-body').addEventListener('focusin', (e) => {
       if (e.target.classList.contains('cr-score-input')) e.target.dataset.originalValue = e.target.value;
     });
+    
     document.getElementById('cr-body').addEventListener('focusout', (e) => {
       if (e.target.classList.contains('cr-score-input')) App.saveScoreInline(e.target);
+    });
+
+    // NEW: Press Enter to save and move to the next student in the same column
+    document.getElementById('cr-body').addEventListener('keydown', (e) => {
+      if (e.target.classList.contains('cr-score-input')) {
+        if (e.key === 'Enter' || e.key === 'NumpadEnter') {
+          e.preventDefault(); // Stop any form submission or default behavior
+          
+          const currentInput = e.target;
+          const assessmentId = currentInput.dataset.assessmentId;
+          const currentRow = currentInput.closest('tr');
+          
+          let nextRow = currentRow.nextElementSibling;
+          
+          // Skip any weird rows that don't have score inputs
+          while (nextRow && !nextRow.querySelector('.cr-score-input')) {
+             nextRow = nextRow.nextElementSibling;
+          }
+
+          if (nextRow) {
+            const nextInput = nextRow.querySelector(`.cr-score-input[data-assessment-id="${assessmentId}"]`);
+            if (nextInput) {
+              currentInput.blur(); // This triggers the existing focusout event to save the score
+              nextInput.focus();   // Move focus to the next student
+              nextInput.select();  // Highlight the current value (if any) so typing overwrites it
+            }
+          } else {
+            // If it's the very last student in the list, just blur to save
+            currentInput.blur();
+          }
+        }
+      }
     });
 
     // Analytics

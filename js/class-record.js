@@ -417,12 +417,41 @@
 
     if (res.success) {
       input.dataset.originalValue = value;
+      
+      // 1. Update the in-memory state
       if (state._classRecord) {
         const idx = state._classRecord.scores.findIndex(s => s.assessment_id === assessmentId && s.student_number === studentNumber);
         if (idx >= 0) state._classRecord.scores[idx].score = value;
         else state._classRecord.scores.push({ assessment_id: assessmentId, student_number: studentNumber, score: value });
       }
-      App.renderClassRecord();
+
+      // 2. Instantly update ONLY the Average cell for this row (prevents focus loss!)
+      const tr = input.closest('tr');
+      if (tr && state._classRecord) {
+        const activeCatId = state._crActiveCategoryId;
+        const activeAssessments = state._classRecord.assessments.filter(a => String(a.category_id) === String(activeCatId));
+        
+        let got = 0, total = 0;
+        activeAssessments.forEach(a => {
+          const scoreObj = state._classRecord.scores.find(s => String(s.assessment_id) === String(a.id) && s.student_number === studentNumber);
+          if (scoreObj && scoreObj.score !== undefined && scoreObj.score !== null && scoreObj.score !== '') {
+            got += Number(scoreObj.score);
+            total += Number(a.total_points);
+          }
+        });
+        
+        const newAvg = total === 0 ? '-' : (Math.round((got / total) * 100 * 100) / 100).toFixed(2);
+        const avgColor = newAvg === '-' ? 'text-slate-400' : (Number(newAvg) >= 75 ? 'text-emerald-600' : 'text-rose-600');
+        
+        const avgCell = tr.querySelector('td:last-child');
+        if (avgCell) {
+           avgCell.innerHTML = '<span class="font-black text-sm ' + avgColor + '">' + newAvg + '</span>';
+        }
+      }
+      
+      // NOTE: We removed App.renderClassRecord() from here. 
+      // This is what was destroying the input and stealing your focus.
+      
     } else {
       App.showToast(res.message || 'Failed to save score.', 'error');
       input.value = input.dataset.originalValue || '';
