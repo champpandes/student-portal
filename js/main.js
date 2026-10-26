@@ -308,6 +308,12 @@
       const delBtn = e.target.closest('button[data-action="delete-assessment"]');
       if (delBtn) { App.deleteAssessment(Number(delBtn.dataset.id), delBtn.dataset.name); return; }
       
+      const pasteBtn = e.target.closest('button[data-action="bulk-scores"]');
+      if (pasteBtn) {
+        App.openBulkScoresModal(Number(pasteBtn.dataset.id), pasteBtn.dataset.name, pasteBtn.dataset.total);
+        return;
+      }
+
       const tabBtn = e.target.closest('button[data-action="switch-category"]');
       if (tabBtn) {
         App.crSetActiveCategory(tabBtn.dataset.categoryId);
@@ -359,6 +365,12 @@
         }
       }
     });
+
+    // Bulk Scores Modal
+    document.getElementById('bulk-scores-close-x')?.addEventListener('click', () => App.closeModal(document.getElementById('bulk-scores-modal')));
+    document.getElementById('bulk-scores-cancel-btn')?.addEventListener('click', () => App.closeModal(document.getElementById('bulk-scores-modal')));
+    document.getElementById('bulk-scores-preview-btn')?.addEventListener('click', App.previewBulkScores);
+    document.getElementById('bulk-scores-save-btn')?.addEventListener('click', App.saveBulkScores);
 
     // Analytics
     document.getElementById('analytics-subject-filter').addEventListener('change', App.refreshAnalytics);

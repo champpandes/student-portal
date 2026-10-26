@@ -284,7 +284,6 @@
     } else if (students.length === 0) {
       html += '<div class="p-8 text-center text-slate-400 text-sm italic">No students match the current filter.</div>';
     } else {
-      // FIX: Use border-separate and explicit inline styles for sticky columns
       html += '<div class="overflow-x-auto relative"><table class="w-full text-left text-sm border-separate border-spacing-0 min-w-max">';
       html += '<thead><tr class="text-slate-500 text-[10px] font-black uppercase tracking-wider">';
       
@@ -299,6 +298,7 @@
             '<div class="flex items-center gap-1 mt-1">' +
               '<button type="button" data-action="edit-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" data-category-id="' + a.category_id + '" data-category-name="' + App.esc(cat.name) + '" class="text-[10px] text-slate-500 hover:text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">Edit</button>' +
               '<button type="button" data-action="delete-assessment" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50">×</button>' +
+              '<button type="button" data-action="bulk-scores" data-id="' + a.id + '" data-name="' + App.esc(a.name) + '" data-total="' + App.esc(a.total_points) + '" class="text-[10px] text-indigo-600 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-50">📋 Paste</button>' +
             '</div>' +
           '</div>' +
         '</th>';
@@ -449,9 +449,6 @@
         }
       }
       
-      // NOTE: We removed App.renderClassRecord() from here. 
-      // This is what was destroying the input and stealing your focus.
-      
     } else {
       App.showToast(res.message || 'Failed to save score.', 'error');
       input.value = input.dataset.originalValue || '';
@@ -472,6 +469,134 @@
       if (res.success) { App.showToast('Applied to ' + res.updated + ' student(s).'); App.invalidateAllCache(); }
       else App.showToast(res.message || 'Failed to apply.', 'error');
     }, { text: 'Applying...' });
+  };
+
+  // ---------- Bulk Score Paste Logic ----------
+  App.openBulkScoresModal = function (assessmentId, name, totalPoints) {
+    document.getElementById('bulk-scores-assessment-name').textContent = name + ' (Max: ' + totalPoints + ')';
+    document.getElementById('bulk-scores-assessment-name').dataset.id = assessmentId;
+    document.getElementById('bulk-scores-assessment-name').dataset.total = totalPoints;
+    
+    document.getElementById('bulk-scores-input').value = '';
+    document.getElementById('bulk-scores-preview-container').classList.add('hidden');
+    document.getElementById('bulk-scores-preview-btn').classList.remove('hidden');
+    document.getElementById('bulk-scores-save-btn').classList.add('hidden');
+    document.getElementById('bulk-scores-preview-body').innerHTML = '';
+    
+    App.openModal(document.getElementById('bulk-scores-modal'));
+  };
+
+  App.previewBulkScores = function () {
+    const text = document.getElementById('bulk-scores-input').value;
+    const maxPoints = Number(document.getElementById('bulk-scores-assessment-name').dataset.total);
+    if (!text.trim()) return App.showToast("Paste some data first.", "error");
+
+    const lines = text.split('\n').filter(l => l.trim());
+    const roster = state._classRecord.students || [];
+    const matched = [];
+    const unmatched = [];
+
+    lines.forEach(line => {
+      // Extract the score (usually the last number in the line)
+      const scoreMatch = line.match(/([0-9.]+)\s*$/);
+      if (!scoreMatch) { unmatched.push(line); return; }
+      
+      const scoreStr = scoreMatch[1];
+      const score = Number(scoreStr);
+      
+      // Everything before the score is the identifier
+      let identifier = line.substring(0, line.length - scoreStr.length).trim();
+      // Remove trailing commas/dashes/spaces
+      identifier = identifier.replace(/[,\-\s]+$/, '').trim();
+
+      // Clean identifier for comparison (lowercase, remove extra spaces)
+      const cleanId = identifier.toLowerCase().replace(/\s+/g, ' ');
+
+      // Try to find the student
+      let student = roster.find(s => 
+        String(s.student_number).toLowerCase() === cleanId || 
+        String(s.name).toLowerCase().replace(/\s+/g, ' ') === cleanId
+      );
+
+      // Fallback: If they pasted "Dela Cruz, Juan 95" but roster has "Dela Cruz, Juan P."
+      if (!student && cleanId.length > 4) {
+        student = roster.find(s => String(s.name).toLowerCase().includes(cleanId));
+      }
+
+      if (student) {
+        if (score < 0 || score > maxPoints) {
+          unmatched.push(line + " (Score exceeds max: " + maxPoints + ")");
+        } else {
+          matched.push({ student, score });
+        }
+      } else {
+        unmatched.push(line);
+      }
+    });
+
+    const tbody = document.getElementById('bulk-scores-preview-body');
+    tbody.innerHTML = '';
+
+    if (matched.length > 0) {
+      matched.forEach(m => {
+        tbody.insertAdjacentHTML('beforeend', 
+          '<tr class="hover:bg-slate-50">' +
+            '<td class="p-2 border-b border-slate-100"><b>' + App.esc(m.student.student_number) + '</b> - ' + App.esc(m.student.name) + '</td>' +
+            '<td class="p-2 border-b border-slate-100 text-center font-black text-emerald-600">' + m.score + '</td>' +
+          '</tr>'
+        );
+      });
+    }
+
+    if (unmatched.length > 0) {
+      tbody.insertAdjacentHTML('beforeend', 
+        '<tr><td colspan="2" class="p-2 bg-rose-50 text-rose-600 text-xs font-bold">Unmatched lines (check names/IDs or score limits):</td></tr>' +
+        unmatched.map(u => '<tr><td colspan="2" class="p-2 text-rose-400 text-xs font-mono border-b border-rose-100">' + App.esc(u) + '</td></tr>').join('')
+      );
+    }
+
+    document.getElementById('bulk-scores-preview-container').classList.remove('hidden');
+
+    if (matched.length > 0) {
+      document.getElementById('bulk-scores-preview-btn').classList.add('hidden');
+      const saveBtn = document.getElementById('bulk-scores-save-btn');
+      saveBtn.classList.remove('hidden');
+      saveBtn.textContent = 'Save ' + matched.length + ' Scores';
+      
+      // Save data to a temp state variable
+      saveBtn.dataset.payload = JSON.stringify(matched.map(m => ({
+        assessmentId: Number(document.getElementById('bulk-scores-assessment-name').dataset.id),
+        studentNumber: m.student.student_number,
+        score: m.score
+      })));
+    }
+  };
+
+  App.saveBulkScores = async function () {
+    const btn = document.getElementById('bulk-scores-save-btn');
+    const payload = JSON.parse(btn.dataset.payload || '[]');
+    if (payload.length === 0) return;
+
+    await App.withButtonLoading(btn, async () => {
+      const res = await App.apiCall({ action: 'saveScoresBatch', pin: state.adminPin, items: payload }, { retries: 1 });
+      
+      if (res.success) {
+        App.showToast('Successfully saved ' + payload.length + ' scores.');
+        App.closeModal(document.getElementById('bulk-scores-modal'));
+        
+        // Update in-memory state and re-render
+        if (state._classRecord && state._classRecord.scores) {
+          payload.forEach(p => {
+            const idx = state._classRecord.scores.findIndex(s => s.assessment_id === p.assessmentId && s.student_number === p.studentNumber);
+            if (idx >= 0) state._classRecord.scores[idx].score = p.score;
+            else state._classRecord.scores.push({ assessment_id: p.assessmentId, student_number: p.studentNumber, score: p.score });
+          });
+        }
+        App.renderClassRecord();
+      } else {
+        App.showToast(res.message || 'Failed to save scores.', 'error');
+      }
+    }, { text: 'Saving...' });
   };
 
 })(window.App);
